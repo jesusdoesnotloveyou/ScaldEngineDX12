@@ -1,6 +1,7 @@
 #pragma once
 
 #include "D3D12Sample.h"
+#include "ScaldCoreTypes.h"
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
@@ -30,10 +31,19 @@ private:
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
+    ComPtr<ID3D12RootSignature> m_rootSignature;
+
+    D3D12_VIEWPORT m_viewport;
+    D3D12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
+    UINT m_rtvDescriptorSize;
     
+    // App resources.
+    ComPtr<ID3D12Resource> m_vertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+
     // Synchronization objects.
     ComPtr<ID3D12Fence> m_fence;
     UINT m_frameIndex;
@@ -41,7 +51,6 @@ private:
     UINT64 m_fenceValue;
    
     ComPtr<ID3D12PipelineState> m_pipelineState;
-    UINT m_rtvDescriptorSize;
 
     void LoadPipeline();
     void LoadAssets();

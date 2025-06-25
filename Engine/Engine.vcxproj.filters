@@ -17,5 +17,10 @@
     <ClInclude Include="Src\Core\stdafx.h" />
     <ClInclude Include="Src\Core\DXHelper.h" />
     <ClInclude Include="Src\Core\d3dx12.h" />
+    <ClInclude Include="Src\Core\ScaldCoreTypes.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Assets\Shaders\VertexShader.hlsl" />
+    <FxCompile Include="Assets\Shaders\PixelShader.hlsl" />
   </ItemGroup>
 </Project>
