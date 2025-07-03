@@ -7,7 +7,8 @@
 Engine::Engine(UINT width, UINT height, std::wstring name) :
     D3D12Sample(width, height, name),
     m_frameIndex(0),
-    m_rtvDescriptorSize(0)
+    m_rtvDescriptorSize(0),
+    m_dsvDescriptorSize(0)
 {
     m_viewport.TopLeftX = 0.0f;
     m_viewport.TopLeftY = 0.0f;
@@ -110,6 +111,20 @@ void Engine::LoadPipeline()
         ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
         m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+        D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+        dsvHeapDesc.NumDescriptors = FrameCount;
+        dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+        dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+
+        m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+        D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+        srvHeapDesc.NumDescriptors = 1u;
+        srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
     }
 
     // Create frame resources.
@@ -189,7 +204,12 @@ void Engine::LoadAssets()
     }
 
     // Create the command list.
-    ThrowIfFailed(m_device->CreateCommandList(0u, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+    ThrowIfFailed(m_device->CreateCommandList(
+        0u /*Single GPU*/,
+        D3D12_COMMAND_LIST_TYPE_DIRECT,
+        m_commandAllocators[m_frameIndex].Get() /*Must match the command list type*/,
+        m_pipelineState.Get() /*Initial pipeline state*/,
+        IID_PPV_ARGS(&m_commandList)));
 
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
@@ -281,6 +301,44 @@ void Engine::OnDestroy()
     CloseHandle(m_fenceEvent);
 }
 
+void D3D12Sample::ResetTimer()
+{
+    mTimer.Reset();
+}
+
+void D3D12Sample::TickTimer()
+{
+    mTimer.Tick();
+}
+
+void D3D12Sample::CalculateFrameStats()
+{
+    // Code computes the average frames per second, 
+    // and also the average time it takes to render one frame. 
+    // These stats are appended to the window caption bar.
+    static int frameCnt = 0;
+    static float timeElapsed = 0.0f;
+
+    frameCnt++;
+    
+    // Compute averages over one second period.
+    if( (mTimer.TotalTime() - timeElapsed) >= 1.0f )
+    {
+        float fps = (float)frameCnt; // fps = frameCnt / 1
+       
+        float mspf = 1000.0f / fps;
+
+        std::wstring fpsStr = std::to_wstring(fps);
+        std::wstring mspfStr = std::to_wstring(mspf);
+        std::wstring frameStatsWindowText = L" fps: " + fpsStr + L" mspf: " + mspfStr;
+
+        SetCustomWindowText(frameStatsWindowText.c_str());
+        // Reset for next average.
+        frameCnt = 0;
+        timeElapsed += 1.0f;
+    }
+}
+
 void Engine::PopulateCommandList()
 {
     // Command list allocators can only be reset when the associated 
@@ -320,7 +378,6 @@ void Engine::PopulateCommandList()
 // Wait for pending GPU work to complete.
 void Engine::WaitForGPU()
 {
-
     // Schedule a Signal command in the queue.
     ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValues[m_frameIndex]));
    
@@ -329,6 +386,11 @@ void Engine::WaitForGPU()
     WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
 
     m_fenceValues[m_frameIndex]++;
+}
+
+std::vector<UINT8> Engine::GenerateTextureData()
+{
+    return std::vector<UINT8>();
 }
 
 void Engine::MoveToNextFrame()

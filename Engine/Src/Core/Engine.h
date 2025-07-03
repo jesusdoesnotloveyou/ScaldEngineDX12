@@ -2,6 +2,7 @@
 
 #include "D3D12Sample.h"
 #include "ScaldCoreTypes.h"
+#include <vector>
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
@@ -23,26 +24,26 @@ public:
 
 private:
     static const UINT FrameCount = 2;
+    static const UINT TextureWidth = 256u;
+    static const UINT TextureHeight = 256u;
+    static const UINT TexturePixelSize = 4u; // The number of bytes used to represent a pixel in the texture.
 
     // Pipeline objects.
-    ComPtr<IDXGIFactory4> m_factory;
-    ComPtr<IDXGIAdapter1> m_hardwareAdapter;
     ComPtr<ID3D12Device> m_device;
+    ComPtr<IDXGIFactory4> m_factory;
+    ComPtr<ID3D12RootSignature> m_rootSignature;
+    ComPtr<IDXGIAdapter1> m_hardwareAdapter;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
-    ComPtr<ID3D12RootSignature> m_rootSignature;
 
-    D3D12_VIEWPORT m_viewport;
-    D3D12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+    ComPtr<ID3D12DescriptorHeap> m_srvHeap;
+    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
     UINT m_rtvDescriptorSize;
-
-    // App resources.
-    ComPtr<ID3D12Resource> m_vertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+    UINT m_dsvDescriptorSize;
 
     // Synchronization objects.
     ComPtr<ID3D12Fence> m_fence;
@@ -51,10 +52,19 @@ private:
     UINT64 m_fenceValues[FrameCount];
    
     ComPtr<ID3D12PipelineState> m_pipelineState;
+    D3D12_VIEWPORT m_viewport;
+    D3D12_RECT m_scissorRect;
+
+    // App resources.
+    ComPtr<ID3D12Resource> m_vertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+    ComPtr<ID3D12Resource> m_texture;
 
     void LoadPipeline();
     void LoadAssets();
     void PopulateCommandList();
     void MoveToNextFrame();
     void WaitForGPU();
+
+    std::vector<UINT8> GenerateTextureData();
 };

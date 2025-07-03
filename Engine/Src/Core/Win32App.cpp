@@ -46,13 +46,25 @@ int Win32App::Run(D3D12Sample* pSample, HINSTANCE hInstance, int nCmdShow)
 
     // Main sample loop.
     MSG msg = {};
+
+    pSample->ResetTimer();
+
     while (msg.message != WM_QUIT)
     {
         // Process any messages in the queue.
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        if (PeekMessage(&msg, NULL, 0u, 0u, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+        }
+        else
+        {
+            pSample->TickTimer();
+
+            pSample->CalculateFrameStats();
+
+            pSample->OnUpdate();
+            pSample->OnRender();
         }
     }
 
