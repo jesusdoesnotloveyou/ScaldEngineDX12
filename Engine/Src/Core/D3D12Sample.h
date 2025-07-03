@@ -2,6 +2,7 @@
 
 #include "DXHelper.h"
 #include "Win32App.h"
+#include "ScaldTimer.h"
 
 class D3D12Sample
 {
@@ -14,9 +15,22 @@ public:
     virtual void OnRender() = 0;
     virtual void OnDestroy() = 0;
 
+    virtual void OnResize() {}
+    virtual void CreateRtvAndDsvDescriptorHeaps() {}
+
+    // Convenience overrides for handling mouse input.
+    virtual void OnMouseDown(WPARAM btnState, int x, int y) {}
+    virtual void OnMouseUp(WPARAM btnState, int x, int y) {}
+    virtual void OnMouseMove(WPARAM btnState, int x, int y) {}
     // Samples override the event handlers to handle specific messages.
     virtual void OnKeyDown(UINT8 /*key*/) {}
     virtual void OnKeyUp(UINT8 /*key*/) {}
+
+
+    // Timer stuff
+    void ResetTimer();
+    void TickTimer();
+    void CalculateFrameStats();
 
     // Accessors.
     UINT GetWidth() const { return m_width; }
@@ -49,4 +63,6 @@ private:
 
     // Window title.
     std::wstring m_title;
+
+    ScaldTimer mTimer;
 };
