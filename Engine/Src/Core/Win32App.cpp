@@ -19,7 +19,7 @@ int Win32App::Run(D3D12Sample* pSample, HINSTANCE hInstance, int nCmdShow)
     windowClass.lpfnWndProc = WindowProc;
     windowClass.hInstance = hInstance;
     windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-    windowClass.lpszClassName = L"D3D12SampleClass";
+    windowClass.lpszClassName = pSample->GetWindowClass();
     RegisterClassEx(&windowClass);
 
     RECT windowRect = { 0, 0, static_cast<LONG>(pSample->GetWidth()), static_cast<LONG>(pSample->GetHeight()) };
@@ -42,36 +42,9 @@ int Win32App::Run(D3D12Sample* pSample, HINSTANCE hInstance, int nCmdShow)
     // Initialize the sample. OnInit is defined in each child-implementation of D3D12Sample.
     pSample->OnInit();
 
-    ShowWindow(m_hwnd, nCmdShow);
+    ShowWindow(m_hwnd, nCmdShow /* The same as SW_SHOW */);
 
-    // Main sample loop.
-    MSG msg = {};
-
-    pSample->ResetTimer();
-
-    while (msg.message != WM_QUIT)
-    {
-        // Process any messages in the queue.
-        if (PeekMessage(&msg, NULL, 0u, 0u, PM_REMOVE))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-        else
-        {
-            pSample->TickTimer();
-
-            pSample->CalculateFrameStats();
-
-            pSample->OnUpdate();
-            pSample->OnRender();
-        }
-    }
-
-    pSample->OnDestroy();
-
-    // Return this part of the WM_QUIT message to Windows.
-    return static_cast<char>(msg.wParam);
+    return pSample->Run();
 }
 
 // Main message handler for the sample.
@@ -81,6 +54,34 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
 
     switch (message)
     {
+    case WM_ACTIVATE:
+    {
+        if (LOWORD(wParam) == WA_INACTIVE)
+        {
+            pSample->Pause();
+        }
+        else
+        {
+            pSample->UnPause();
+        }
+    }
+    return 0;
+
+    // WM_ENTERSIZEMOVE is sent when the user grabs the resize bars.
+    case WM_ENTERSIZEMOVE:
+    {
+        pSample->Resize();
+    }
+    return 0;
+
+    // WM_EXITSIZEMOVE is sent when the user releases the resize bars.
+    // Here we reset everything based on the new window dimensions.
+    case WM_EXITSIZEMOVE:
+    {
+        pSample->OnResize();
+    }
+    return 0;
+
     case WM_CREATE:
     {
         // Save the D3D12Sample* passed in to CreateWindow.
@@ -89,6 +90,7 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
     }
     return 0;
 
+    /* Keyboard */
     case WM_KEYDOWN:
         if (pSample)
         {
@@ -103,13 +105,28 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
         }
         return 0;
 
-    case WM_PAINT:
-        if (pSample)
-        {
-            pSample->OnUpdate();
-            pSample->OnRender();
-        }
-        return 0;
+    /* Mouse */
+    case WM_LBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    {
+        pSample->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+    }
+    return 0;
+
+    case WM_LBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_RBUTTONUP:
+    {
+        pSample->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+    }
+    return 0;
+
+    case WM_MOUSEMOVE:
+    {
+        pSample->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+    }
+    return 0;
 
     case WM_DESTROY:
         PostQuitMessage(0);
