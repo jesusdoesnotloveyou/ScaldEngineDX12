@@ -1,14 +1,12 @@
 #include "stdafx.h"
 #include "Engine.h"
 
-//#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "d3dcompiler.lib")
-
-Engine::Engine(UINT width, UINT height, std::wstring name) :
-    D3D12Sample(width, height, name),
+Engine::Engine(UINT width, UINT height, std::wstring name, std::wstring className) :
+    D3D12Sample(width, height, name, className),
     m_frameIndex(0),
     m_rtvDescriptorSize(0),
-    m_dsvDescriptorSize(0)
+    m_dsvDescriptorSize(0),
+    m_cbvSrvDescriptorSize(0)
 {
     m_viewport.TopLeftX = 0.0f;
     m_viewport.TopLeftY = 0.0f;
@@ -23,6 +21,14 @@ Engine::Engine(UINT width, UINT height, std::wstring name) :
     m_scissorRect.bottom = static_cast<LONG>(height);
 }
 
+Engine::~Engine()
+{
+    if (m_device)
+    {
+        FlushCommandQueue();
+    }
+}
+
 void Engine::OnInit()
 {
     LoadPipeline();
@@ -30,40 +36,15 @@ void Engine::OnInit()
 }
 
 // Load the rendering pipeline dependencies.
-void Engine::LoadPipeline()
+VOID Engine::LoadPipeline()
 {
-    UINT dxgiFactoryFlags = 0;
-
 #if defined(_DEBUG)
     // Enable the debug layer (requires the Graphics Tools "optional feature").
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
-    {
-        ComPtr<ID3D12Debug> debugController;
-        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-        {
-            debugController->EnableDebugLayer();
-
-            // Enable additional debug layers.
-            dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-        }
-    }
+    CreateDebugLayer();
 #endif
 
-    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
-
-    if (m_useWarpDevice)
-    {
-        ComPtr<IDXGIAdapter> warpAdapter;
-        ThrowIfFailed(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-
-        ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
-    }
-    else
-    {
-        GetHardwareAdapter(m_factory.Get(), &m_hardwareAdapter);
-
-        ThrowIfFailed(D3D12CreateDevice(m_hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
-    }
+    CreateDevice();
 
     // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -74,15 +55,17 @@ void Engine::LoadPipeline()
 
     ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
 
+    DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     // Describe and create the swap chain.
+    //DXGI_SWAP_CHAIN_DESC sd;
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-    swapChainDesc.BufferCount = FrameCount;
     swapChainDesc.Width = m_width;
     swapChainDesc.Height = m_height;
-    swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.Format = mBackBufferFormat; // Back buffer format
     swapChainDesc.SampleDesc.Count = 1u;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.BufferCount = FrameCount;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
     ComPtr<IDXGISwapChain1> swapChain;
     ThrowIfFailed(m_factory->CreateSwapChainForHwnd(
@@ -100,31 +83,42 @@ void Engine::LoadPipeline()
     ThrowIfFailed(swapChain.As(&m_swapChain));
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
-    // Descriptor heap has to be created for every GPU resource
     // Create descriptor heaps.
+    // Descriptor heap has to be created for every GPU resource
     {
         // Describe and create a render target view (RTV) descriptor heap.
         D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-        rtvHeapDesc.NumDescriptors = FrameCount;
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+        rtvHeapDesc.NumDescriptors = FrameCount;
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
         m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-        dsvHeapDesc.NumDescriptors = FrameCount;
         dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+        dsvHeapDesc.NumDescriptors = 1u;
         dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        dsvHeapDesc.NodeMask = 0u;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 
+        // useless probably
         m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
         D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-        srvHeapDesc.NumDescriptors = 1u;
         srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        srvHeapDesc.NumDescriptors = 1u;
         srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
+
+        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        cbvHeapDesc.NumDescriptors = 1u;
+        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+
+        // useless probably
+        m_cbvSrvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
     // Create frame resources.
@@ -141,12 +135,61 @@ void Engine::LoadPipeline()
             // Create command allocator for every back buffer
             ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n])));
         }
-    }
+        
+        CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+        dsvDesc.Format;
+        dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+        dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+        //m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), nullptr, dsvHandle);
+    }
+}
+
+VOID Engine::CreateDebugLayer()
+{
+    ComPtr<ID3D12Debug> debugController;
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+    {
+        debugController->EnableDebugLayer();
+
+        // Enable additional debug layers.
+        m_dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+    }
+}
+
+VOID Engine::CreateDevice()
+{
+    ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
+
+    if (m_useWarpDevice)
+    {
+        ComPtr<IDXGIAdapter> warpAdapter;
+        ThrowIfFailed(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+
+        ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
+    }
+    else
+    {
+        GetHardwareAdapter(m_factory.Get(), &m_hardwareAdapter);
+
+        ThrowIfFailed(D3D12CreateDevice(m_hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
+    }
+}
+
+VOID Engine::CreateSwapChain()
+{
+    return VOID();
+}
+
+VOID Engine::CreateCommandObjects()
+{
+    return VOID();
 }
 
 // Load the sample assets.
-void Engine::LoadAssets()
+VOID Engine::LoadAssets()
 {
     // Create an empty root signature.
     {
@@ -270,14 +313,19 @@ void Engine::LoadAssets()
     }
 }
 
+VOID Engine::FlushCommandQueue()
+{
+    
+}
+
 // Update frame-based values.
-void Engine::OnUpdate()
+void Engine::OnUpdate(const ScaldTimer& st)
 {
 
 }
 
 // Render the scene.
-void Engine::OnRender()
+void Engine::OnRender(const ScaldTimer& st)
 {
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList();
@@ -301,54 +349,28 @@ void Engine::OnDestroy()
     CloseHandle(m_fenceEvent);
 }
 
-void D3D12Sample::ResetTimer()
+void D3D12Sample::Resize()
 {
-    mTimer.Reset();
+    mAppPaused = true;
+    mResizing = true;
+    mTimer.Stop();
 }
 
-void D3D12Sample::TickTimer()
+void D3D12Sample::OnResize()
 {
-    mTimer.Tick();
+    mAppPaused = false;
+    mResizing = false;
+    mTimer.Start();
 }
 
-void D3D12Sample::CalculateFrameStats()
+VOID Engine::PopulateCommandList()
 {
-    // Code computes the average frames per second, 
-    // and also the average time it takes to render one frame. 
-    // These stats are appended to the window caption bar.
-    static int frameCnt = 0;
-    static float timeElapsed = 0.0f;
-
-    frameCnt++;
-    
-    // Compute averages over one second period.
-    if( (mTimer.TotalTime() - timeElapsed) >= 1.0f )
-    {
-        float fps = (float)frameCnt; // fps = frameCnt / 1
-       
-        float mspf = 1000.0f / fps;
-
-        std::wstring fpsStr = std::to_wstring(fps);
-        std::wstring mspfStr = std::to_wstring(mspf);
-        std::wstring frameStatsWindowText = L" fps: " + fpsStr + L" mspf: " + mspfStr;
-
-        SetCustomWindowText(frameStatsWindowText.c_str());
-        // Reset for next average.
-        frameCnt = 0;
-        timeElapsed += 1.0f;
-    }
-}
-
-void Engine::PopulateCommandList()
-{
-    // Command list allocators can only be reset when the associated 
-    // command lists have finished execution on the GPU; apps should use 
-    // fences to determine GPU execution progress.
+    // Command list allocators can only be reset when the associated command lists have finished execution on the GPU;
+    // apps should use fences to determine GPU execution progress.
     ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
 
-    // However, when ExecuteCommandList() is called on a particular command 
-    // list, that command list can then be reset at any time and must be before 
-    // re-recording.
+    // However, when ExecuteCommandList() is called on a particular command list,
+    // that command list can then be reset at any time and must be before re-recording.
     ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get()));
 
     // Set necessary state.
@@ -360,11 +382,13 @@ void Engine::PopulateCommandList()
     m_commandList->ResourceBarrier(1u, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
     m_commandList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
 
     // Record commands.
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
+    //m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
     m_commandList->DrawInstanced(3u, 1u, 0u, 0u);
@@ -376,7 +400,7 @@ void Engine::PopulateCommandList()
 }
 
 // Wait for pending GPU work to complete.
-void Engine::WaitForGPU()
+VOID Engine::WaitForGPU()
 {
     // Schedule a Signal command in the queue.
     ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValues[m_frameIndex]));
@@ -388,12 +412,22 @@ void Engine::WaitForGPU()
     m_fenceValues[m_frameIndex]++;
 }
 
+VOID Engine::CreateConstantBuffer()
+{
+
+}
+
+VOID Engine::UpdateConstantBuffer()
+{
+
+}
+
 std::vector<UINT8> Engine::GenerateTextureData()
 {
     return std::vector<UINT8>();
 }
 
-void Engine::MoveToNextFrame()
+VOID Engine::MoveToNextFrame()
 {
     // Schedule a Signal command in the queue.
     const UINT64 currentFenceValue = m_fenceValues[m_frameIndex];
