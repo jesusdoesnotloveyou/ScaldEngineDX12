@@ -3,10 +3,12 @@
 
 using namespace Microsoft::WRL;
 
-D3D12Sample::D3D12Sample(UINT width, UINT height, std::wstring name) :
+D3D12Sample::D3D12Sample(UINT width, UINT height, std::wstring name, std::wstring className)
+    :
     m_width(width),
     m_height(height),
     m_title(name),
+    m_class(className),
     m_useWarpDevice(false)
 {
     WCHAR assetsPath[512];
@@ -18,6 +20,84 @@ D3D12Sample::D3D12Sample(UINT width, UINT height, std::wstring name) :
 
 D3D12Sample::~D3D12Sample()
 {
+}
+
+int D3D12Sample::Run()
+{
+    // Main sample loop.
+    MSG msg = { 0 };
+
+    mTimer.Reset();
+
+    while (msg.message != WM_QUIT)
+    {
+        // Process any messages in the queue.
+        if (PeekMessage(&msg, NULL, 0u, 0u, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        else
+        {
+            mTimer.Tick();
+
+            if (!mAppPaused)
+            {
+                CalculateFrameStats();
+                OnUpdate(mTimer);
+                OnRender(mTimer);
+            }
+            else
+            {
+                Sleep(100);
+            }
+        }
+    }
+
+    OnDestroy();
+
+    // Return this part of the WM_QUIT message to Windows.
+    return static_cast<char>(msg.wParam);
+}
+
+VOID D3D12Sample::Pause()
+{
+    mAppPaused = true;
+    mTimer.Stop();
+}
+
+VOID D3D12Sample::UnPause()
+{
+    mAppPaused = false;
+    mTimer.Start();
+}
+
+void D3D12Sample::CalculateFrameStats()
+{
+    // Code computes the average frames per second, 
+    // and also the average time it takes to render one frame. 
+    // These stats are appended to the window caption bar.
+    static int frameCnt = 0;
+    static float timeElapsed = 0.0f;
+
+    frameCnt++;
+
+    // Compute averages over one second period.
+    if ((mTimer.TotalTime() - timeElapsed) >= 1.0f)
+    {
+        float fps = (float)frameCnt; // fps = frameCnt / 1
+
+        float mspf = 1000.0f / fps;
+
+        std::wstring fpsStr = std::to_wstring(fps);
+        std::wstring mspfStr = std::to_wstring(mspf);
+        std::wstring frameStatsWindowText = L" fps: " + fpsStr + L" mspf: " + mspfStr;
+
+        SetCustomWindowText(frameStatsWindowText.c_str());
+        // Reset for next average.
+        frameCnt = 0;
+        timeElapsed += 1.0f;
+    }
 }
 
 // Helper function for resolving the full path of assets.

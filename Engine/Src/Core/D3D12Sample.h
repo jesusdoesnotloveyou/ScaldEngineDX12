@@ -4,18 +4,25 @@
 #include "Win32App.h"
 #include "ScaldTimer.h"
 
+#pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "D3D12.lib")
+#pragma comment(lib, "dxgi.lib")
+
 class D3D12Sample
 {
 public:
-    D3D12Sample(UINT width, UINT height, std::wstring name);
+    D3D12Sample(UINT width, UINT height, std::wstring name, std::wstring className);
     virtual ~D3D12Sample();
 
+    int Run();
+
     virtual void OnInit() = 0;
-    virtual void OnUpdate() = 0;
-    virtual void OnRender() = 0;
+    virtual void OnUpdate(const ScaldTimer& st) = 0;
+    virtual void OnRender(const ScaldTimer& st) = 0;
     virtual void OnDestroy() = 0;
 
-    virtual void OnResize() {}
+    virtual void Resize();
+    virtual void OnResize();
     virtual void CreateRtvAndDsvDescriptorHeaps() {}
 
     // Convenience overrides for handling mouse input.
@@ -26,16 +33,17 @@ public:
     virtual void OnKeyDown(UINT8 /*key*/) {}
     virtual void OnKeyUp(UINT8 /*key*/) {}
 
+    virtual VOID Pause();
+    virtual VOID UnPause();
 
     // Timer stuff
-    void ResetTimer();
-    void TickTimer();
-    void CalculateFrameStats();
+    virtual void CalculateFrameStats();
 
     // Accessors.
     UINT GetWidth() const { return m_width; }
     UINT GetHeight() const { return m_height; }
     const WCHAR* GetTitle() const { return m_title.c_str(); }
+    const WCHAR* GetWindowClass() const { return m_class.c_str(); }
 
     void ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc);
 
@@ -49,6 +57,8 @@ protected:
 
     void SetCustomWindowText(LPCWSTR text);
 
+    UINT m_dxgiFactoryFlags = 0;
+
     // Viewport dimensions.
     UINT m_width;
     UINT m_height;
@@ -57,12 +67,20 @@ protected:
     // Adapter info.
     bool m_useWarpDevice;
 
+    bool mAppPaused = false;        // is the application paused ?
+    bool mMinimized = false;        // is the application minimized ?
+    bool mMaximized = false;        // is the application maximized ?
+    bool mResizing = false;         // are the resize bars being dragged ?
+    bool mFullscreenState = false;  // fullscreen enabled
+
 private:
     // Root assets path.
     std::wstring m_assetsPath;
 
     // Window title.
     std::wstring m_title;
+    // Window class.
+    std::wstring m_class;
 
     ScaldTimer mTimer;
 };
