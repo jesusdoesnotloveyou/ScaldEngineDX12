@@ -263,18 +263,6 @@ VOID Engine::LoadAssets()
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
     }
 
-    //// Create the command list.
-    //ThrowIfFailed(m_device->CreateCommandList(
-    //    0u /*Single GPU*/,
-    //    D3D12_COMMAND_LIST_TYPE_DIRECT,
-    //    m_commandAllocators[m_frameIndex].Get() /*Must match the command list type*/,
-    //    m_pipelineState.Get() /*Initial pipeline state*/,
-    //    IID_PPV_ARGS(&m_commandList)));
-
-    //// Command lists are created in the recording state, but there is nothing
-    //// to record yet. The main loop expects it to be closed, so close it now.
-    //ThrowIfFailed(m_commandList->Close());
-
     // Create the vertex buffer.
     {
         // Define the geometry for a triangle.
@@ -465,6 +453,7 @@ VOID Engine::PopulateCommandList()
 
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    // The viewport needs to be reset whenever the command list is reset.
     m_commandList->RSSetViewports(1u, &m_viewport);
     m_commandList->RSSetScissorRects(1u, &m_scissorRect);
 
@@ -473,12 +462,12 @@ VOID Engine::PopulateCommandList()
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-    m_commandList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
+    m_commandList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
 
     // Record commands.
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
-    //m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
+    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
     m_commandList->DrawInstanced(3u, 1u, 0u, 0u);
