@@ -29,6 +29,7 @@ private:
     static const UINT TexturePixelSize = 4u; // The number of bytes used to represent a pixel in the texture.
 
     static const UINT FrameCount = 2;
+    static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
     // Pipeline objects.
     ComPtr<IDXGIFactory4> m_factory;
@@ -47,13 +48,13 @@ private:
     ComPtr<ID3D12Resource> m_depthStencilBuffer;
     
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+    UINT m_rtvDescriptorSize;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
+    UINT m_dsvDescriptorSize;
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Texture
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Constant buffer
-
-    UINT m_rtvDescriptorSize;
-    UINT m_dsvDescriptorSize;
     UINT m_cbvSrvDescriptorSize;
+
 
     // Synchronization objects.
     UINT m_frameIndex = 0u; // keep track of front and back buffers (see FrameCount)
@@ -80,10 +81,13 @@ private:
     VOID LoadPipeline();
     VOID CreateDebugLayer();
     VOID CreateDevice();
-    VOID CreateSwapChain();
     VOID CreateCommandObjects();
+    VOID CreateFence();
+    VOID CreateDescriptorHeaps();
+    VOID CreateSwapChain();
     VOID LoadAssets();
     
+    VOID Reset();
     VOID FlushCommandQueue();
 
     VOID PopulateCommandList();
