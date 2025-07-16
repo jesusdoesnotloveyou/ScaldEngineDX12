@@ -57,7 +57,7 @@ protected:
 
     void SetCustomWindowText(LPCWSTR text);
 
-    UINT m_dxgiFactoryFlags = 0;
+    UINT m_dxgiFactoryFlags = 0u;
 
     // Viewport dimensions.
     UINT m_width;
