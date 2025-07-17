@@ -453,27 +453,32 @@ VOID Engine::PopulateCommandList()
 
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    // Indicate that the back buffer will be used as a render target.
+    m_commandList->ResourceBarrier(1u, &transition);
+
     // The viewport needs to be reset whenever the command list is reset.
     m_commandList->RSSetViewports(1u, &m_viewport);
     m_commandList->RSSetScissorRects(1u, &m_scissorRect);
 
-    // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(1u, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-    m_commandList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
 
     // Record commands.
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
     m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
+    m_commandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
+
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
+
     m_commandList->DrawInstanced(3u, 1u, 0u, 0u);
 
+    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1u, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    m_commandList->ResourceBarrier(1u, &transition);
 
     ThrowIfFailed(m_commandList->Close());
 }
