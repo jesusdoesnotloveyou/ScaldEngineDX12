@@ -1,6 +1,7 @@
 #pragma once
 
 #include <DirectXMath.h>
+#include <DirectXColors.h>
 
 using namespace DirectX;
 
@@ -12,9 +13,9 @@ struct Vertex
 
 // Constant buffers
 
-struct SceneConstantBuffer
+struct ObjectConstants
 {
-	XMFLOAT4 offset = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	float pad[60];
+	XMMATRIX gWorldViewProj = XMMatrixIdentity();
+	float pad[48];
 };
-static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
+static_assert((sizeof(ObjectConstants) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
