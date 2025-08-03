@@ -15,6 +15,7 @@
     <ClCompile Include="Src\Core\Engine.cpp" />
     <ClCompile Include="Src\Core\Main.cpp" />
     <ClCompile Include="Src\Core\ScaldTimer.cpp" />
+    <ClCompile Include="Src\Core\ScaldUtil.cpp" />
     <ClCompile Include="Src\Core\stdafx.cpp" />
     <ClCompile Include="Src\Core\Win32App.cpp" />
   </ItemGroup>
@@ -26,21 +27,23 @@
     <ClInclude Include="Src\Core\Engine.h" />
     <ClInclude Include="Src\Core\ScaldCoreTypes.h" />
     <ClInclude Include="Src\Core\ScaldTimer.h" />
+    <ClInclude Include="Src\Core\ScaldUtil.h" />
     <ClInclude Include="Src\Core\stdafx.h" />
+    <ClInclude Include="Src\Core\UploadBuffer.h" />
     <ClInclude Include="Src\Core\Win32App.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\PixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
     </FxCompile>
     <FxCompile Include="Assets\Shaders\VertexShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">

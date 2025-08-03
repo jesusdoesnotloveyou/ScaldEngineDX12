@@ -7,6 +7,7 @@
     <ClCompile Include="Src\Core\D3D12Sample.cpp" />
     <ClCompile Include="Src\Core\Win32App.cpp" />
     <ClCompile Include="Src\Core\stdafx.cpp" />
+    <ClCompile Include="Src\Core\ScaldUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
@@ -18,6 +19,8 @@
     <ClInclude Include="Src\Core\DXHelper.h" />
     <ClInclude Include="Src\Core\d3dx12.h" />
     <ClInclude Include="Src\Core\ScaldCoreTypes.h" />
+    <ClInclude Include="Src\Core\UploadBuffer.h" />
+    <ClInclude Include="Src\Core\ScaldUtil.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\VertexShader.hlsl" />
