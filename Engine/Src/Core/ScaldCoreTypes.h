@@ -15,7 +15,7 @@ struct Vertex
 
 struct ObjectConstants
 {
-	XMMATRIX gWorldViewProj = XMMatrixIdentity();
+	XMFLOAT4X4 gWorldViewProj;
 	float pad[48];
 };
 static_assert((sizeof(ObjectConstants) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
