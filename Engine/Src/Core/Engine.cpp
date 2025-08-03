@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "Engine.h"
+#include "ScaldUtil.h"
+#include "UploadBuffer.h"
 
 Engine::Engine(UINT width, UINT height, std::wstring name, std::wstring className) :
     D3D12Sample(width, height, name, className),
@@ -233,8 +235,8 @@ VOID Engine::LoadAssets()
 
         //auto pixelShaderPath = GetAssetFullPath(L"./PixelShader.hlsl").c_str();
 
-        ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_0", compileFlags, 0u, &vertexShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_0", compileFlags, 0u, &pixelShader, nullptr));
+        ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", compileFlags, 0u, &vertexShader, nullptr));
+        ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1", compileFlags, 0u, &pixelShader, nullptr));
 
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDesc[] =
@@ -265,39 +267,84 @@ VOID Engine::LoadAssets()
 
     // Create the vertex buffer.
     {
-        // Define the geometry for a triangle.
-        Vertex triangleVertices[] =
+        // Define the geometry for a cube.
+        Vertex vertices[] =
         {
-            { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-            { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-            { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+            { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) },
+            { XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) },
+            { XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) },
+            { XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) },
+            { XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) },
+            { XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) },
+            { XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) },
+            { XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) }
         };
 
-        const UINT vertexBufferSize = sizeof(triangleVertices);
-
-        // Note: using upload heaps to transfer static data like vert buffers is not 
-        // recommended. Every time the GPU needs it, the upload heap will be marshalled 
-        // over. Please read up on Default Heap usage. An upload heap is used here for 
-        // code simplicity and because there are very few verts to actually transfer.
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&m_vertexBuffer)));
-
-        // Copy the triangle data to the vertex buffer.
-        UINT8* pVertexDataBegin;
-        CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-        ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-        memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
-        m_vertexBuffer->Unmap(0, nullptr);
-
+        const UINT64 vbByteSize = ARRAYSIZE(vertices) * sizeof(Vertex);
+        ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
+        m_vertexBuffer = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), vertices, vbByteSize, VertexBufferUploader);
+        
         // Initialize the vertex buffer view.
         m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+        m_vertexBufferView.SizeInBytes = vbByteSize;
         m_vertexBufferView.StrideInBytes = sizeof(Vertex);
-        m_vertexBufferView.SizeInBytes = vertexBufferSize;
+
+        // What the fuck?
+        // Copy the triangle data to the vertex buffer.
+        //UINT8* pVertexDataBegin;
+        //CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+        //ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+        //memcpy(pVertexDataBegin, vertices, sizeof(vertices));
+        //m_vertexBuffer->Unmap(0, nullptr);
+    }
+
+    // Create the index buffer.
+    {
+        std::uint16_t indices[] =
+        {
+            0, 1, 2,
+            0, 2, 3,
+
+            4, 6, 5,
+            4, 7, 6,
+
+            4, 5, 1,
+            4, 1, 0,
+
+            3, 2, 6,
+            3, 6, 7,
+
+            1, 5, 6,
+            1, 6, 2,
+
+            4, 0, 3,
+            4, 3, 7
+        };
+
+        const UINT ibByteSize = ARRAYSIZE(indices) * sizeof(uint16_t);
+        ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
+        m_indexBuffer = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), indices, ibByteSize, IndexBufferUploader);
+        
+        m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
+        m_indexBufferView.SizeInBytes = ibByteSize;
+        m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+    }
+    
+    // Create the constant buffer.
+    {
+        // Amount of constant buffers
+        const UINT NumElements = 1u;
+        const UINT elementByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+
+        ComPtr<ID3D12Resource> mUploadCBuffer;
+        m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(elementByteSize* NumElements),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(m_constantBuffer.GetAddressOf()));
+        
     }
 }
 
@@ -399,7 +446,24 @@ VOID Engine::FlushCommandQueue()
 // Update frame-based values.
 void Engine::OnUpdate(const ScaldTimer& st)
 {
+    // Convert Spherical to Cartesian
+    float x = mRadius * sinf(mPhi) * cosf(mTheta);
+    float y = mRadius * sinf(mPhi) * sinf(mTheta);
+    float z = mRadius * cosf(mPhi);
 
+    // View matrix
+    XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
+    XMVECTOR target = XMVectorZero();
+    XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+    //mView = XMMatrixLookAtLH(pos, target, up);
+
+    XMMATRIX wvp = mWorld * mView * mProj;
+
+    // Update constant buffer with the lates wvp matrix
+
+    XMStoreFloat4x4(&m_constantBufferData.gWorldViewProj, XMMatrixTranspose(wvp));
+    //mObjectCB->CopyData(0, m_constantBufferData);
 }
 
 // Render the scene.
@@ -425,6 +489,32 @@ void Engine::OnDestroy()
     WaitForGPU();
 
     CloseHandle(m_fenceEvent);
+}
+
+void Engine::OnMouseMove(WPARAM btnState, int x, int y)
+{
+    if ((btnState & MK_LBUTTON) != 0)
+    {
+        float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
+        float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
+
+        mTheta += dx;
+        mPhi += dy;
+
+        mPhi = Clamp(mPhi, 0.1f, XM_PI - 0.1f);
+    }
+    else if ((btnState & MK_RBUTTON) != 0)
+    {
+        float dx = 0.005f * static_cast<float>(x - mLastMousePos.x);
+        float dy = 0.005f * static_cast<float>(y - mLastMousePos.y);
+
+        mRadius += dx - dy;
+
+        mRadius = Clamp(mRadius, 3.0f, 15.0f);
+    }
+
+    mLastMousePos.x = static_cast<float>(x);
+    mLastMousePos.y = static_cast<float>(y);
 }
 
 void D3D12Sample::Resize()
@@ -473,8 +563,9 @@ VOID Engine::PopulateCommandList()
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
+    m_commandList->IASetIndexBuffer(&m_indexBufferView);
 
-    m_commandList->DrawInstanced(3u, 1u, 0u, 0u);
+    m_commandList->DrawIndexedInstanced(8u, 1u, 0u, 0, 0u);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     // Indicate that the back buffer will now be used to present.
@@ -498,7 +589,7 @@ VOID Engine::WaitForGPU()
 
 VOID Engine::CreateConstantBuffer()
 {
-
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbDesc = {};
 }
 
 VOID Engine::UpdateConstantBuffer()

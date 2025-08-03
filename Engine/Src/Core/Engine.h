@@ -1,7 +1,7 @@
 #pragma once
 
 #include "D3D12Sample.h"
-#include "ScaldCoreTypes.h"
+
 #include <vector>
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
@@ -22,6 +22,8 @@ public:
     virtual void OnUpdate(const ScaldTimer& st) override;
     virtual void OnRender(const ScaldTimer& st) override;
     virtual void OnDestroy() override;
+
+    virtual void OnMouseMove(WPARAM btnState, int x, int y) override;
 
 private:
     static const UINT TextureWidth = 256u;
@@ -48,8 +50,8 @@ private:
     ComPtr<ID3D12Resource> m_depthStencilBuffer;
     
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-    UINT m_rtvDescriptorSize;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
+    UINT m_rtvDescriptorSize;
     UINT m_dsvDescriptorSize;
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Texture
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Constant buffer
@@ -73,10 +75,15 @@ private:
     ComPtr<ID3D12Resource> m_indexBuffer;
     D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
-    ComPtr<ID3D12Resource> constantBuffers[FrameCount];
-    SceneConstantBuffer m_constantBufferData;
+    ComPtr<ID3D12Resource> m_constantBuffer;
+    D3D12_CONSTANT_BUFFER_VIEW_DESC m_constantBufferView;
+    ObjectConstants m_constantBufferData;
 
     ComPtr<ID3D12Resource> m_texture;
+
+    XMMATRIX mWorld = XMMatrixIdentity();
+    XMMATRIX mView = XMMatrixIdentity();
+    XMMATRIX mProj = XMMatrixIdentity();
 
     VOID LoadPipeline();
     VOID CreateDebugLayer();

@@ -3,6 +3,7 @@
 #include "DXHelper.h"
 #include "Win32App.h"
 #include "ScaldTimer.h"
+#include "ScaldCoreTypes.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
@@ -72,6 +73,11 @@ protected:
     bool mMaximized = false;        // is the application maximized ?
     bool mResizing = false;         // are the resize bars being dragged ?
     bool mFullscreenState = false;  // fullscreen enabled
+
+    XMFLOAT2 mLastMousePos = {0.0f, 0.0f};
+    float mRadius = 0.0f;
+    float mTheta = 0.0f;
+    float mPhi = 0.0f;
 
 private:
     // Root assets path.
