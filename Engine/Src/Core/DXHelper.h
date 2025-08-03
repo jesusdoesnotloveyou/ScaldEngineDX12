@@ -230,7 +230,6 @@ void ResetComPtrArray(T* comPtrArray)
     }
 }
 
-
 // Resets all elements in a unique_ptr array.
 template<class T>
 void ResetUniquePtrArray(T* uniquePtrArray)
@@ -239,4 +238,10 @@ void ResetUniquePtrArray(T* uniquePtrArray)
     {
         i.reset();
     }
+}
+
+// Math
+inline float Clamp(float value, float _min, float _max)
+{
+    return min(max(value, _min), _max);
 }
