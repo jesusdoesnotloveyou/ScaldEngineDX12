@@ -1,7 +1,5 @@
 #include "stdafx.h"
 #include "Engine.h"
-#include "ScaldUtil.h"
-#include "UploadBuffer.h"
 
 Engine::Engine(UINT width, UINT height, std::wstring name, std::wstring className) :
     D3D12Sample(width, height, name, className),
@@ -164,10 +162,11 @@ VOID Engine::CreateDescriptorHeaps()
         cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         cbvHeapDesc.NumDescriptors = 1u;
         cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        cbvHeapDesc.NodeMask = 0u;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
 
         // useless probably
-        m_cbvSrvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        //m_cbvSrvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 }
 
@@ -211,58 +210,12 @@ VOID Engine::CreateSwapChain()
 VOID Engine::LoadAssets()
 {
     // Create an empty root signature.
-    {
-        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init(0u, nullptr, 0u, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-        ComPtr<ID3DBlob> signature;
-        ComPtr<ID3DBlob> error;
-        ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-        ThrowIfFailed(m_device->CreateRootSignature(0u, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
-    }
+    CreateRootSignature();
 
     // Create the pipeline state, which includes compiling and loading shaders.
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-        // Enable better shader debugging with the graphics debugging tools.
-        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-        UINT compileFlags = 0;
-#endif
-
-        //auto pixelShaderPath = GetAssetFullPath(L"./PixelShader.hlsl").c_str();
-
-        ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", compileFlags, 0u, &vertexShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1", compileFlags, 0u, &pixelShader, nullptr));
-
-        // Define the vertex input layout.
-        D3D12_INPUT_ELEMENT_DESC inputElementDesc[] =
-        {
-            { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-            { "COLOR", 0u, DXGI_FORMAT_R32G32B32A32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-        };
-
-        // Describe and create the graphics pipeline state object (PSO).
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.InputLayout = { inputElementDesc, _countof(inputElementDesc) };
-        psoDesc.pRootSignature = m_rootSignature.Get();
-        psoDesc.VS = D3D12_SHADER_BYTECODE({vertexShader->GetBufferPointer(), vertexShader->GetBufferSize()});
-        psoDesc.PS = D3D12_SHADER_BYTECODE({pixelShader->GetBufferPointer(), pixelShader->GetBufferSize()});
-        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState.DepthEnable = FALSE;
-        psoDesc.DepthStencilState.StencilEnable = FALSE;
-        psoDesc.SampleMask = UINT_MAX;
-        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.NumRenderTargets = 1u;
-        psoDesc.RTVFormats[0] = BackBufferFormat;
-        // Do not use multisampling
-        psoDesc.SampleDesc.Count = 1u;
-        psoDesc.SampleDesc.Quality = 0u;
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+        CreateShaders();
+        CreatePSO();
     }
 
     // Create the vertex buffer.
@@ -329,23 +282,101 @@ VOID Engine::LoadAssets()
         m_indexBufferView.SizeInBytes = ibByteSize;
         m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
     }
-    
-    // Create the constant buffer.
-    {
-        // Amount of constant buffers
-        const UINT NumElements = 1u;
-        const UINT elementByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+}
 
-        ComPtr<ID3D12Resource> mUploadCBuffer;
-        m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(elementByteSize* NumElements),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(m_constantBuffer.GetAddressOf()));
-        
-    }
+VOID Engine::CreateRootSignature()
+{
+    // Root parameter can be a table, root descriptor or root constants.
+    CD3DX12_ROOT_PARAMETER slotRootParameter[1];
+
+    // Create a single descriptor table of CBVs.
+    CD3DX12_DESCRIPTOR_RANGE cbvTable;
+    cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 0u);
+    slotRootParameter[0].InitAsDescriptorTable(1u, &cbvTable);
+    
+    // Root signature is an array of root parameters
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init(1u, slotRootParameter, 0u, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+    // create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
+    ComPtr<ID3DBlob> signature = nullptr;
+    ComPtr<ID3DBlob> error = nullptr;
+    ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+    ThrowIfFailed(m_device->CreateRootSignature(0u, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+}
+
+VOID Engine::CreateShaders()
+{
+#if defined(_DEBUG) | defined(DEBUG)
+    // Enable better shader debugging with the graphics debugging tools.
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+    UINT compileFlags = 0;
+#endif
+
+    //auto pixelShaderPath = GetAssetFullPath(L"./PixelShader.hlsl").c_str();
+
+    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", compileFlags, 0u, &m_vertexShader, nullptr));
+    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1", compileFlags, 0u, &m_pixelShader, nullptr));
+
+    // Define the vertex input layout.
+    m_inputLayout =
+    {
+        { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+        { "COLOR", 0u, DXGI_FORMAT_R32G32B32A32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+    };
+}
+
+VOID Engine::CreatePSO()
+{
+    // Describe and create the graphics pipeline state object (PSO).
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    psoDesc.pRootSignature = m_rootSignature.Get();
+    psoDesc.VS = D3D12_SHADER_BYTECODE({ reinterpret_cast<BYTE*>(m_vertexShader->GetBufferPointer()), m_vertexShader->GetBufferSize() });
+    psoDesc.PS = D3D12_SHADER_BYTECODE({ m_pixelShader->GetBufferPointer(), m_pixelShader->GetBufferSize() });
+    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    psoDesc.SampleMask = UINT_MAX;
+    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState.DepthEnable = FALSE;
+    psoDesc.InputLayout = { m_inputLayout.data(), (UINT)m_inputLayout.size()};
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.NumRenderTargets = 1u;
+    psoDesc.RTVFormats[0] = BackBufferFormat;
+    //psoDesc.DSVFormat = DepthStencilFormat;
+    // Do not use multisampling
+    // This should match the setting of the render target we are using (check swapChainDesc)
+    psoDesc.SampleDesc.Count = 1u;
+    psoDesc.SampleDesc.Quality = 0u;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+}
+
+VOID Engine::CreateConstantBuffer()
+{
+    mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(m_device.Get(), 1u, TRUE);
+    UINT objCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants)); // make multiple of 256
+
+    D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = mObjectCB->Get()->GetGPUVirtualAddress();
+
+    // Offset to the ith object constant buffer in the buffer. Here our i = 0.
+    int geometryCBufIndex = 0;
+    cbvAddress += geometryCBufIndex * objCBByteSize;
+
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = cbvAddress;
+    cbvDesc.SizeInBytes = objCBByteSize;
+
+    m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+VOID Engine::UpdateConstantBuffer()
+{
+
+}
+
+std::vector<UINT8> Engine::GenerateTextureData()
+{
+    return std::vector<UINT8>();
 }
 
 VOID Engine::Reset()
@@ -394,7 +425,7 @@ VOID Engine::Reset()
         depthStencilDesc.Height = m_height;
         depthStencilDesc.DepthOrArraySize = 1;
         depthStencilDesc.MipLevels = 1;
-        depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+        depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; //
         // MSAA, same settings as back buffer
         depthStencilDesc.SampleDesc.Count = 1u;
         depthStencilDesc.SampleDesc.Quality = 0u;
@@ -403,7 +434,7 @@ VOID Engine::Reset()
         depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
         D3D12_CLEAR_VALUE optClear;
-        optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; //
         optClear.DepthStencil.Depth = 1.0f;
         optClear.DepthStencil.Stencil = 0;
 
@@ -418,7 +449,7 @@ VOID Engine::Reset()
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-        dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; //
         dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
         dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
         dsvDesc.Texture2D.MipSlice = 0u;
@@ -436,6 +467,8 @@ VOID Engine::Reset()
 
     // Wait until resize is complete.
     FlushCommandQueue();
+
+    mProj = XMMatrixPerspectiveFovLH(0.25f * XM_PI, m_aspectRatio, 1.0f, 1000.0f);
 }
 
 VOID Engine::FlushCommandQueue()
@@ -456,13 +489,15 @@ void Engine::OnUpdate(const ScaldTimer& st)
     XMVECTOR target = XMVectorZero();
     XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-    //mView = XMMatrixLookAtLH(pos, target, up);
+    mView = XMMatrixLookAtLH(pos, target, up);
 
-    XMMATRIX wvp = mWorld * mView * mProj;
+
+    XMMATRIX worldViewProj = mWorld * mView * mProj;
 
     // Update constant buffer with the lates wvp matrix
-
-    XMStoreFloat4x4(&m_constantBufferData.gWorldViewProj, XMMatrixTranspose(wvp));
+    XMStoreFloat4x4(&m_constantBufferData.gWorldViewProj, XMMatrixTranspose(worldViewProj));
+    
+    // mObjectCB isn't initialized yet
     //mObjectCB->CopyData(0, m_constantBufferData);
 }
 
@@ -489,6 +524,19 @@ void Engine::OnDestroy()
     WaitForGPU();
 
     CloseHandle(m_fenceEvent);
+}
+
+void Engine::OnMouseDown(WPARAM btnState, int x, int y)
+{
+    mLastMousePos.x = static_cast<float>(x);
+    mLastMousePos.y = static_cast<float>(y);
+
+    SetCapture(Win32App::GetHwnd());
+}
+
+void Engine::OnMouseUp(WPARAM btnState, int x, int y)
+{
+    ReleaseCapture();
 }
 
 void Engine::OnMouseMove(WPARAM btnState, int x, int y)
@@ -544,6 +592,9 @@ VOID Engine::PopulateCommandList()
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
+    ID3D12DescriptorHeap* descriptorHeaps[] = { m_cbvHeap.Get() };
+    m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     // Indicate that the back buffer will be used as a render target.
     m_commandList->ResourceBarrier(1u, &transition);
@@ -565,6 +616,9 @@ VOID Engine::PopulateCommandList()
     m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
     m_commandList->IASetIndexBuffer(&m_indexBufferView);
 
+    m_commandList->SetGraphicsRootDescriptorTable(0u, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+
+    /* Box Geometry */
     m_commandList->DrawIndexedInstanced(8u, 1u, 0u, 0, 0u);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -585,21 +639,6 @@ VOID Engine::WaitForGPU()
     WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
 
     m_fenceValues[m_frameIndex]++;
-}
-
-VOID Engine::CreateConstantBuffer()
-{
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbDesc = {};
-}
-
-VOID Engine::UpdateConstantBuffer()
-{
-
-}
-
-std::vector<UINT8> Engine::GenerateTextureData()
-{
-    return std::vector<UINT8>();
 }
 
 VOID Engine::MoveToNextFrame()

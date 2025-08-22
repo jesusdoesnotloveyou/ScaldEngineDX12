@@ -1,8 +1,10 @@
 #pragma once
 
 #include "D3D12Sample.h"
+#include "UploadBuffer.h"
 
 #include <vector>
+#include <memory>
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
@@ -23,6 +25,8 @@ public:
     virtual void OnRender(const ScaldTimer& st) override;
     virtual void OnDestroy() override;
 
+    virtual void OnMouseDown(WPARAM btnState, int x, int y) override;
+    virtual void OnMouseUp(WPARAM btnState, int x, int y) override;
     virtual void OnMouseMove(WPARAM btnState, int x, int y) override;
 
 private:
@@ -32,6 +36,7 @@ private:
 
     static const UINT FrameCount = 2;
     static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    static const DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_R32G32B32A32_TYPELESS;
 
     // Pipeline objects.
     ComPtr<IDXGIFactory4> m_factory;
@@ -64,6 +69,9 @@ private:
     HANDLE m_fenceEvent;
     UINT64 m_fenceValues[FrameCount];
    
+    ComPtr<ID3DBlob> m_vertexShader;
+    ComPtr<ID3DBlob> m_pixelShader;
+    std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
     ComPtr<ID3D12PipelineState> m_pipelineState;
     D3D12_VIEWPORT m_viewport;
     D3D12_RECT m_scissorRect;
@@ -76,6 +84,7 @@ private:
     D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
     ComPtr<ID3D12Resource> m_constantBuffer;
+    std::unique_ptr<UploadBuffer<ObjectConstants>> mObjectCB;
     D3D12_CONSTANT_BUFFER_VIEW_DESC m_constantBufferView;
     ObjectConstants m_constantBufferData;
 
@@ -92,17 +101,21 @@ private:
     VOID CreateFence();
     VOID CreateDescriptorHeaps();
     VOID CreateSwapChain();
-    VOID LoadAssets();
     
     VOID Reset();
     VOID FlushCommandQueue();
+    
+    VOID LoadAssets();
+    VOID CreateRootSignature();
+    VOID CreateShaders();
+    VOID CreatePSO();
+    VOID CreateConstantBuffer();
+    VOID UpdateConstantBuffer();
 
     VOID PopulateCommandList();
     VOID MoveToNextFrame();
     VOID WaitForGPU();
 
-    VOID CreateConstantBuffer();
-    VOID UpdateConstantBuffer();
 
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTV()
     {
