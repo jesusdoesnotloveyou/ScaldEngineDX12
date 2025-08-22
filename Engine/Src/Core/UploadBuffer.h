@@ -12,7 +12,7 @@ public:
 	{
 		m_elementByteSize = sizeof(T);
 
-		if (isConstantBuffer) m_elementByteSize = CalcConstantBufferByteSize(sizeof(T));
+		if (isConstantBuffer) m_elementByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(T));
 
 		ThrowIfFailed(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
