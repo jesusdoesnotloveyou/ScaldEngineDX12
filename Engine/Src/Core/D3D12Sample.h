@@ -75,9 +75,9 @@ protected:
     bool mFullscreenState = false;  // fullscreen enabled
 
     XMFLOAT2 mLastMousePos = {0.0f, 0.0f};
-    float mRadius = 0.0f;
-    float mTheta = 0.0f;
-    float mPhi = 0.0f;
+    float mRadius = 5.0f;
+    float mTheta = 1.5f * XM_PI;
+    float mPhi = XM_PIDIV4;
 
 private:
     // Root assets path.
