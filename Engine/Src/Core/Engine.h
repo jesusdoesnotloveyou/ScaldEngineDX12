@@ -60,8 +60,7 @@ private:
     UINT m_dsvDescriptorSize;
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Texture
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Constant buffer
-    UINT m_cbvSrvDescriptorSize;
-
+    UINT m_cbvSrvDescriptorSize = 0u;
 
     // Synchronization objects.
     UINT m_frameIndex = 0u; // keep track of front and back buffers (see FrameCount)
@@ -76,12 +75,7 @@ private:
     D3D12_VIEWPORT m_viewport;
     D3D12_RECT m_scissorRect;
 
-    // App resources.
-    ComPtr<ID3D12Resource> m_vertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
-
-    ComPtr<ID3D12Resource> m_indexBuffer;
-    D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+    std::unique_ptr<MeshGeometry> m_geometryBox = nullptr;
 
     ComPtr<ID3D12Resource> m_constantBuffer;
     std::unique_ptr<UploadBuffer<ObjectConstants>> mObjectCB;
@@ -109,6 +103,7 @@ private:
     VOID CreateRootSignature();
     VOID CreateShaders();
     VOID CreatePSO();
+    VOID BuildGeometry();
     VOID CreateConstantBuffer();
     VOID UpdateConstantBuffer();
 
