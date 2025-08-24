@@ -1,11 +1,11 @@
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorldViewProj;
-}
+};
 
 struct VSInput
 {
-    float4 iPosL : POSITION0;
+    float3 iPosL : POSITION0;
     float4 iColor : COLOR0;
     //float2 inTexCoord : TEXCOORD0;
     //float3 inNormal : NORMAL;
@@ -21,7 +21,7 @@ VSOutput main(VSInput input)
 {
     VSOutput output;
     
-    output.oPosH = input.iPosL;
+    output.oPosH = mul(float4(input.iPosL, 1.0f), gWorldViewProj);
     output.oColor = input.iColor;
 	
     return output;
