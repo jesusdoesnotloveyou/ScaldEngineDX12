@@ -5,20 +5,8 @@ Engine::Engine(UINT width, UINT height, std::wstring name, std::wstring classNam
     D3D12Sample(width, height, name, className),
     m_frameIndex(0),
     m_rtvDescriptorSize(0),
-    m_dsvDescriptorSize(0),
-    m_cbvSrvDescriptorSize(0)
+    m_dsvDescriptorSize(0)
 {
-    m_viewport.TopLeftX = 0.0f;
-    m_viewport.TopLeftY = 0.0f;
-    m_viewport.Width = static_cast<FLOAT>(width);
-    m_viewport.Height = static_cast<FLOAT>(height);
-    m_viewport.MinDepth = 0.0f;
-    m_viewport.MaxDepth = 1.0f;
-
-    m_scissorRect.left = 0;
-    m_scissorRect.top = 0;
-    m_scissorRect.right = static_cast<LONG>(width);
-    m_scissorRect.bottom = static_cast<LONG>(height);
 }
 
 Engine::~Engine()
@@ -139,6 +127,7 @@ VOID Engine::CreateDescriptorHeaps()
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
         rtvHeapDesc.NumDescriptors = FrameCount;
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        rtvHeapDesc.NodeMask = 0u;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
         m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -164,9 +153,6 @@ VOID Engine::CreateDescriptorHeaps()
         cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         cbvHeapDesc.NodeMask = 0u;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
-
-        // useless probably
-        //m_cbvSrvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 }
 
@@ -183,6 +169,7 @@ VOID Engine::CreateSwapChain()
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.BufferCount = FrameCount;
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     DXGI_SWAP_CHAIN_FULLSCREEN_DESC swapChainFullScreenDesc = {};
     swapChainFullScreenDesc.RefreshRate.Numerator = 60u;
@@ -209,79 +196,26 @@ VOID Engine::CreateSwapChain()
 // Load the sample assets.
 VOID Engine::LoadAssets()
 {
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), nullptr));
+    
+    CreateConstantBuffer();
     // Create an empty root signature.
     CreateRootSignature();
-
     // Create the pipeline state, which includes compiling and loading shaders.
     {
         CreateShaders();
         CreatePSO();
     }
 
-    // Create the vertex buffer.
-    {
-        // Define the geometry for a cube.
-        Vertex vertices[] =
-        {
-            { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) },
-            { XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) },
-            { XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) },
-            { XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) },
-            { XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) },
-            { XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) },
-            { XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) },
-            { XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) }
-        };
+    //!!!!!!!!!!!!!!!!!!! problem
+    BuildGeometry();
 
-        const UINT64 vbByteSize = ARRAYSIZE(vertices) * sizeof(Vertex);
-        ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
-        m_vertexBuffer = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), vertices, vbByteSize, VertexBufferUploader);
-        
-        // Initialize the vertex buffer view.
-        m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-        m_vertexBufferView.SizeInBytes = vbByteSize;
-        m_vertexBufferView.StrideInBytes = sizeof(Vertex);
+    m_commandList->Close();
+    ID3D12CommandList* cmdLists[] = { m_commandList.Get() };
+    m_commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
 
-        // What the fuck?
-        // Copy the triangle data to the vertex buffer.
-        //UINT8* pVertexDataBegin;
-        //CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-        //ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-        //memcpy(pVertexDataBegin, vertices, sizeof(vertices));
-        //m_vertexBuffer->Unmap(0, nullptr);
-    }
-
-    // Create the index buffer.
-    {
-        std::uint16_t indices[] =
-        {
-            0, 1, 2,
-            0, 2, 3,
-
-            4, 6, 5,
-            4, 7, 6,
-
-            4, 5, 1,
-            4, 1, 0,
-
-            3, 2, 6,
-            3, 6, 7,
-
-            1, 5, 6,
-            1, 6, 2,
-
-            4, 0, 3,
-            4, 3, 7
-        };
-
-        const UINT ibByteSize = ARRAYSIZE(indices) * sizeof(uint16_t);
-        ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
-        m_indexBuffer = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), indices, ibByteSize, IndexBufferUploader);
-        
-        m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
-        m_indexBufferView.SizeInBytes = ibByteSize;
-        m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
-    }
+    // There is a problem in causing D3D12 ERROR: ID3D12CommandAllocator::Reset: A command allocator 0x00000203799FDF80:'Unnamed ID3D12CommandAllocator Object' is being reset before previous executions associated with the allocator have completed. [ EXECUTION ERROR #552: COMMAND_ALLOCATOR_SYNC]:
+    // I suppouse, there is some fence stuff I have no idea how to handle for now
 }
 
 VOID Engine::CreateRootSignature()
@@ -333,7 +267,7 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
     psoDesc.pRootSignature = m_rootSignature.Get();
     psoDesc.VS = D3D12_SHADER_BYTECODE({ reinterpret_cast<BYTE*>(m_vertexShader->GetBufferPointer()), m_vertexShader->GetBufferSize() });
-    psoDesc.PS = D3D12_SHADER_BYTECODE({ m_pixelShader->GetBufferPointer(), m_pixelShader->GetBufferSize() });
+    psoDesc.PS = D3D12_SHADER_BYTECODE({ reinterpret_cast<BYTE*>(m_pixelShader->GetBufferPointer()), m_pixelShader->GetBufferSize() });
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     psoDesc.SampleMask = UINT_MAX;
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -343,12 +277,92 @@ VOID Engine::CreatePSO()
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.NumRenderTargets = 1u;
     psoDesc.RTVFormats[0] = BackBufferFormat;
-    //psoDesc.DSVFormat = DepthStencilFormat;
+    psoDesc.DSVFormat = DepthStencilFormat;
     // Do not use multisampling
     // This should match the setting of the render target we are using (check swapChainDesc)
     psoDesc.SampleDesc.Count = 1u;
     psoDesc.SampleDesc.Quality = 0u;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+}
+
+VOID Engine::BuildGeometry()
+{
+    m_geometryBox = std::make_unique<MeshGeometry>();
+    m_geometryBox->Name = "boxGeometry";
+
+    // Create the vertex buffer.
+    {
+        // Define the geometry for a cube.
+        Vertex vertices[] =
+        {
+            { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) },
+            { XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) },
+            { XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) },
+            { XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) },
+            { XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) },
+            { XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) },
+            { XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) },
+            { XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) }
+        };
+
+        const UINT64 vbByteSize = ARRAYSIZE(vertices) * sizeof(Vertex);
+        // Create system buffer for copy vertices data
+        ThrowIfFailed(D3DCreateBlob(vbByteSize, &m_geometryBox->VertexBufferCPU));
+        CopyMemory(m_geometryBox->VertexBufferCPU->GetBufferPointer(), vertices, vbByteSize);
+        // Create GPU resource
+        m_geometryBox->VertexBufferGPU = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), vertices, vbByteSize, m_geometryBox->VertexBufferUploader);
+        // Initialize the vertex buffer view.
+        m_geometryBox->VertexBufferByteSize = vbByteSize;
+        m_geometryBox->VertexByteStride = sizeof(Vertex);
+
+        // What the fuck?
+        // Copy the triangle data to the vertex buffer.
+        //UINT8* pVertexDataBegin;
+        //CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+        //ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+        //memcpy(pVertexDataBegin, vertices, sizeof(vertices));
+        //m_vertexBuffer->Unmap(0, nullptr);
+    }
+
+    // Create the index buffer.
+    {
+        std::uint16_t indices[] =
+        {
+            0, 1, 2,
+            0, 2, 3,
+
+            4, 6, 5,
+            4, 7, 6,
+
+            4, 5, 1,
+            4, 1, 0,
+
+            3, 2, 6,
+            3, 6, 7,
+
+            1, 5, 6,
+            1, 6, 2,
+
+            4, 0, 3,
+            4, 3, 7
+        };
+
+        const UINT ibByteSize = ARRAYSIZE(indices) * sizeof(std::uint16_t);
+        // Create system buffer for copy indices data
+        ThrowIfFailed(D3DCreateBlob(ibByteSize, &m_geometryBox->IndexBufferCPU));
+        CopyMemory(m_geometryBox->IndexBufferCPU->GetBufferPointer(), indices, ibByteSize);
+        // Create GPU resource
+        m_geometryBox->IndexBufferGPU = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), indices, ibByteSize, m_geometryBox->IndexBufferUploader);
+        // Initialize the index buffer view.
+        m_geometryBox->IndexBufferByteSize = ibByteSize;
+        m_geometryBox->IndexFormat = DXGI_FORMAT_R16_UINT;
+
+        SubmeshGeometry submesh;
+        submesh.IndexCount = (UINT)ARRAYSIZE(indices);
+        submesh.StartIndexLocation = 0;
+        submesh.BaseVertexLocation = 0;
+        m_geometryBox->DrawArgs["box"] = submesh;
+    }
 }
 
 VOID Engine::CreateConstantBuffer()
@@ -434,9 +448,9 @@ VOID Engine::Reset()
         depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
         D3D12_CLEAR_VALUE optClear;
-        optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; //
+        optClear.Format = DepthStencilFormat;
         optClear.DepthStencil.Depth = 1.0f;
-        optClear.DepthStencil.Stencil = 0;
+        optClear.DepthStencil.Stencil = 0u;
 
         ThrowIfFailed(m_device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed */),
@@ -444,12 +458,12 @@ VOID Engine::Reset()
             &depthStencilDesc,
             D3D12_RESOURCE_STATE_COMMON,
             &optClear,
-            IID_PPV_ARGS(&m_depthStencilBuffer)));
+            IID_PPV_ARGS(m_depthStencilBuffer.GetAddressOf())));
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-        dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; //
+        dsvDesc.Format = DepthStencilFormat;
         dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
         dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
         dsvDesc.Texture2D.MipSlice = 0u;
@@ -467,6 +481,18 @@ VOID Engine::Reset()
 
     // Wait until resize is complete.
     FlushCommandQueue();
+
+    m_viewport.TopLeftX = 0.0f;
+    m_viewport.TopLeftY = 0.0f;
+    m_viewport.Width = static_cast<FLOAT>(m_width);
+    m_viewport.Height = static_cast<FLOAT>(m_height);
+    m_viewport.MinDepth = 0.0f;
+    m_viewport.MaxDepth = 1.0f;
+
+    m_scissorRect.left = 0;
+    m_scissorRect.top = 0;
+    m_scissorRect.right = static_cast<LONG>(m_width);
+    m_scissorRect.bottom = static_cast<LONG>(m_height);
 
     mProj = XMMatrixPerspectiveFovLH(0.25f * XM_PI, m_aspectRatio, 1.0f, 1000.0f);
 }
@@ -491,14 +517,12 @@ void Engine::OnUpdate(const ScaldTimer& st)
 
     mView = XMMatrixLookAtLH(pos, target, up);
 
-
     XMMATRIX worldViewProj = mWorld * mView * mProj;
 
     // Update constant buffer with the lates wvp matrix
     XMStoreFloat4x4(&m_constantBufferData.gWorldViewProj, XMMatrixTranspose(worldViewProj));
     
-    // mObjectCB isn't initialized yet
-    //mObjectCB->CopyData(0, m_constantBufferData);
+    mObjectCB->CopyData(0, m_constantBufferData);
 }
 
 // Render the scene.
@@ -565,20 +589,6 @@ void Engine::OnMouseMove(WPARAM btnState, int x, int y)
     mLastMousePos.y = static_cast<float>(y);
 }
 
-void D3D12Sample::Resize()
-{
-    mAppPaused = true;
-    mResizing = true;
-    mTimer.Stop();
-}
-
-void D3D12Sample::OnResize()
-{
-    mAppPaused = false;
-    mResizing = false;
-    mTimer.Start();
-}
-
 VOID Engine::PopulateCommandList()
 {
     // Command list allocators can only be reset when the associated command lists have finished execution on the GPU;
@@ -613,13 +623,13 @@ VOID Engine::PopulateCommandList()
     m_commandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
-    m_commandList->IASetIndexBuffer(&m_indexBufferView);
+    m_commandList->IASetVertexBuffers(0u, 1u, &m_geometryBox->VertexBufferView());
+    m_commandList->IASetIndexBuffer(&m_geometryBox->IndexBufferView());
 
     m_commandList->SetGraphicsRootDescriptorTable(0u, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 
     /* Box Geometry */
-    m_commandList->DrawIndexedInstanced(8u, 1u, 0u, 0, 0u);
+    m_commandList->DrawIndexedInstanced(m_geometryBox->DrawArgs["box"].IndexCount, 1u, 0u, 0, 0u);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     // Indicate that the back buffer will now be used to present.

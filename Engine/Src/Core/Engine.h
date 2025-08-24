@@ -36,7 +36,7 @@ private:
 
     static const UINT FrameCount = 2;
     static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    static const DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_R32G32B32A32_TYPELESS;
+    static const DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
     // Pipeline objects.
     ComPtr<IDXGIFactory4> m_factory;
@@ -96,7 +96,7 @@ private:
     VOID CreateDescriptorHeaps();
     VOID CreateSwapChain();
     
-    VOID Reset();
+    virtual VOID Reset() override;
     VOID FlushCommandQueue();
     
     VOID LoadAssets();
