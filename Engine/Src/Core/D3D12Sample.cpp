@@ -72,6 +72,26 @@ VOID D3D12Sample::UnPause()
     mTimer.Start();
 }
 
+void D3D12Sample::Resize()
+{
+    mAppPaused = true;
+    mResizing = true;
+    mTimer.Stop();
+}
+
+void D3D12Sample::OnResize()
+{
+    mAppPaused = false;
+    mResizing = false;
+    mTimer.Start();
+    Reset();
+}
+
+VOID D3D12Sample::Reset()
+{
+
+}
+
 void D3D12Sample::CalculateFrameStats()
 {
     // Code computes the average frames per second, 

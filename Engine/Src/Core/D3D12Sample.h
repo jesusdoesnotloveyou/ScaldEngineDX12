@@ -22,8 +22,6 @@ public:
     virtual void OnRender(const ScaldTimer& st) = 0;
     virtual void OnDestroy() = 0;
 
-    virtual void Resize();
-    virtual void OnResize();
     virtual void CreateRtvAndDsvDescriptorHeaps() {}
 
     // Convenience overrides for handling mouse input.
@@ -36,6 +34,9 @@ public:
 
     virtual VOID Pause();
     virtual VOID UnPause();
+    virtual VOID Resize();
+    virtual VOID OnResize();
+    virtual VOID Reset();
 
     // Timer stuff
     virtual void CalculateFrameStats();

@@ -29,8 +29,8 @@ ComPtr<ID3D12Resource> ScaldUtil::CreateDefaultBuffer(ID3D12Device* device, ID3D
         // Describe the data we want to copy into the default buffer.
         D3D12_SUBRESOURCE_DATA subResourceData = {};
         subResourceData.pData = initData;
-        subResourceData.RowPitch = byteSize;                    // For buffers the size of the date we are copying in bytes.
-        subResourceData.SlicePitch = subResourceData.RowPitch;  // For buffers the size of the date we are copying in bytes.
+        subResourceData.RowPitch = byteSize;                    // For buffers the size of the data we are copying in bytes.
+        subResourceData.SlicePitch = subResourceData.RowPitch;  // For buffers the size of the data we are copying in bytes.
 
         // Schedule to copy the data to the default buffer resource. At a high level, the helper function UpdateSubresources will copy the CPU memory
         // into the intermediate upload heap. Then, using ID3D12CommandList::CopySubresourceRegion, the intermediate upload heap data will be copied to mBuffer.
