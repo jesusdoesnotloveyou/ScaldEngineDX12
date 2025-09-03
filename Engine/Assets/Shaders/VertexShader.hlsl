@@ -1,6 +1,20 @@
 cbuffer cbPerObject : register(b0)
 {
-    float4x4 gWorldViewProj;
+    float4x4 gWorld;
+};
+
+cbuffer cbPerPass : register(b1)
+{
+    float4x4 gView;
+    float4x4 gProj;
+    float4x4 gViewProj;
+    float4x4 gInvViewProj;
+    float3 gEyePos;
+    float pad1;
+    float gNearZ;
+    float gFarZ;
+    float gDeltaTime;
+    float gTotalTime;
 };
 
 struct VSInput
@@ -21,7 +35,7 @@ VSOutput main(VSInput input)
 {
     VSOutput output;
     
-    output.oPosH = mul(float4(input.iPosL, 1.0f), gWorldViewProj);
+    output.oPosH = mul(mul(float4(input.iPosL, 1.0f), gWorld), gViewProj);
     output.oColor = input.iColor;
 	
     return output;
