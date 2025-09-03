@@ -13,10 +13,12 @@ struct Vertex
 
 struct SVertex
 {
-	XMFLOAT3 position;
-	XMFLOAT3 normal;
-	XMFLOAT3 tangent;
-	XMFLOAT2 texCoord;
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 tangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT2 texCoord = XMFLOAT2(0.0f, 0.0f);
+
+	SVertex() {}
 
 	SVertex(const XMFLOAT3& p, const XMFLOAT3& n, const XMFLOAT3& t, const XMFLOAT2& uv)
 		:
@@ -50,13 +52,13 @@ struct PassConstants
 	XMFLOAT4X4 View;
 	XMFLOAT4X4 Proj;
 	XMFLOAT4X4 ViewProj;
-	XMFLOAT4X4 invViewProj;
+	XMFLOAT4X4 InvViewProj;
 
 	XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
 	float pad1 = 0.0f;
 	
-	float NearZ;
-	float FarZ;
-	float DeltaTime;
-	float TotalTime;
+	float NearZ = 0.0f;
+	float FarZ = 0.0f;
+	float DeltaTime = 0.0f;
+	float TotalTime = 0.0f;
 };
