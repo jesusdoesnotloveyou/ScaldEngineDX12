@@ -1,8 +1,6 @@
 #pragma once
 
 #include "DXHelper.h"
-#include <unordered_map>
-#include "DirectXCollision.h"
 
 using Microsoft::WRL::ComPtr;
 

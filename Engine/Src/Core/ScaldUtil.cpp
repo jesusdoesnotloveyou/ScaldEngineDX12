@@ -1,7 +1,6 @@
 #include "stdafx.h"
 
 #include "ScaldUtil.h"
-#include "DXHelper.h"
 
 ComPtr<ID3D12Resource> ScaldUtil::CreateDefaultBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const void* initData, UINT64 byteSize, ComPtr<ID3D12Resource>& uploadBuffer)
 {

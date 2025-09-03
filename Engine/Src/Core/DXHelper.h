@@ -3,6 +3,15 @@
 #include <stdexcept>
 #include <wrl.h>
 
+#include "DirectXCollision.h"
+#include "d3dx12.h"
+
+#include "ScaldCoreTypes.h"
+
+#include <unordered_map>
+#include <memory>
+#include <string>
+
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
 // for the GPU lifetime of resources to avoid destroying objects that may still be
@@ -238,10 +247,4 @@ void ResetUniquePtrArray(T* uniquePtrArray)
     {
         i.reset();
     }
-}
-
-// Math
-inline float Clamp(float value, float _min, float _max)
-{
-    return min(max(value, _min), _max);
 }
