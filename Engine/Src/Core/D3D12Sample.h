@@ -3,7 +3,6 @@
 #include "DXHelper.h"
 #include "Win32App.h"
 #include "ScaldTimer.h"
-#include "ScaldCoreTypes.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
@@ -21,8 +20,6 @@ public:
     virtual void OnUpdate(const ScaldTimer& st) = 0;
     virtual void OnRender(const ScaldTimer& st) = 0;
     virtual void OnDestroy() = 0;
-
-    virtual void CreateRtvAndDsvDescriptorHeaps() {}
 
     // Convenience overrides for handling mouse input.
     virtual void OnMouseDown(WPARAM btnState, int x, int y) {}
@@ -74,6 +71,7 @@ protected:
     bool mMaximized = false;        // is the application maximized ?
     bool mResizing = false;         // are the resize bars being dragged ?
     bool mFullscreenState = false;  // fullscreen enabled
+    bool mIsWireframe = false;      // Fill mode
 
     XMFLOAT2 mLastMousePos = {0.0f, 0.0f};
     float mRadius = 5.0f;
