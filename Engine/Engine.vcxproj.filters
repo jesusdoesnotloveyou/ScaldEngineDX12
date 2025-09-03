@@ -8,6 +8,8 @@
     <ClCompile Include="Src\Core\Win32App.cpp" />
     <ClCompile Include="Src\Core\stdafx.cpp" />
     <ClCompile Include="Src\Core\ScaldUtil.cpp" />
+    <ClCompile Include="Src\Core\FrameResource.cpp" />
+    <ClCompile Include="Src\Core\Shapes.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
@@ -21,6 +23,9 @@
     <ClInclude Include="Src\Core\ScaldCoreTypes.h" />
     <ClInclude Include="Src\Core\UploadBuffer.h" />
     <ClInclude Include="Src\Core\ScaldUtil.h" />
+    <ClInclude Include="Src\Core\FrameResource.h" />
+    <ClInclude Include="Src\Core\Shapes.h" />
+    <ClInclude Include="Src\Core\ScaldMath.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\VertexShader.hlsl" />

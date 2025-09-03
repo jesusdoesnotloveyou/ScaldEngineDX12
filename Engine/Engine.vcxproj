@@ -13,9 +13,11 @@
   <ItemGroup>
     <ClCompile Include="Src\Core\D3D12Sample.cpp" />
     <ClCompile Include="Src\Core\Engine.cpp" />
+    <ClCompile Include="Src\Core\FrameResource.cpp" />
     <ClCompile Include="Src\Core\Main.cpp" />
     <ClCompile Include="Src\Core\ScaldTimer.cpp" />
     <ClCompile Include="Src\Core\ScaldUtil.cpp" />
+    <ClCompile Include="Src\Core\Shapes.cpp" />
     <ClCompile Include="Src\Core\stdafx.cpp" />
     <ClCompile Include="Src\Core\Win32App.cpp" />
   </ItemGroup>
@@ -25,9 +27,12 @@
     <ClInclude Include="Src\Core\d3dx12.h" />
     <ClInclude Include="Src\Core\DXHelper.h" />
     <ClInclude Include="Src\Core\Engine.h" />
+    <ClInclude Include="Src\Core\FrameResource.h" />
     <ClInclude Include="Src\Core\ScaldCoreTypes.h" />
+    <ClInclude Include="Src\Core\ScaldMath.h" />
     <ClInclude Include="Src\Core\ScaldTimer.h" />
     <ClInclude Include="Src\Core\ScaldUtil.h" />
+    <ClInclude Include="Src\Core\Shapes.h" />
     <ClInclude Include="Src\Core\stdafx.h" />
     <ClInclude Include="Src\Core\UploadBuffer.h" />
     <ClInclude Include="Src\Core\Win32App.h" />
