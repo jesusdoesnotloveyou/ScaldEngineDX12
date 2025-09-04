@@ -3,6 +3,7 @@
 #include "D3D12Sample.h"
 #include "UploadBuffer.h"
 #include "FrameResource.h"
+#include "Camera.h"
 #include <vector>
 
 const int gNumFrameResources = 3;
@@ -52,6 +53,7 @@ public:
     virtual void OnMouseMove(WPARAM btnState, int x, int y) override;
 
 private:
+    void OnKeyboardInput(const ScaldTimer& st);
     void UpdateObjectsCB(const ScaldTimer& st);
     void UpdatePassCB(const ScaldTimer& st);
     
@@ -117,6 +119,8 @@ private:
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::vector<RenderItem*> m_opaqueItems;
 
+    std::unique_ptr<Camera> m_camera;
+
     //XMMATRIX mWorld = XMMatrixIdentity();
     XMMATRIX mView = XMMatrixIdentity();
     XMMATRIX mProj = XMMatrixIdentity();
@@ -129,7 +133,7 @@ private:
     VOID CreateRtvAndDsvDescriptorHeaps();
     VOID CreateSwapChain();
     
-    virtual VOID Reset() override;
+    VOID Reset() override;
     VOID FlushCommandQueue();
     
     VOID LoadAssets();

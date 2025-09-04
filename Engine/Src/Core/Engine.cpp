@@ -271,7 +271,6 @@ VOID Engine::CreatePSO()
     opaquePsoDesc.SampleMask = UINT_MAX;
     opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    opaquePsoDesc.DepthStencilState.DepthEnable = FALSE;
     opaquePsoDesc.InputLayout = { m_inputLayout.data(), (UINT)m_inputLayout.size()};
     opaquePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     opaquePsoDesc.NumRenderTargets = 1u;
@@ -284,7 +283,7 @@ VOID Engine::CreatePSO()
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&m_pipelineStates["opaque"])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframe = opaquePsoDesc;
-    opaqueWireframe.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+    opaqueWireframe.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaqueWireframe, IID_PPV_ARGS(&m_pipelineStates["opaque_wireframe"])));
 
     // ???
@@ -295,58 +294,91 @@ VOID Engine::CreateGeometry()
 {
     // Just meshes
     Shapes::MeshData box = Shapes::CreateBox(1.0f, 1.0f, 1.0f);
+    // the same mesh for all planets
     Shapes::MeshData sphere = Shapes::CreateSphere(1.0f, 16u, 16u);
 
     // Create shared vertex/index buffer for all geometry.
-    UINT boxVertexOffset = 0u;
-    UINT spherVertexOffset = boxVertexOffset + (UINT)box.vertices.size();
+    UINT sunVertexOffset = 0u;
+    UINT mercuryVertexOffset = sunVertexOffset + (UINT)sphere.vertices.size();
+    UINT venusVertexOffset = mercuryVertexOffset + (UINT)sphere.vertices.size();
+    UINT earthVertexOffset = venusVertexOffset + (UINT)sphere.vertices.size();
 
-    UINT boxIndexOffset = 0u;
-    UINT sphereIndexOffset = boxIndexOffset + (UINT)box.indices.size();
+    UINT sunIndexOffset = 0u;
+    UINT mercuryIndexOffset = sunIndexOffset + (UINT)sphere.indices.size();
+    UINT venusIndexOffset = mercuryIndexOffset + (UINT)sphere.indices.size();
+    UINT earthIndexOffset = venusIndexOffset + (UINT)sphere.indices.size();
 
-    SubmeshGeometry boxSubmesh;
-    boxSubmesh.IndexCount = (UINT)box.indices.size();
-    boxSubmesh.StartIndexLocation = boxIndexOffset;
-    boxSubmesh.BaseVertexLocation = boxVertexOffset;
+    SubmeshGeometry sunSubmesh;
+    sunSubmesh.IndexCount = (UINT)sphere.indices.size();
+    sunSubmesh.StartIndexLocation = sunIndexOffset;
+    sunSubmesh.BaseVertexLocation = sunVertexOffset;
 
-    SubmeshGeometry sphereSubmesh;
-    sphereSubmesh.IndexCount = (UINT)sphere.indices.size();
-    sphereSubmesh.StartIndexLocation = sphereIndexOffset;
-    sphereSubmesh.BaseVertexLocation = spherVertexOffset;
+    SubmeshGeometry mercurySubmesh;
+    mercurySubmesh.IndexCount = (UINT)sphere.indices.size();
+    mercurySubmesh.StartIndexLocation = mercuryIndexOffset;
+    mercurySubmesh.BaseVertexLocation = mercuryVertexOffset;
+
+    SubmeshGeometry venusSubmesh;
+    venusSubmesh.IndexCount = (UINT)sphere.indices.size();
+    venusSubmesh.StartIndexLocation = venusIndexOffset;
+    venusSubmesh.BaseVertexLocation = venusVertexOffset;
+
+    SubmeshGeometry earthSubmesh;
+    earthSubmesh.IndexCount = (UINT)sphere.indices.size();
+    earthSubmesh.StartIndexLocation = earthIndexOffset;
+    earthSubmesh.BaseVertexLocation = earthVertexOffset;
 
     auto totalVertexCount = 
-        box.vertices.size()
-        + sphere.vertices.size()
+        sphere.vertices.size() // sun
+        + sphere.vertices.size() // merc
+        + sphere.vertices.size() // venus
+        + sphere.vertices.size() //earth
         ;
     auto totalIndexCount = 
-        box.indices.size()
+        sphere.indices.size()
+        + sphere.indices.size()
+        + sphere.indices.size()
         + sphere.indices.size()
         ;
 
     std::vector<Vertex> vertices(totalVertexCount);
 
     int k = 0;
-    for (size_t i = 0; i < box.vertices.size(); ++i, ++k)
-    {
-        vertices[k].position = box.vertices[i].position;
-        vertices[k].color = XMFLOAT4(DirectX::Colors::Green);
-    }
-
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].color = XMFLOAT4(DirectX::Colors::Gold);
     }
 
+    for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
+    {
+        vertices[k].position = sphere.vertices[i].position;
+        vertices[k].color = XMFLOAT4(DirectX::Colors::Brown);
+    }
+
+    for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
+    {
+        vertices[k].position = sphere.vertices[i].position;
+        vertices[k].color = XMFLOAT4(DirectX::Colors::Orchid);
+    }
+
+    for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
+    {
+        vertices[k].position = sphere.vertices[i].position;
+        vertices[k].color = XMFLOAT4(DirectX::Colors::Green);
+    }
+
     std::vector<uint16_t> indices;
-    indices.insert(indices.end(), box.indices.begin(), box.indices.end());
+    indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
+    indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
+    indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
     indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
 
     const UINT64 vbByteSize = vertices.size() * sizeof(Vertex);
     const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
     auto geometry = std::make_unique<MeshGeometry>();
-    geometry->Name = "boxAndSphere";
+    geometry->Name = "solarSystem";
     
     // Create system buffer for copy vertices data
     ThrowIfFailed(D3DCreateBlob(vbByteSize, &geometry->VertexBufferCPU));
@@ -366,32 +398,52 @@ VOID Engine::CreateGeometry()
     geometry->IndexBufferByteSize = ibByteSize;
     geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
 
-    geometry->DrawArgs["box"] = boxSubmesh;
-    geometry->DrawArgs["sphere"] = sphereSubmesh;
+    geometry->DrawArgs["sun"] = sunSubmesh;
+    geometry->DrawArgs["mercury"] = mercurySubmesh;
+    geometry->DrawArgs["venus"] = venusSubmesh;
+    geometry->DrawArgs["earth"] = earthSubmesh;
 
     m_geometries[geometry->Name] = std::move(geometry);
 }
 
 VOID Engine::CreateRenderItems()
 {
-    auto boxRenderItem = std::make_unique<RenderItem>();
-    boxRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
-    boxRenderItem->Geo = m_geometries["boxAndSphere"].get();
-    boxRenderItem->ObjCBIndex = 0u;
-    boxRenderItem->IndexCount = boxRenderItem->Geo->DrawArgs["box"].IndexCount;
-    boxRenderItem->StartIndexLocation = boxRenderItem->Geo->DrawArgs["box"].StartIndexLocation;
-    boxRenderItem->BaseVertexLocation = boxRenderItem->Geo->DrawArgs["box"].BaseVertexLocation;
+    auto sunRenderItem = std::make_unique<RenderItem>();
+    sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+    sunRenderItem->Geo = m_geometries["solarSystem"].get();
+    sunRenderItem->ObjCBIndex = 0u;
+    sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs["sun"].IndexCount;
+    sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs["sun"].StartIndexLocation;
+    sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs["sun"].BaseVertexLocation;
 
-    auto sphereRenderItem = std::make_unique<RenderItem>();
-    sphereRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(1.0f, 0.0f, 0.0f);
-    sphereRenderItem->Geo = m_geometries["boxAndSphere"].get();
-    sphereRenderItem->ObjCBIndex = 1u;
-    sphereRenderItem->IndexCount = sphereRenderItem->Geo->DrawArgs["sphere"].IndexCount;
-    sphereRenderItem->StartIndexLocation = sphereRenderItem->Geo->DrawArgs["sphere"].StartIndexLocation;
-    sphereRenderItem->BaseVertexLocation = sphereRenderItem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+    auto mercuryRenderItem = std::make_unique<RenderItem>();
+    mercuryRenderItem->World = XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(2.0f, 0.0f, 0.0f);
+    mercuryRenderItem->Geo = m_geometries["solarSystem"].get();
+    mercuryRenderItem->ObjCBIndex = 1u;
+    mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs["mercury"].IndexCount;
+    mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].StartIndexLocation;
+    mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].BaseVertexLocation;
 
-    m_renderItems.push_back(std::move(boxRenderItem));
-    m_renderItems.push_back(std::move(sphereRenderItem));
+    auto venusRenderItem = std::make_unique<RenderItem>();
+    venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
+    venusRenderItem->Geo = m_geometries["solarSystem"].get();
+    venusRenderItem->ObjCBIndex = 2u;
+    venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs["venus"].IndexCount;
+    venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs["venus"].StartIndexLocation;
+    venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs["venus"].BaseVertexLocation;
+
+    auto earthRenderItem = std::make_unique<RenderItem>();
+    earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
+    earthRenderItem->Geo = m_geometries["solarSystem"].get();
+    earthRenderItem->ObjCBIndex = 3u;
+    earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs["earth"].IndexCount;
+    earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs["earth"].StartIndexLocation;
+    earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs["earth"].BaseVertexLocation;
+
+    m_renderItems.push_back(std::move(sunRenderItem));
+    m_renderItems.push_back(std::move(mercuryRenderItem));
+    m_renderItems.push_back(std::move(venusRenderItem));
+    m_renderItems.push_back(std::move(earthRenderItem));
 
     for (auto& ri : m_renderItems)
     {
@@ -576,6 +628,8 @@ VOID Engine::Reset()
     m_scissorRect.right = static_cast<LONG>(m_width);
     m_scissorRect.bottom = static_cast<LONG>(m_height);
 
+    // Init/Reinit camera
+    // Camera->Reset(float fovAngleY, float aspectRatio, float nearZ, float farZ);
     mProj = XMMatrixPerspectiveFovLH(0.25f * XM_PI, m_aspectRatio, 1.0f, 1000.0f);
 }
 
@@ -587,6 +641,8 @@ VOID Engine::FlushCommandQueue()
 // Update frame-based values.
 void Engine::OnUpdate(const ScaldTimer& st)
 {
+    OnKeyboardInput(st);
+
     // Camera
     {
         // Convert Spherical to Cartesian
@@ -674,17 +730,27 @@ void Engine::OnMouseMove(WPARAM btnState, int x, int y)
     mLastMousePos.y = static_cast<float>(y);
 }
 
+void Engine::OnKeyboardInput(const ScaldTimer& st)
+{
+    if (GetAsyncKeyState('1') & 0x8000)
+        mIsWireframe = true;
+    else
+        mIsWireframe = false;
+}
+
 void Engine::UpdateObjectsCB(const ScaldTimer& st)
 {
     auto objectCB = m_currFrameResource->ObjectsCB.get();
 
     for (size_t i = 0; i < m_renderItems.size(); i++)
     {
-        // Luna stuff. Try to remove 'if' statement
+        // Luna stuff. Try to remove 'if' statement.
+        // Have tried. It does not affect anything. 
+        // Looks like it just forces the code to update the object's constant buffer regardless of whether it has been modified or not.
         if (m_renderItems[i]->NumFramesDirty > 0)
         {
             XMStoreFloat4x4(&m_objectConstantBufferData.World, XMMatrixTranspose(m_renderItems[i]->World));
-            objectCB->CopyData((int)i, m_objectConstantBufferData); // i == m_renderItems[i]->ObjCBIndex ?
+            objectCB->CopyData(m_renderItems[i]->ObjCBIndex, m_objectConstantBufferData); // i = m_renderItems[i]->ObjCBIndex in this case
 
             m_renderItems[i]->NumFramesDirty--;
         }
