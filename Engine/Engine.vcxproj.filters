@@ -10,6 +10,7 @@
     <ClCompile Include="Src\Core\ScaldUtil.cpp" />
     <ClCompile Include="Src\Core\FrameResource.cpp" />
     <ClCompile Include="Src\Core\Shapes.cpp" />
+    <ClCompile Include="Src\Core\Camera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
@@ -26,6 +27,7 @@
     <ClInclude Include="Src\Core\FrameResource.h" />
     <ClInclude Include="Src\Core\Shapes.h" />
     <ClInclude Include="Src\Core\ScaldMath.h" />
+    <ClInclude Include="Src\Core\Camera.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\VertexShader.hlsl" />
