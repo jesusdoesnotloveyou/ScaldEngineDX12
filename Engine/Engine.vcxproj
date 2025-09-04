@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Core\Camera.cpp" />
     <ClCompile Include="Src\Core\D3D12Sample.cpp" />
     <ClCompile Include="Src\Core\Engine.cpp" />
     <ClCompile Include="Src\Core\FrameResource.cpp" />
@@ -23,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
+    <ClInclude Include="Src\Core\Camera.h" />
     <ClInclude Include="Src\Core\D3D12Sample.h" />
     <ClInclude Include="Src\Core\d3dx12.h" />
     <ClInclude Include="Src\Core\DXHelper.h" />

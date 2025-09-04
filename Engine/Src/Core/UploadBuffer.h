@@ -47,7 +47,7 @@ public:
 	}
 
 private:
-	ComPtr<ID3D12Resource> m_uploadBuffer;
+	ComPtr<ID3D12Resource> m_uploadBuffer; // either constant or vertex/index buffer
 	BYTE* m_mappedData = nullptr;
 	UINT m_elementByteSize = 0u;
 	bool m_isConstantBuffer = false;
