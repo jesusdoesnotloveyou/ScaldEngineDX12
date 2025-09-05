@@ -121,10 +121,6 @@ private:
 
     std::unique_ptr<Camera> m_camera;
 
-    //XMMATRIX mWorld = XMMatrixIdentity();
-    XMMATRIX mView = XMMatrixIdentity();
-    XMMATRIX mProj = XMMatrixIdentity();
-
     VOID LoadPipeline();
     VOID CreateDebugLayer();
     VOID CreateDevice();
