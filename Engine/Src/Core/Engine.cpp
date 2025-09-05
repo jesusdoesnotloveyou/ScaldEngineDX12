@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "Engine.h"
 #include "Shapes.h"
-#include "ScaldMath.h"
 
 extern const int gNumFrameResources;
 
@@ -11,6 +10,7 @@ Engine::Engine(UINT width, UINT height, std::wstring name, std::wstring classNam
     m_rtvDescriptorSize(0),
     m_dsvDescriptorSize(0)
 {
+    m_camera = std::make_unique<Camera>();
 }
 
 Engine::~Engine()
@@ -629,8 +629,7 @@ VOID Engine::Reset()
     m_scissorRect.bottom = static_cast<LONG>(m_height);
 
     // Init/Reinit camera
-    // Camera->Reset(float fovAngleY, float aspectRatio, float nearZ, float farZ);
-    mProj = XMMatrixPerspectiveFovLH(0.25f * XM_PI, m_aspectRatio, 1.0f, 1000.0f);
+    m_camera->Reset(0.25f * XM_PI, m_aspectRatio, 1.0f, 1000.0f);
 }
 
 VOID Engine::FlushCommandQueue()
@@ -643,20 +642,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
 {
     OnKeyboardInput(st);
 
-    // Camera
-    {
-        // Convert Spherical to Cartesian
-        float x = mRadius * sinf(mPhi) * cosf(mTheta);
-        float z = mRadius * sinf(mPhi) * sinf(mTheta);
-        float y = mRadius * cosf(mPhi);
-
-        // View matrix
-        XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
-        XMVECTOR target = XMVectorZero();
-        XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-        mView = XMMatrixLookAtLH(pos, target, up);
-    }
+    m_camera->Update(st.DeltaTime());
 
     // Cycle through the circular frame resource array.
     m_currFrameResourceIndex = (m_currFrameResourceIndex + 1) % gNumFrameResources;
@@ -711,19 +697,15 @@ void Engine::OnMouseMove(WPARAM btnState, int x, int y)
         float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
         float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
 
-        mTheta += dx;
-        mPhi += dy;
-
-        mPhi = ScaldMath::Clamp(mPhi, 0.1f, XM_PI - 0.1f);
+        m_camera->AdjustYaw(dx); 
+        m_camera->AdjustPitch(dy);
     }
     else if ((btnState & MK_RBUTTON) != 0)
     {
         float dx = 0.005f * static_cast<float>(x - mLastMousePos.x);
         float dy = 0.005f * static_cast<float>(y - mLastMousePos.y);
 
-        mRadius += dx - dy;
-
-        mRadius = ScaldMath::Clamp(mRadius, 3.0f, 15.0f);
+        m_camera->AdjustCameraRadius(dx - dy);
     }
 
     mLastMousePos.x = static_cast<float>(x);
@@ -759,11 +741,13 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
 
 void Engine::UpdatePassCB(const ScaldTimer& st)
 {
-    XMMATRIX viewProj = XMMatrixMultiply(mView, mProj);
+    XMMATRIX view = m_camera->GetViewMatrix();
+    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
+    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
     XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
-    XMStoreFloat4x4(&m_passConstantBufferData.View, XMMatrixTranspose(mView));
-    XMStoreFloat4x4(&m_passConstantBufferData.Proj, XMMatrixTranspose(mProj));
+    XMStoreFloat4x4(&m_passConstantBufferData.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&m_passConstantBufferData.Proj, XMMatrixTranspose(proj));
     XMStoreFloat4x4(&m_passConstantBufferData.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&m_passConstantBufferData.InvViewProj, XMMatrixTranspose(invViewProj));
     m_passConstantBufferData.NearZ = 1.0f;
