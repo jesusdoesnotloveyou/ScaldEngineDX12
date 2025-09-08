@@ -3,7 +3,14 @@ cbuffer cbPerObject : register(b0)
     float4x4 gWorld;
 };
 
-cbuffer cbPerPass : register(b1)
+cbuffer cbPerMaterial : register(b1)
+{
+    float4 gDiffuseAlbedo;
+    float3 gFresnelR0;
+    float Roughness;
+};
+
+cbuffer cbPerPass : register(b2)
 {
     float4x4 gView;
     float4x4 gProj;
