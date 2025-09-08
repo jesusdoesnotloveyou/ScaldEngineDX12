@@ -258,14 +258,17 @@ VOID Engine::CreateShaders()
 
     //auto pixelShaderPath = GetAssetFullPath(L"./PixelShader.hlsl").c_str();
 
-    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", compileFlags, 0u, &m_vertexShader, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1", compileFlags, 0u, &m_pixelShader, nullptr));
+    ComPtr<ID3DBlob> pErrorMsgVS;
+    ComPtr<ID3DBlob> pErrorMsgPS;
+
+    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", compileFlags, 0u, &m_vertexShader, &pErrorMsgVS));
+    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1", compileFlags, 0u, &m_pixelShader, &pErrorMsgPS));
 
     // Define the vertex input layout.
     m_inputLayout =
     {
         { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-        { "COLOR", 0u, DXGI_FORMAT_R32G32B32A32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+        { "NORMAL", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
     };
 }
 
@@ -358,25 +361,25 @@ VOID Engine::CreateGeometry()
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
-        vertices[k].color = XMFLOAT4(DirectX::Colors::Gold);
+        vertices[k].normal = sphere.vertices[i].normal;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
-        vertices[k].color = XMFLOAT4(DirectX::Colors::Brown);
+        vertices[k].normal = sphere.vertices[i].normal;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
-        vertices[k].color = XMFLOAT4(DirectX::Colors::Orchid);
+        vertices[k].normal = sphere.vertices[i].normal;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
-        vertices[k].color = XMFLOAT4(DirectX::Colors::Green);
+        vertices[k].normal = sphere.vertices[i].normal;
     }
 
     std::vector<uint16_t> indices;
