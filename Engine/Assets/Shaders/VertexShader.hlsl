@@ -1,9 +1,28 @@
+#define MaxLights 16
+
+struct Light
+{
+    float3 Strength;
+    float FallOfStart;
+    float3 Direction;
+    float FallOfEnd;
+    float3 Position;
+    float SpotPower;
+};
+
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
 };
 
-cbuffer cbPerPass : register(b1)
+cbuffer cbPerMaterial : register(b1)
+{
+    float4 gDiffuseAlbedo;
+    float3 gFresnelR0;
+    float Roughness;
+};
+
+cbuffer cbPerPass : register(b2)
 {
     float4x4 gView;
     float4x4 gProj;
@@ -15,28 +34,35 @@ cbuffer cbPerPass : register(b1)
     float gFarZ;
     float gDeltaTime;
     float gTotalTime;
+    
+    float4 gAmbient;
+    
+    Light gLights[MaxLights];
 };
 
 struct VSInput
 {
     float3 iPosL : POSITION0;
-    float4 iColor : COLOR0;
     //float2 inTexCoord : TEXCOORD0;
-    //float3 inNormal : NORMAL;
+    float3 inNormalL : NORMAL;
 };
 
 struct VSOutput
 {
-    float4 oPosH : SV_POSITION;
-    float4 oColor : COLOR0;
+    float4 oPosH    : SV_POSITION;
+    float3 oPosW    : POSITION0;
+    float3 oNormalW : NORMAL;
 };
 
 VSOutput main(VSInput input)
 {
-    VSOutput output;
+    VSOutput output = (VSOutput) 0;
     
-    output.oPosH = mul(mul(float4(input.iPosL, 1.0f), gWorld), gViewProj);
-    output.oColor = input.iColor;
+    float4 oPosW = mul(float4(input.iPosL, 1.0f), gWorld);
+    
+    output.oPosW = oPosW.xyz;
+    output.oPosH = mul(oPosW, gViewProj);
+    output.oNormalW = mul(input.inNormalL, (float3x3) gWorld);
 	
     return output;
 }

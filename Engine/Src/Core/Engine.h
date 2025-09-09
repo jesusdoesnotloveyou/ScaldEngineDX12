@@ -16,6 +16,26 @@ const int gNumFrameResources = 3;
 
 using Microsoft::WRL::ComPtr;
 
+struct Material
+{
+    std::string Name;
+
+    // Index into constant buffer corresponding to this material.
+    int MatCBIndex = -1;
+
+    // Index into SRV heap for diffuse texture.
+    int DiffuseSrvHeapIndex = -1;
+
+    // Index into SRV heap for normal texture.
+    int NormalSrvHeapIndex = -1;
+
+    int NumFramesDirty = gNumFrameResources;
+
+    DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
+    float Roughness = 0.25f;
+};
+
 // F. Luna stuff: lightweight structure that stores parameters to draw a shape.
 struct RenderItem
 {
@@ -28,6 +48,7 @@ struct RenderItem
     UINT ObjCBIndex = -1;
 
     MeshGeometry* Geo = nullptr;
+    Material* Mat = nullptr;
 
     D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopologyType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
@@ -56,6 +77,7 @@ private:
     void OnKeyboardInput(const ScaldTimer& st);
     void UpdateObjectsCB(const ScaldTimer& st);
     void UpdatePassCB(const ScaldTimer& st);
+    void UpdateMaterialCB(const ScaldTimer& st);
     
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
 
@@ -65,6 +87,9 @@ private:
     int m_currFrameResourceIndex = 0;
 
     UINT m_passCbvOffset = 0;
+
+    float m_sunPhi = XM_PIDIV4;
+    float m_sunTheta = 1.25f * XM_PI;
 
     static const UINT TextureWidth = 256u;
     static const UINT TextureHeight = 256u;
@@ -111,19 +136,17 @@ private:
     D3D12_VIEWPORT m_viewport;
     D3D12_RECT m_scissorRect;
 
-    ObjectConstants m_objectConstantBufferData;
+    ObjectConstants m_perObjectConstantBufferData;
     PassConstants m_passConstantBufferData;
+    MaterialConstants m_perMaterialConstantBufferData;
 
     //ComPtr<ID3D12Resource> m_texture;
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
+    std::unordered_map < std::string, std::unique_ptr<Material>> m_materials;
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
-
-    //XMMATRIX mWorld = XMMatrixIdentity();
-    XMMATRIX mView = XMMatrixIdentity();
-    XMMATRIX mProj = XMMatrixIdentity();
 
     VOID LoadPipeline();
     VOID CreateDebugLayer();
@@ -134,7 +157,6 @@ private:
     VOID CreateSwapChain();
     
     VOID Reset() override;
-    VOID FlushCommandQueue();
     
     VOID LoadAssets();
     VOID CreateRootSignature();
@@ -142,9 +164,12 @@ private:
     VOID CreatePSO();
     // Shapes
     VOID CreateGeometry();
+    // Propertirs of shapes' surfaces to model light interaction
+    VOID CreateGeometryMaterials();
     // Shapes could constist of some items to render
     VOID CreateRenderItems();
     VOID CreateFrameResources();
+    // Heaps are created if there are root descriptor tables in root signature 
     VOID CreateDescriptorHeaps();
     VOID CreateConstantBufferViews();
 
@@ -162,6 +187,4 @@ private:
     {
         return m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
     }
-
-    std::vector<UINT8> GenerateTextureData();
 };

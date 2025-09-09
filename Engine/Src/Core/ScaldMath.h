@@ -21,4 +21,15 @@ public:
 	{
 		return Min(Max(value, _min), _max);
 	}
+
+	template<typename T>
+	static XMVECTOR SphericalToCarthesian(const T radius, const T theta, const T phi)
+	{
+		return XMVectorSet(
+			radius * sinf(phi) * cosf(theta),
+			radius * cosf(phi),
+			radius * sinf(phi) * sinf(theta),
+			1.0f
+		);
+	}
 };

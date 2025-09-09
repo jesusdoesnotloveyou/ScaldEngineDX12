@@ -11,13 +11,14 @@ Engine::Engine(UINT width, UINT height, std::wstring name, std::wstring classNam
     m_rtvDescriptorSize(0),
     m_dsvDescriptorSize(0)
 {
+    m_camera = std::make_unique<Camera>();
 }
 
 Engine::~Engine()
 {
     if (m_device)
     {
-        FlushCommandQueue();
+        //FlushCommandQueue();
     }
 }
 
@@ -190,10 +191,11 @@ VOID Engine::LoadAssets()
     
     //!!!!!!!!!!!!!!!!!!! problem
     CreateGeometry();
+    CreateGeometryMaterials();
     CreateRenderItems();
     CreateFrameResources();
-    CreateDescriptorHeaps();
-    CreateConstantBufferViews();
+    /*CreateDescriptorHeaps();
+    CreateConstantBufferViews();*/
     CreateRootSignature();
     // Create the pipeline state, which includes compiling and loading shaders.
     {
@@ -212,22 +214,32 @@ VOID Engine::LoadAssets()
 VOID Engine::CreateRootSignature()
 {
     // Root parameter can be a table, root descriptor or root constants.
-    CD3DX12_ROOT_PARAMETER slotRootParameter[2];
+    CD3DX12_ROOT_PARAMETER slotRootParameter[3];
 
-    // Create a descriptor table for objects' CBVs.
-    CD3DX12_DESCRIPTOR_RANGE cbvTable;
-    cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 0u);
+    // Create a root descriptor for objects' CBVs.
+    CD3DX12_ROOT_DESCRIPTOR objCbvRootDesc;
+    objCbvRootDesc.Init(0u);
+
+    // Create a root descriptor for objects' CBVs.
+    CD3DX12_ROOT_DESCRIPTOR matCbvRootDesc;
+    matCbvRootDesc.Init(1u);
     
     // Create a descriptor table for Pass CBV.
-    CD3DX12_DESCRIPTOR_RANGE cbvTable1;
-    cbvTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 1u);
+    /*CD3DX12_DESCRIPTOR_RANGE cbvTable;
+    cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 2u);*/
+
+    // Create a root descriptor for Pass CBV.
+    CD3DX12_ROOT_DESCRIPTOR passCbvRootDesc;
+    passCbvRootDesc.Init(2u);
     
-    slotRootParameter[0].InitAsDescriptorTable(1u, &cbvTable);
-    slotRootParameter[1].InitAsDescriptorTable(1u, &cbvTable1);
+    slotRootParameter[0].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);
+    slotRootParameter[1].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);
+    //slotRootParameter[2].InitAsDescriptorTable(1u, &cbvTable);
+    slotRootParameter[2].InitAsConstantBufferView(2u, 0u, D3D12_SHADER_VISIBILITY_ALL);
 
     // Root signature is an array of root parameters
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(2u, slotRootParameter, 0u, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rootSignatureDesc.Init(3u, slotRootParameter, 0u, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     // create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
     ComPtr<ID3DBlob> signature = nullptr;
@@ -247,14 +259,17 @@ VOID Engine::CreateShaders()
 
     //auto pixelShaderPath = GetAssetFullPath(L"./PixelShader.hlsl").c_str();
 
-    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", compileFlags, 0u, &m_vertexShader, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1", compileFlags, 0u, &m_pixelShader, nullptr));
+    ComPtr<ID3DBlob> pErrorMsgVS;
+    ComPtr<ID3DBlob> pErrorMsgPS;
+
+    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", compileFlags, 0u, &m_vertexShader, &pErrorMsgVS));
+    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1", compileFlags, 0u, &m_pixelShader, &pErrorMsgPS));
 
     // Define the vertex input layout.
     m_inputLayout =
     {
         { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-        { "COLOR", 0u, DXGI_FORMAT_R32G32B32A32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+        { "NORMAL", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
     };
 }
 
@@ -347,25 +362,25 @@ VOID Engine::CreateGeometry()
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
-        vertices[k].color = XMFLOAT4(DirectX::Colors::Gold);
+        vertices[k].normal = sphere.vertices[i].normal;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
-        vertices[k].color = XMFLOAT4(DirectX::Colors::Brown);
+        vertices[k].normal = sphere.vertices[i].normal;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
-        vertices[k].color = XMFLOAT4(DirectX::Colors::Orchid);
+        vertices[k].normal = sphere.vertices[i].normal;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
-        vertices[k].color = XMFLOAT4(DirectX::Colors::Green);
+        vertices[k].normal = sphere.vertices[i].normal;
     }
 
     std::vector<uint16_t> indices;
@@ -406,11 +421,48 @@ VOID Engine::CreateGeometry()
     m_geometries[geometry->Name] = std::move(geometry);
 }
 
+VOID Engine::CreateGeometryMaterials()
+{
+    auto flame0 = std::make_unique<Material>();
+    flame0->Name = "flame0";
+    flame0->MatCBIndex = 0;
+    flame0->DiffuseAlbedo = XMFLOAT4(Colors::Gold);
+    flame0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+    flame0->Roughness = 0.2f;
+
+    auto sand0 = std::make_unique<Material>();
+    sand0->Name = "sand0";
+    sand0->MatCBIndex = 1;
+    sand0->DiffuseAlbedo = XMFLOAT4(Colors::Brown);
+    sand0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+    sand0->Roughness = 0.1f;
+
+    auto stone0 = std::make_unique<Material>();
+    stone0->Name = "stone0";
+    stone0->MatCBIndex = 2;
+    stone0->DiffuseAlbedo = XMFLOAT4(Colors::Orchid);
+    stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+    stone0->Roughness = 0.3f;
+
+    auto ground0 = std::make_unique<Material>();
+    ground0->Name = "ground0";
+    ground0->MatCBIndex = 3;
+    ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
+    ground0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05);
+    ground0->Roughness = 0.3f;
+
+    m_materials["flame0"] = std::move(flame0);
+    m_materials["sand0"] = std::move(sand0);
+    m_materials["stone0"] = std::move(stone0);
+    m_materials["ground0"] = std::move(ground0);
+}
+
 VOID Engine::CreateRenderItems()
 {
     auto sunRenderItem = std::make_unique<RenderItem>();
     sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
     sunRenderItem->Geo = m_geometries["solarSystem"].get();
+    sunRenderItem->Mat = m_materials["flame0"].get();
     sunRenderItem->ObjCBIndex = 0u;
     sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs["sun"].IndexCount;
     sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs["sun"].StartIndexLocation;
@@ -419,6 +471,7 @@ VOID Engine::CreateRenderItems()
     auto mercuryRenderItem = std::make_unique<RenderItem>();
     mercuryRenderItem->World = XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(2.0f, 0.0f, 0.0f);
     mercuryRenderItem->Geo = m_geometries["solarSystem"].get();
+    mercuryRenderItem->Mat = m_materials["sand0"].get();
     mercuryRenderItem->ObjCBIndex = 1u;
     mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs["mercury"].IndexCount;
     mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].StartIndexLocation;
@@ -427,6 +480,7 @@ VOID Engine::CreateRenderItems()
     auto venusRenderItem = std::make_unique<RenderItem>();
     venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
     venusRenderItem->Geo = m_geometries["solarSystem"].get();
+    venusRenderItem->Mat = m_materials["stone0"].get();
     venusRenderItem->ObjCBIndex = 2u;
     venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs["venus"].IndexCount;
     venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs["venus"].StartIndexLocation;
@@ -435,6 +489,7 @@ VOID Engine::CreateRenderItems()
     auto earthRenderItem = std::make_unique<RenderItem>();
     earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
     earthRenderItem->Geo = m_geometries["solarSystem"].get();
+    earthRenderItem->Mat = m_materials["ground0"].get();
     earthRenderItem->ObjCBIndex = 3u;
     earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs["earth"].IndexCount;
     earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs["earth"].StartIndexLocation;
@@ -455,7 +510,7 @@ VOID Engine::CreateFrameResources()
 {
     for (int i = 0; i < gNumFrameResources; i++)
     {
-        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), 1u, (UINT)m_renderItems.size()));
+        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), 1u, (UINT)m_renderItems.size(), (UINT)m_materials.size()));
     }
 }
 
@@ -530,7 +585,7 @@ VOID Engine::CreateConstantBufferViews()
 VOID Engine::Reset()
 {
     // Before making any changes
-    FlushCommandQueue();
+    //FlushCommandQueue();
 
     ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), nullptr));
 
@@ -614,7 +669,7 @@ VOID Engine::Reset()
     m_commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
 
     // Wait until resize is complete.
-    FlushCommandQueue();
+    //FlushCommandQueue();
 
     m_viewport.TopLeftX = 0.0f;
     m_viewport.TopLeftY = 0.0f;
@@ -629,13 +684,7 @@ VOID Engine::Reset()
     m_scissorRect.bottom = static_cast<LONG>(m_height);
 
     // Init/Reinit camera
-    // Camera->Reset(float fovAngleY, float aspectRatio, float nearZ, float farZ);
-    mProj = XMMatrixPerspectiveFovLH(0.25f * XM_PI, m_aspectRatio, 1.0f, 1000.0f);
-}
-
-VOID Engine::FlushCommandQueue()
-{
-    
+    m_camera->Reset(0.25f * XM_PI, m_aspectRatio, 1.0f, 1000.0f);
 }
 
 // Update frame-based values.
@@ -643,26 +692,14 @@ void Engine::OnUpdate(const ScaldTimer& st)
 {
     OnKeyboardInput(st);
 
-    // Camera
-    {
-        // Convert Spherical to Cartesian
-        float x = mRadius * sinf(mPhi) * cosf(mTheta);
-        float z = mRadius * sinf(mPhi) * sinf(mTheta);
-        float y = mRadius * cosf(mPhi);
-
-        // View matrix
-        XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
-        XMVECTOR target = XMVectorZero();
-        XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-        mView = XMMatrixLookAtLH(pos, target, up);
-    }
+    m_camera->Update(st.DeltaTime());
 
     // Cycle through the circular frame resource array.
     m_currFrameResourceIndex = (m_currFrameResourceIndex + 1) % gNumFrameResources;
     m_currFrameResource = m_frameResources[m_currFrameResourceIndex].get();
 
     UpdateObjectsCB(st);
+    UpdateMaterialCB(st);
     UpdatePassCB(st);
 }
 
@@ -711,19 +748,15 @@ void Engine::OnMouseMove(WPARAM btnState, int x, int y)
         float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
         float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
 
-        mTheta += dx;
-        mPhi += dy;
-
-        mPhi = ScaldMath::Clamp(mPhi, 0.1f, XM_PI - 0.1f);
+        m_camera->AdjustYaw(dx); 
+        m_camera->AdjustPitch(dy);
     }
     else if ((btnState & MK_RBUTTON) != 0)
     {
         float dx = 0.005f * static_cast<float>(x - mLastMousePos.x);
         float dy = 0.005f * static_cast<float>(y - mLastMousePos.y);
 
-        mRadius += dx - dy;
-
-        mRadius = ScaldMath::Clamp(mRadius, 3.0f, 15.0f);
+        m_camera->AdjustCameraRadius(dx - dy);
     }
 
     mLastMousePos.x = static_cast<float>(x);
@@ -736,34 +769,52 @@ void Engine::OnKeyboardInput(const ScaldTimer& st)
         mIsWireframe = true;
     else
         mIsWireframe = false;
+
+    const float dt = st.DeltaTime();
+
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000)
+        m_sunTheta -= 1.0f * dt;
+
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
+        m_sunTheta += 1.0f * dt;
+
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000)
+        m_sunPhi -= 1.0f * dt;
+    
+    if (GetAsyncKeyState(VK_UP) & 0x8000)
+        m_sunPhi += 1.0f * dt;
+
+    m_sunPhi = ScaldMath::Clamp(m_sunPhi, 0.1f, XM_PIDIV2);
 }
 
 void Engine::UpdateObjectsCB(const ScaldTimer& st)
 {
     auto objectCB = m_currFrameResource->ObjectsCB.get();
 
-    for (size_t i = 0; i < m_renderItems.size(); i++)
+    for (auto& ri : m_renderItems)
     {
         // Luna stuff. Try to remove 'if' statement.
         // Have tried. It does not affect anything. 
         // Looks like it just forces the code to update the object's constant buffer regardless of whether it has been modified or not.
-        if (m_renderItems[i]->NumFramesDirty > 0)
+        if (ri->NumFramesDirty > 0)
         {
-            XMStoreFloat4x4(&m_objectConstantBufferData.World, XMMatrixTranspose(m_renderItems[i]->World));
-            objectCB->CopyData(m_renderItems[i]->ObjCBIndex, m_objectConstantBufferData); // i = m_renderItems[i]->ObjCBIndex in this case
+            XMStoreFloat4x4(&m_perObjectConstantBufferData.World, XMMatrixTranspose(ri->World));
+            objectCB->CopyData(ri->ObjCBIndex, m_perObjectConstantBufferData); // In this case ri->ObjCBIndex would be equal to index 'i' of traditional for loop
 
-            m_renderItems[i]->NumFramesDirty--;
+            ri->NumFramesDirty--;
         }
     }
 }
 
 void Engine::UpdatePassCB(const ScaldTimer& st)
 {
-    XMMATRIX viewProj = XMMatrixMultiply(mView, mProj);
+    XMMATRIX view = m_camera->GetViewMatrix();
+    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
+    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
     XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
-    XMStoreFloat4x4(&m_passConstantBufferData.View, XMMatrixTranspose(mView));
-    XMStoreFloat4x4(&m_passConstantBufferData.Proj, XMMatrixTranspose(mProj));
+    XMStoreFloat4x4(&m_passConstantBufferData.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&m_passConstantBufferData.Proj, XMMatrixTranspose(proj));
     XMStoreFloat4x4(&m_passConstantBufferData.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&m_passConstantBufferData.InvViewProj, XMMatrixTranspose(invViewProj));
     m_passConstantBufferData.NearZ = 1.0f;
@@ -771,13 +822,47 @@ void Engine::UpdatePassCB(const ScaldTimer& st)
     m_passConstantBufferData.DeltaTime = st.DeltaTime();
     m_passConstantBufferData.TotalTime = st.TotalTime();
 
-    auto passCB = m_currFrameResource->PassCB.get();
-    passCB->CopyData(0, m_passConstantBufferData);
+    // Invert sign because other way light would be pointing up
+    XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
+
+    m_passConstantBufferData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
+    XMStoreFloat3(&m_passConstantBufferData.Lights[0].Direction, lightDir);
+    m_passConstantBufferData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+
+    auto currPassCB = m_currFrameResource->PassCB.get();
+    currPassCB->CopyData(0, m_passConstantBufferData);
+}
+
+void Engine::UpdateMaterialCB(const ScaldTimer& st)
+{
+    auto materialCB = m_currFrameResource->MaterialCB.get();
+
+    for (auto& e : m_materials)
+    {
+        Material* mat = e.second.get();
+        if (mat->NumFramesDirty > 0)
+        {
+            m_perMaterialConstantBufferData.DiffuseAlbedo = mat->DiffuseAlbedo;
+            m_perMaterialConstantBufferData.FresnelR0 = mat->FresnelR0;
+            m_perMaterialConstantBufferData.Roughness = mat->Roughness;
+
+            materialCB->CopyData(mat->MatCBIndex, m_perMaterialConstantBufferData);
+
+            mat->NumFramesDirty--;
+        }
+    }
 }
 
 void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
 {
     UINT objCount = (UINT)renderItems.size();
+    UINT materialCount = (UINT)m_materials.size();
+
+    UINT objCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+    UINT materialCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
+
+    auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();       // Get actual ID3D12Resource*
+    auto currFrameMaterialCB = m_currFrameResource->MaterialCB->Get(); // Get actual ID3D12Resource*
 
     for (auto& ri : renderItems)
     {
@@ -785,9 +870,16 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std
         cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
         cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 
-        CD3DX12_GPU_DESCRIPTOR_HANDLE objCbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-        objCbvHandle.Offset(objCount * m_currFrameResourceIndex + ri->ObjCBIndex, m_cbvSrvUavDescriptorSize);
-        cmdList->SetGraphicsRootDescriptorTable(/*see root signiture*/0u, objCbvHandle);
+        D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = currFrameObjCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
+        D3D12_GPU_VIRTUAL_ADDRESS materialCBAddress = currFrameMaterialCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex * materialCBByteSize;
+        
+        cmdList->SetGraphicsRootConstantBufferView(0u, objCBAddress);
+        cmdList->SetGraphicsRootConstantBufferView(1u, materialCBAddress);
+
+        // The approach to bind cbv using Root Descriptor Table via Handle and cbvHeapStart address
+        //CD3DX12_GPU_DESCRIPTOR_HANDLE objCbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+        //objCbvHandle.Offset(objCount * m_currFrameResourceIndex + ri->ObjCBIndex, m_cbvSrvUavDescriptorSize);
+        //cmdList->SetGraphicsRootDescriptorTable(/*see root signiture*/0u, objCbvHandle);
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
@@ -815,8 +907,9 @@ VOID Engine::PopulateCommandList()
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-    ID3D12DescriptorHeap* descriptorHeaps[] = { m_cbvHeap.Get() };
-    m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+    // For root descriptor table
+    /*ID3D12DescriptorHeap* descriptorHeaps[] = { m_cbvHeap.Get() };
+    m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);*/
 
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     // Indicate that the back buffer will be used as a render target.
@@ -835,10 +928,14 @@ VOID Engine::PopulateCommandList()
     m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
     m_commandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
 
-    int passCbvIndex = m_passCbvOffset + m_currFrameResourceIndex;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE passCbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-    passCbvHandle.Offset(passCbvIndex, m_cbvSrvUavDescriptorSize);
-    m_commandList->SetGraphicsRootDescriptorTable(/*see root signiture*/1u, passCbvHandle);
+    // For root descriptor table
+    //int passCbvIndex = m_passCbvOffset + m_currFrameResourceIndex;
+    //CD3DX12_GPU_DESCRIPTOR_HANDLE passCbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+    //passCbvHandle.Offset(passCbvIndex, m_cbvSrvUavDescriptorSize);
+    //m_commandList->SetGraphicsRootDescriptorTable(/*see root signiture*/1u, passCbvHandle);
+    
+    auto currFramePassCB = m_currFrameResource->PassCB->Get();
+    m_commandList->SetGraphicsRootConstantBufferView(2u, currFramePassCB->GetGPUVirtualAddress());
 
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
