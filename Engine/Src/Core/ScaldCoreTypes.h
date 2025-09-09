@@ -41,11 +41,23 @@ struct SVertex
 	{}
 };
 
+struct Light
+{
+	XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
+	float FallOfStart = 1.0f;					// spot/point
+	XMFLOAT3 Direction = { 0.5f, -1.0f, 0.5f }; // spot/dir
+	float FallOfEnd = 10.0f;					// spot/point
+	XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };	// spot/point
+	float SpotPower = 64.0f;					// spot only
+};
+
 // Constant buffers
 struct ObjectConstants
 {
 	XMFLOAT4X4 World;
 };
+
+#define MaxLights 16
 
 struct PassConstants
 {
@@ -61,6 +73,14 @@ struct PassConstants
 	float FarZ = 0.0f;
 	float DeltaTime = 0.0f;
 	float TotalTime = 0.0f;
+
+	XMFLOAT4 Ambient = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+	// Indices [0, NUM_DIR_LIGHTS) are directional lights;
+	// indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
+	// indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
+	// are spot lights for a maximum of MaxLights per object.
+	Light Lights[MaxLights];
 };
 
 struct MaterialConstants

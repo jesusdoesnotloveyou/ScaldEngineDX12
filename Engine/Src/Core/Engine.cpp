@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Engine.h"
 #include "Shapes.h"
+#include "ScaldMath.h"
 
 extern const int gNumFrameResources;
 
@@ -232,9 +233,9 @@ VOID Engine::CreateRootSignature()
     passCbvRootDesc.Init(2u);
     
     slotRootParameter[0].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);
-    slotRootParameter[1].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);
+    slotRootParameter[1].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);
     //slotRootParameter[2].InitAsDescriptorTable(1u, &cbvTable);
-    slotRootParameter[2].InitAsConstantBufferView(2u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);
+    slotRootParameter[2].InitAsConstantBufferView(2u, 0u, D3D12_SHADER_VISIBILITY_ALL);
 
     // Root signature is an array of root parameters
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
@@ -698,6 +699,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
     m_currFrameResource = m_frameResources[m_currFrameResourceIndex].get();
 
     UpdateObjectsCB(st);
+    UpdateMaterialCB(st);
     UpdatePassCB(st);
 }
 
@@ -767,6 +769,22 @@ void Engine::OnKeyboardInput(const ScaldTimer& st)
         mIsWireframe = true;
     else
         mIsWireframe = false;
+
+    const float dt = st.DeltaTime();
+
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000)
+        m_sunTheta -= 1.0f * dt;
+
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
+        m_sunTheta += 1.0f * dt;
+
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000)
+        m_sunPhi -= 1.0f * dt;
+    
+    if (GetAsyncKeyState(VK_UP) & 0x8000)
+        m_sunPhi += 1.0f * dt;
+
+    m_sunPhi = ScaldMath::Clamp(m_sunPhi, 0.1f, XM_PIDIV2);
 }
 
 void Engine::UpdateObjectsCB(const ScaldTimer& st)
@@ -804,8 +822,15 @@ void Engine::UpdatePassCB(const ScaldTimer& st)
     m_passConstantBufferData.DeltaTime = st.DeltaTime();
     m_passConstantBufferData.TotalTime = st.TotalTime();
 
-    auto passCB = m_currFrameResource->PassCB.get();
-    passCB->CopyData(0, m_passConstantBufferData);
+    // Invert sign because other way light would be pointing up
+    XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
+
+    m_passConstantBufferData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
+    XMStoreFloat3(&m_passConstantBufferData.Lights[0].Direction, lightDir);
+    m_passConstantBufferData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+
+    auto currPassCB = m_currFrameResource->PassCB.get();
+    currPassCB->CopyData(0, m_passConstantBufferData);
 }
 
 void Engine::UpdateMaterialCB(const ScaldTimer& st)
@@ -845,11 +870,11 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std
         cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
         cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 
-        D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = currFrameObjCB->GetGPUVirtualAddress();
-        D3D12_GPU_VIRTUAL_ADDRESS materialCBAddress = currFrameMaterialCB->GetGPUVirtualAddress();
+        D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = currFrameObjCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
+        D3D12_GPU_VIRTUAL_ADDRESS materialCBAddress = currFrameMaterialCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex * materialCBByteSize;
         
-        cmdList->SetGraphicsRootConstantBufferView(0u, objCBAddress + ri->ObjCBIndex * objCBByteSize);
-        cmdList->SetGraphicsRootConstantBufferView(1u, materialCBAddress + ri->Mat->MatCBIndex * materialCBByteSize);
+        cmdList->SetGraphicsRootConstantBufferView(0u, objCBAddress);
+        cmdList->SetGraphicsRootConstantBufferView(1u, materialCBAddress);
 
         // The approach to bind cbv using Root Descriptor Table via Handle and cbvHeapStart address
         //CD3DX12_GPU_DESCRIPTOR_HANDLE objCbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());

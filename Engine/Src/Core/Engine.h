@@ -88,6 +88,9 @@ private:
 
     UINT m_passCbvOffset = 0;
 
+    float m_sunPhi = XM_PIDIV4;
+    float m_sunTheta = 1.25f * XM_PI;
+
     static const UINT TextureWidth = 256u;
     static const UINT TextureHeight = 256u;
     static const UINT TexturePixelSize = 4u; // The number of bytes used to represent a pixel in the texture.

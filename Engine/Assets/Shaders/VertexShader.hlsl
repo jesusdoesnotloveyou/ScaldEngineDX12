@@ -1,3 +1,15 @@
+#define MaxLights 16
+
+struct Light
+{
+    float3 Strength;
+    float FallOfStart;
+    float3 Direction;
+    float FallOfEnd;
+    float3 Position;
+    float SpotPower;
+};
+
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
@@ -22,6 +34,10 @@ cbuffer cbPerPass : register(b2)
     float gFarZ;
     float gDeltaTime;
     float gTotalTime;
+    
+    float4 gAmbient;
+    
+    Light gLights[MaxLights];
 };
 
 struct VSInput
