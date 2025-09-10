@@ -778,10 +778,10 @@ void Engine::OnKeyboardInput(const ScaldTimer& st)
     if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
         m_sunTheta += 1.0f * dt;
 
-    if (GetAsyncKeyState(VK_DOWN) & 0x8000)
+    if (GetAsyncKeyState(VK_UP) & 0x8000)
         m_sunPhi -= 1.0f * dt;
     
-    if (GetAsyncKeyState(VK_UP) & 0x8000)
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000)
         m_sunPhi += 1.0f * dt;
 
     m_sunPhi = ScaldMath::Clamp(m_sunPhi, 0.1f, XM_PIDIV2);
@@ -826,8 +826,18 @@ void Engine::UpdatePassCB(const ScaldTimer& st)
     XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
 
     m_passConstantBufferData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
+
+#pragma region DirLights
     XMStoreFloat3(&m_passConstantBufferData.Lights[0].Direction, lightDir);
     m_passConstantBufferData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+#pragma endregion DirLights
+
+#pragma region PointLights
+    m_passConstantBufferData.Lights[1].Position = {0.0f, 0.0f, 2.0f};
+    m_passConstantBufferData.Lights[1].FallOfStart = 5.0f;
+    m_passConstantBufferData.Lights[1].FallOfEnd = 10.0f;
+    m_passConstantBufferData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
+#pragma endregion PointLights
 
     auto currPassCB = m_currFrameResource->PassCB.get();
     currPassCB->CopyData(0, m_passConstantBufferData);
