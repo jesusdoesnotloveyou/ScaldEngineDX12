@@ -13,13 +13,15 @@ struct Light
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
+    float4x4 gTexTransform;
 };
 
 cbuffer cbPerMaterial : register(b1)
 {
     float4 gDiffuseAlbedo;
     float3 gFresnelR0;
-    float Roughness;
+    float gRoughness;
+    float4x4 gMatTransform;
 };
 
 cbuffer cbPerPass : register(b2)
@@ -42,9 +44,9 @@ cbuffer cbPerPass : register(b2)
 
 struct VSInput
 {
-    float3 iPosL : POSITION0;
-    //float2 inTexCoord : TEXCOORD0;
+    float3 iPosL     : POSITION0;
     float3 inNormalL : NORMAL;
+    float2 inTexC    : TEXCOORD0;
 };
 
 struct VSOutput
@@ -52,6 +54,7 @@ struct VSOutput
     float4 oPosH    : SV_POSITION;
     float3 oPosW    : POSITION0;
     float3 oNormalW : NORMAL;
+    float2 oTexC    : TEXCOORD0; 
 };
 
 VSOutput main(VSInput input)
@@ -63,6 +66,9 @@ VSOutput main(VSInput input)
     output.oPosW = oPosW.xyz;
     output.oPosH = mul(oPosW, gViewProj);
     output.oNormalW = mul(input.inNormalL, (float3x3) gWorld);
+    
+    float4 texCoord = mul(float4(input.inTexC, 0.0f, 1.0f), gTexTransform);
+    output.oTexC = mul(texCoord, gMatTransform).xy;
 	
     return output;
 }
