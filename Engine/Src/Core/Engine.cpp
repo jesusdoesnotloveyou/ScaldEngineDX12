@@ -189,13 +189,14 @@ VOID Engine::LoadAssets()
 {
     ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), nullptr));
     
+    LoadTextures();
     //!!!!!!!!!!!!!!!!!!! problem
     CreateGeometry();
     CreateGeometryMaterials();
     CreateRenderItems();
     CreateFrameResources();
-    /*CreateDescriptorHeaps();
-    CreateConstantBufferViews();*/
+    CreateDescriptorHeaps();
+    /*CreateConstantBufferViews();*/
     CreateRootSignature();
     // Create the pipeline state, which includes compiling and loading shaders.
     {
@@ -213,33 +214,28 @@ VOID Engine::LoadAssets()
 
 VOID Engine::CreateRootSignature()
 {
+    CD3DX12_DESCRIPTOR_RANGE texTable;
+    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
+
     // Root parameter can be a table, root descriptor or root constants.
-    CD3DX12_ROOT_PARAMETER slotRootParameter[3];
-
-    // Create a root descriptor for objects' CBVs.
-    CD3DX12_ROOT_DESCRIPTOR objCbvRootDesc;
-    objCbvRootDesc.Init(0u);
-
-    // Create a root descriptor for objects' CBVs.
-    CD3DX12_ROOT_DESCRIPTOR matCbvRootDesc;
-    matCbvRootDesc.Init(1u);
+    CD3DX12_ROOT_PARAMETER slotRootParameter[4];
     
     // Create a descriptor table for Pass CBV.
     /*CD3DX12_DESCRIPTOR_RANGE cbvTable;
     cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 2u);*/
-
-    // Create a root descriptor for Pass CBV.
-    CD3DX12_ROOT_DESCRIPTOR passCbvRootDesc;
-    passCbvRootDesc.Init(2u);
     
-    slotRootParameter[0].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);
-    slotRootParameter[1].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);
+    // Perfomance TIP: Order from most frequent to least frequent.
+    slotRootParameter[0].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+    slotRootParameter[1].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);  // a root descriptor for objects' CBVs.
+    slotRootParameter[2].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);     // a root descriptor for objects' materials CBVs.
     //slotRootParameter[2].InitAsDescriptorTable(1u, &cbvTable);
-    slotRootParameter[2].InitAsConstantBufferView(2u, 0u, D3D12_SHADER_VISIBILITY_ALL);
+    slotRootParameter[3].InitAsConstantBufferView(2u, 0u, D3D12_SHADER_VISIBILITY_ALL);     // a root descriptor for Pass CBV.
+
+    auto staticSamplers = GetStaticSamplers();
 
     // Root signature is an array of root parameters
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(3u, slotRootParameter, 0u, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rootSignatureDesc.Init(4u, slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     // create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
     ComPtr<ID3DBlob> signature = nullptr;
@@ -270,6 +266,7 @@ VOID Engine::CreateShaders()
     {
         { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
         { "NORMAL", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+        { "TEXCOORD", 0u, DXGI_FORMAT_R32G32_FLOAT, 0u, 24u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
     };
 }
 
@@ -303,6 +300,45 @@ VOID Engine::CreatePSO()
 
     // ???
     m_commandList->SetPipelineState(m_pipelineStates["opaque"].Get());
+}
+
+VOID Engine::LoadTextures()
+{
+    auto brickTex = std::make_unique<Texture>();
+    brickTex->Name = "brickTex";
+    brickTex->Filename = L"./Assets/Textures/bricks.dds";
+    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
+        brickTex->Filename.c_str(), brickTex->Resource, brickTex->UploadHeap));
+
+    auto grassTex = std::make_unique<Texture>();
+    grassTex->Name = "grassTex";
+    grassTex->Filename = L"./Assets/Textures/grass.dds";
+    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
+        grassTex->Filename.c_str(), grassTex->Resource, grassTex->UploadHeap));
+
+    auto iceTex = std::make_unique<Texture>();
+    iceTex->Name = "iceTex";
+    iceTex->Filename = L"./Assets/Textures/ice.dds";
+    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
+        iceTex->Filename.c_str(), iceTex->Resource, iceTex->UploadHeap));
+
+    auto stoneTex = std::make_unique<Texture>();
+    stoneTex->Name = "stoneTex";
+    stoneTex->Filename = L"./Assets/Textures/stone.dds";
+    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
+        stoneTex->Filename.c_str(), stoneTex->Resource, stoneTex->UploadHeap));
+
+    auto tileTex = std::make_unique<Texture>();
+    tileTex->Name = "tileTex";
+    tileTex->Filename = L"./Assets/Textures/tile.dds";
+    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
+        tileTex->Filename.c_str(), tileTex->Resource, tileTex->UploadHeap));
+
+    m_textures[brickTex->Name] = std::move(brickTex);
+    m_textures[grassTex->Name] = std::move(grassTex);
+    m_textures[iceTex->Name] = std::move(iceTex);
+    m_textures[stoneTex->Name] = std::move(stoneTex);
+    m_textures[tileTex->Name] = std::move(tileTex);
 }
 
 VOID Engine::CreateGeometry()
@@ -423,33 +459,42 @@ VOID Engine::CreateGeometry()
 
 VOID Engine::CreateGeometryMaterials()
 {
+    // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
     auto flame0 = std::make_unique<Material>();
     flame0->Name = "flame0";
     flame0->MatCBIndex = 0;
-    flame0->DiffuseAlbedo = XMFLOAT4(Colors::Gold);
+    flame0->DiffuseSrvHeapIndex = 0;
+    //flame0->DiffuseAlbedo = XMFLOAT4(Colors::Gold);
     flame0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
     flame0->Roughness = 0.2f;
+    flame0->MatTransform = XMMatrixIdentity();
 
     auto sand0 = std::make_unique<Material>();
     sand0->Name = "sand0";
     sand0->MatCBIndex = 1;
-    sand0->DiffuseAlbedo = XMFLOAT4(Colors::Brown);
+    sand0->DiffuseSrvHeapIndex = 1;
+    //sand0->DiffuseAlbedo = XMFLOAT4(Colors::Brown);
     sand0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
     sand0->Roughness = 0.1f;
+    sand0->MatTransform = XMMatrixIdentity();
 
     auto stone0 = std::make_unique<Material>();
     stone0->Name = "stone0";
     stone0->MatCBIndex = 2;
-    stone0->DiffuseAlbedo = XMFLOAT4(Colors::Orchid);
+    stone0->DiffuseSrvHeapIndex = 2;
+    //stone0->DiffuseAlbedo = XMFLOAT4(Colors::Orchid);
     stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     stone0->Roughness = 0.3f;
+    stone0->MatTransform = XMMatrixIdentity();
 
     auto ground0 = std::make_unique<Material>();
     ground0->Name = "ground0";
     ground0->MatCBIndex = 3;
-    ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
+    ground0->DiffuseSrvHeapIndex = 3;
+    //ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
     ground0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05);
     ground0->Roughness = 0.3f;
+    ground0->MatTransform = XMMatrixIdentity();
 
     m_materials["flame0"] = std::move(flame0);
     m_materials["sand0"] = std::move(sand0);
@@ -516,6 +561,8 @@ VOID Engine::CreateFrameResources()
 
 VOID Engine::CreateDescriptorHeaps()
 {
+#if 0
+#pragma region CBV
     UINT sceneObjCount = (UINT)m_renderItems.size();
 
     // All cbv descriptor for each object for each frame resource + descriptors for render pass cbv (gNumFrameResources because for each frame resource)
@@ -531,8 +578,39 @@ VOID Engine::CreateDescriptorHeaps()
     cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     cbvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+#pragma endregion CBV
+#endif
+
+    D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+    ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
+    srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    srvHeapDesc.NumDescriptors = (UINT)m_textures.size();
+    srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    srvHeapDesc.NodeMask = 0u;
+    ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
 
     m_cbvSrvUavDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    
+    CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    ZeroMemory(&srvDesc, sizeof(srvDesc));
+
+    for (auto& e : m_textures)
+    {
+        auto& texD3DResource = e.second->Resource;
+        srvDesc.Format = texD3DResource->GetDesc().Format;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Texture2D.MostDetailedMip = 0u;
+        srvDesc.Texture2D.MipLevels = texD3DResource->GetDesc().MipLevels;
+        srvDesc.Texture2D.PlaneSlice;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+        m_device->CreateShaderResourceView(texD3DResource.Get(), &srvDesc, handle);
+
+        handle.Offset(1, m_cbvSrvUavDescriptorSize);
+    }
 }
 
 VOID Engine::CreateConstantBufferViews()
@@ -799,6 +877,7 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
         if (ri->NumFramesDirty > 0)
         {
             XMStoreFloat4x4(&m_perObjectConstantBufferData.World, XMMatrixTranspose(ri->World));
+            XMStoreFloat4x4(&m_perObjectConstantBufferData.TexTransform, XMMatrixTranspose(XMMatrixIdentity()));
             objectCB->CopyData(ri->ObjCBIndex, m_perObjectConstantBufferData); // In this case ri->ObjCBIndex would be equal to index 'i' of traditional for loop
 
             ri->NumFramesDirty--;
@@ -855,43 +934,12 @@ void Engine::UpdateMaterialCB(const ScaldTimer& st)
             m_perMaterialConstantBufferData.DiffuseAlbedo = mat->DiffuseAlbedo;
             m_perMaterialConstantBufferData.FresnelR0 = mat->FresnelR0;
             m_perMaterialConstantBufferData.Roughness = mat->Roughness;
+            XMStoreFloat4x4(&m_perMaterialConstantBufferData.MatTransform, XMMatrixTranspose(mat->MatTransform));
 
             materialCB->CopyData(mat->MatCBIndex, m_perMaterialConstantBufferData);
 
             mat->NumFramesDirty--;
         }
-    }
-}
-
-void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
-{
-    UINT objCount = (UINT)renderItems.size();
-    UINT materialCount = (UINT)m_materials.size();
-
-    UINT objCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
-    UINT materialCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
-
-    auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();       // Get actual ID3D12Resource*
-    auto currFrameMaterialCB = m_currFrameResource->MaterialCB->Get(); // Get actual ID3D12Resource*
-
-    for (auto& ri : renderItems)
-    {
-        cmdList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
-        cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
-        cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
-
-        D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = currFrameObjCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
-        D3D12_GPU_VIRTUAL_ADDRESS materialCBAddress = currFrameMaterialCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex * materialCBByteSize;
-        
-        cmdList->SetGraphicsRootConstantBufferView(0u, objCBAddress);
-        cmdList->SetGraphicsRootConstantBufferView(1u, materialCBAddress);
-
-        // The approach to bind cbv using Root Descriptor Table via Handle and cbvHeapStart address
-        //CD3DX12_GPU_DESCRIPTOR_HANDLE objCbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-        //objCbvHandle.Offset(objCount * m_currFrameResourceIndex + ri->ObjCBIndex, m_cbvSrvUavDescriptorSize);
-        //cmdList->SetGraphicsRootDescriptorTable(/*see root signiture*/0u, objCbvHandle);
-
-        cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
 }
 
@@ -917,9 +965,9 @@ VOID Engine::PopulateCommandList()
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-    // For root descriptor table
-    /*ID3D12DescriptorHeap* descriptorHeaps[] = { m_cbvHeap.Get() };
-    m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);*/
+    // Access for setting and using root descriptor table
+    ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.Get() };
+    m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     // Indicate that the back buffer will be used as a render target.
@@ -945,7 +993,7 @@ VOID Engine::PopulateCommandList()
     //m_commandList->SetGraphicsRootDescriptorTable(/*see root signiture*/1u, passCbvHandle);
     
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(2u, currFramePassCB->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootConstantBufferView(3u, currFramePassCB->GetGPUVirtualAddress());
 
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
@@ -954,6 +1002,42 @@ VOID Engine::PopulateCommandList()
     m_commandList->ResourceBarrier(1u, &transition);
 
     ThrowIfFailed(m_commandList->Close());
+}
+
+void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
+{
+    UINT objCount = (UINT)renderItems.size();
+    UINT materialCount = (UINT)m_materials.size();
+
+    UINT objCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+    UINT materialCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
+
+    auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();       // Get actual ID3D12Resource*
+    auto currFrameMaterialCB = m_currFrameResource->MaterialCB->Get(); // Get actual ID3D12Resource*
+
+    for (auto& ri : renderItems)
+    {
+        cmdList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
+        cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
+        cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+
+        CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+        texHandle.Offset(ri->Mat->DiffuseSrvHeapIndex, m_cbvSrvUavDescriptorSize);
+
+        D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = currFrameObjCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
+        D3D12_GPU_VIRTUAL_ADDRESS materialCBAddress = currFrameMaterialCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex * materialCBByteSize;
+
+        cmdList->SetGraphicsRootDescriptorTable(0u, texHandle);
+        cmdList->SetGraphicsRootConstantBufferView(1u, objCBAddress);
+        cmdList->SetGraphicsRootConstantBufferView(2u, materialCBAddress);
+
+        // The approach to bind cbv using Root Descriptor Table via Handle and cbvHeapStart address
+        //CD3DX12_GPU_DESCRIPTOR_HANDLE objCbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+        //objCbvHandle.Offset(objCount * m_currFrameResourceIndex + ri->ObjCBIndex, m_cbvSrvUavDescriptorSize);
+        //cmdList->SetGraphicsRootDescriptorTable(/*see root signiture*/0u, objCbvHandle);
+
+        cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
+    }
 }
 
 // Wait for pending GPU work to complete.
@@ -987,4 +1071,32 @@ VOID Engine::MoveToNextFrame()
 
     // Set the fence value for the next frame.
     m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+}
+
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 3> Engine::GetStaticSamplers()
+{
+    const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
+        0u, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+    const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+        1u, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+    const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
+        2u, // shaderRegister
+        D3D12_FILTER_ANISOTROPIC, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
+        0.0f,                             // mipLODBias
+        8u);                              // maxAnisotropy
+
+    return { pointWrap, linearWrap, anisotropicWrap };
 }

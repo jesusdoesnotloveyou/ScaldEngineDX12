@@ -55,6 +55,7 @@ struct Light
 struct ObjectConstants
 {
 	XMFLOAT4X4 World;
+	XMFLOAT4X4 TexTransform;
 };
 
 #define MaxLights 16
@@ -88,4 +89,5 @@ struct MaterialConstants
 	XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
 	XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
 	float Roughness = 0.25f;
+	XMFLOAT4X4 MatTransform;
 };

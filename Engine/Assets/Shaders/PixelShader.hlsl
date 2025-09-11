@@ -34,7 +34,8 @@ cbuffer cbPerMaterial : register(b1)
 {
     float4 gDiffuseAlbedo;
     float3 gFresnelR0;
-    float Roughness;
+    float gRoughness;
+    float4x4 gMatTransform;
 };
 
 cbuffer cbPerPass : register(b2)
@@ -55,11 +56,18 @@ cbuffer cbPerPass : register(b2)
     Light gLights[MaxLights];
 };
 
+Texture2D gDiffuseMap : register(t0);
+
+SamplerState gSamplerPointWrap : register(s0);
+SamplerState gSamplerLinearWrap : register(s1);
+SamplerState gSamplerAnisotropicWrap : register(s2);
+
 struct PSInput
 {
     float4 iPosH    : SV_POSITION;
     float3 iPosW    : POSITION0;
     float3 iNormalW : NORMAL;
+    float2 iTexC    : TEXCOORD0;
 };
 
 float3 SchlickApproximation(float3 fresnelR0, float3 halfVec, float3 lightDir)
@@ -126,9 +134,8 @@ float3 CalcSpotLight(Light L, float3 N, float3 posW, float3 viewDir, Material ma
 
 // The idea is to calculate every light object's illumination strength related to it's type specific parameters
 // and to pass it in BlinnPhong model function
-float4 ComputeLight(float3 N, float3 posW)
+float4 ComputeLight(float3 N, float3 posW, Material mat)
 {
-    Material mat = { gDiffuseAlbedo, gFresnelR0, 1.0f - Roughness };
     float3 viewDir = normalize(gEyePos - posW);
     
     float3 litColor = 0.0f;
@@ -175,11 +182,19 @@ float4 ComputeLight(float3 N, float3 posW)
 
 float4 main(PSInput input) : SV_TARGET
 {
+    // Sample diff albedo from texture and multiply by material diffuse albedo for some tweak if we need one (gDiffuseAlbedo = (1, 1, 1, 1) by default).
+    float4 diffuseAlbedo = gDiffuseMap.Sample(gSamplerAnisotropicWrap, input.iTexC) * gDiffuseAlbedo;
+    
     float3 N = normalize(input.iNormalW);
     
-    float4 ambient = gAmbient * gDiffuseAlbedo;
+    float4 ambient = gAmbient * diffuseAlbedo;
     float4 litColor = ambient;
     
-    litColor += ComputeLight(N, input.iPosW);
+    Material mat = { diffuseAlbedo, gFresnelR0, 1.0f - gRoughness };
+    
+    litColor += ComputeLight(N, input.iPosW, mat);
+    // set the alpha channel of the diffuse material of the object itself
+    litColor.a = diffuseAlbedo.a;
+    
     return litColor;
 }
