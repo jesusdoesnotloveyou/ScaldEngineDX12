@@ -34,6 +34,8 @@ struct Material
     DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
     DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
     float Roughness = 0.25f;
+
+    XMMATRIX MatTransform;
 };
 
 // F. Luna stuff: lightweight structure that stores parameters to draw a shape.
@@ -118,8 +120,9 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     UINT m_rtvDescriptorSize;
     UINT m_dsvDescriptorSize;
-    //ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Texture
-    ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // heap for constant buffer views
+
+    ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
+    ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
     UINT m_cbvSrvUavDescriptorSize = 0u;
 
     // Synchronization objects.
@@ -143,6 +146,7 @@ private:
     //ComPtr<ID3D12Resource> m_texture;
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
     std::unordered_map < std::string, std::unique_ptr<Material>> m_materials;
+    std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::vector<RenderItem*> m_opaqueItems;
 
@@ -162,6 +166,8 @@ private:
     VOID CreateRootSignature();
     VOID CreateShaders();
     VOID CreatePSO();
+    
+    VOID LoadTextures();
     // Shapes
     VOID CreateGeometry();
     // Propertirs of shapes' surfaces to model light interaction
@@ -177,6 +183,7 @@ private:
     VOID MoveToNextFrame();
     VOID WaitForGPU();
 
+    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 3> Engine::GetStaticSamplers();
 
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTV()
     {
