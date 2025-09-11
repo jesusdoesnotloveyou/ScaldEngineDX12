@@ -510,6 +510,7 @@ VOID Engine::CreateRenderItems()
 {
     auto sunRenderItem = std::make_unique<RenderItem>();
     sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+    sunRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     sunRenderItem->Geo = m_geometries["solarSystem"].get();
     sunRenderItem->Mat = m_materials["flame0"].get();
     sunRenderItem->ObjCBIndex = 0u;
@@ -528,6 +529,7 @@ VOID Engine::CreateRenderItems()
 
     auto venusRenderItem = std::make_unique<RenderItem>();
     venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
+    venusRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     venusRenderItem->Geo = m_geometries["solarSystem"].get();
     venusRenderItem->Mat = m_materials["stone0"].get();
     venusRenderItem->ObjCBIndex = 2u;
@@ -537,6 +539,7 @@ VOID Engine::CreateRenderItems()
 
     auto earthRenderItem = std::make_unique<RenderItem>();
     earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
+    earthRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
     earthRenderItem->Geo = m_geometries["solarSystem"].get();
     earthRenderItem->Mat = m_materials["ground0"].get();
     earthRenderItem->ObjCBIndex = 3u;
@@ -881,7 +884,7 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
         if (ri->NumFramesDirty > 0)
         {
             XMStoreFloat4x4(&m_perObjectConstantBufferData.World, XMMatrixTranspose(ri->World));
-            XMStoreFloat4x4(&m_perObjectConstantBufferData.TexTransform, XMMatrixTranspose(XMMatrixIdentity()));
+            XMStoreFloat4x4(&m_perObjectConstantBufferData.TexTransform, XMMatrixTranspose(ri->TexTransform));
             objectCB->CopyData(ri->ObjCBIndex, m_perObjectConstantBufferData); // In this case ri->ObjCBIndex would be equal to index 'i' of traditional for loop
 
             ri->NumFramesDirty--;

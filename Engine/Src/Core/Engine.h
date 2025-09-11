@@ -35,6 +35,7 @@ struct Material
     DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
     float Roughness = 0.25f;
 
+    // could be used for material animation (water for instance)
     XMMATRIX MatTransform;
 };
 
@@ -42,7 +43,10 @@ struct Material
 struct RenderItem
 {
     RenderItem() = default;
+
     XMMATRIX World = XMMatrixIdentity();
+    // could be used for texture tiling
+    XMMATRIX TexTransform = XMMatrixIdentity();
 
     int NumFramesDirty = gNumFrameResources;
 
