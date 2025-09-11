@@ -399,24 +399,28 @@ VOID Engine::CreateGeometry()
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
+        vertices[k].texC = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
+        vertices[k].texC = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
+        vertices[k].texC = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
+        vertices[k].texC = sphere.vertices[i].texCoord;
     }
 
     std::vector<uint16_t> indices;
