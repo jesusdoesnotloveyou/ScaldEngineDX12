@@ -53,6 +53,11 @@ cbuffer cbPerPass : register(b2)
     
     float4 gAmbient;
     
+    float4 gFogColor;
+    float gFogStart;
+    float gFogRange;
+    float2 pad2;
+    
     Light gLights[MaxLights];
 };
 
@@ -134,10 +139,8 @@ float3 CalcSpotLight(Light L, float3 N, float3 posW, float3 viewDir, Material ma
 
 // The idea is to calculate every light object's illumination strength related to it's type specific parameters
 // and to pass it in BlinnPhong model function
-float4 ComputeLight(float3 N, float3 posW, Material mat)
-{
-    float3 viewDir = normalize(gEyePos - posW);
-    
+float4 ComputeLight(float3 N, float3 posW, float3 viewDir, Material mat)
+{   
     float3 litColor = 0.0f;
     
 #if NUM_DIR_LIGHTS
@@ -185,14 +188,30 @@ float4 main(PSInput input) : SV_TARGET
     // Sample diff albedo from texture and multiply by material diffuse albedo for some tweak if we need one (gDiffuseAlbedo = (1, 1, 1, 1) by default).
     float4 diffuseAlbedo = gDiffuseMap.Sample(gSamplerAnisotropicWrap, input.iTexC) * gDiffuseAlbedo;
     
+    // To reject pixel as early as possible if it is completely transparent
+#ifdef ALPHA_TEST
+    clip(diffuseAlbedo.a - 0.1f);
+#endif
+    
     float3 N = normalize(input.iNormalW);
+    
+    float3 toEye = gEyePos - input.iPosW;
+    float distToEye = length(toEye);
+    float3 viewDir = toEye / distToEye;
     
     float4 ambient = gAmbient * diffuseAlbedo;
     float4 litColor = ambient;
     
     Material mat = { diffuseAlbedo, gFresnelR0, 1.0f - gRoughness };
     
-    litColor += ComputeLight(N, input.iPosW, mat);
+    litColor += ComputeLight(N, input.iPosW, viewDir, mat);
+    
+    // linear fog
+#ifdef FOG
+    float fogAmount = saturate(distToEye - gFogStart) / gFogRange;
+    litColor = (1-fogAmount) * litColor + fogAmount * gFogColor;
+#endif
+    
     // set the alpha channel of the diffuse material of the object itself
     litColor.a = diffuseAlbedo.a;
     
