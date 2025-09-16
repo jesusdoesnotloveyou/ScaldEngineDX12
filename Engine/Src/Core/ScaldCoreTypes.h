@@ -9,6 +9,7 @@ struct Vertex
 {
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
+	XMFLOAT2 texC;
 };
 
 struct SVertex
@@ -76,6 +77,11 @@ struct PassConstants
 	float TotalTime = 0.0f;
 
 	XMFLOAT4 Ambient = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+	XMFLOAT4 FogColor = { 0.7f, 0.7f, 0.7f, 1.0f };
+	float FogStart = 5.0f;
+	float FogRange = 10.0f;
+	XMFLOAT2 pad2 = { 0.0f, 0.0f };
 
 	// Indices [0, NUM_DIR_LIGHTS) are directional lights;
 	// indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;

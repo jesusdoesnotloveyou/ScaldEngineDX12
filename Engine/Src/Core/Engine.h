@@ -35,6 +35,7 @@ struct Material
     DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
     float Roughness = 0.25f;
 
+    // could be used for material animation (water for instance)
     XMMATRIX MatTransform;
 };
 
@@ -42,7 +43,10 @@ struct Material
 struct RenderItem
 {
     RenderItem() = default;
+
     XMMATRIX World = XMMatrixIdentity();
+    // could be used for texture tiling
+    XMMATRIX TexTransform = XMMatrixIdentity();
 
     int NumFramesDirty = gNumFrameResources;
 
@@ -93,51 +97,15 @@ private:
     float m_sunPhi = XM_PIDIV4;
     float m_sunTheta = 1.25f * XM_PI;
 
-    static const UINT TextureWidth = 256u;
-    static const UINT TextureHeight = 256u;
-    static const UINT TexturePixelSize = 4u; // The number of bytes used to represent a pixel in the texture.
-
-    static const UINT FrameCount = 2;
-    static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    static const DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-    // Pipeline objects.
-    ComPtr<IDXGIFactory4> m_factory;
-    ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device> m_device;
-
     ComPtr<ID3D12RootSignature> m_rootSignature;
-    ComPtr<IDXGIAdapter1> m_hardwareAdapter;
-
-    ComPtr<ID3D12CommandQueue> m_commandQueue;
-    ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
-    ComPtr<ID3D12GraphicsCommandList> m_commandList;
-
-    ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
-    ComPtr<ID3D12Resource> m_depthStencilBuffer;
-    
-    ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-    UINT m_rtvDescriptorSize;
-    UINT m_dsvDescriptorSize;
 
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
-    UINT m_cbvSrvUavDescriptorSize = 0u;
-
-    // Synchronization objects.
-    UINT m_frameIndex = 0u; // keep track of front and back buffers (see FrameCount)
-    ComPtr<ID3D12Fence> m_fence;
-    HANDLE m_fenceEvent;
-    UINT64 m_fenceValues[FrameCount];
    
-    ComPtr<ID3DBlob> m_vertexShader;
-    ComPtr<ID3DBlob> m_pixelShader;
+    std::unordered_map<std::string, ComPtr<ID3DBlob>> m_shaders;
     std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
     std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> m_pipelineStates;
-    D3D12_VIEWPORT m_viewport;
-    D3D12_RECT m_scissorRect;
 
     ObjectConstants m_perObjectConstantBufferData;
     PassConstants m_passConstantBufferData;
@@ -152,14 +120,7 @@ private:
 
     std::unique_ptr<Camera> m_camera;
 
-    VOID LoadPipeline();
-    VOID CreateDebugLayer();
-    VOID CreateDevice();
-    VOID CreateCommandObjects();
-    VOID CreateFence();
-    VOID CreateRtvAndDsvDescriptorHeaps();
-    VOID CreateSwapChain();
-    
+    VOID LoadPipeline() override;
     VOID Reset() override;
     
     VOID LoadAssets();
@@ -181,17 +142,6 @@ private:
 
     VOID PopulateCommandList();
     VOID MoveToNextFrame();
-    VOID WaitForGPU();
 
     std::array<const CD3DX12_STATIC_SAMPLER_DESC, 3> Engine::GetStaticSamplers();
-
-    D3D12_CPU_DESCRIPTOR_HANDLE GetRTV()
-    {
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-    }
-
-    D3D12_CPU_DESCRIPTOR_HANDLE GetDSV()
-    {
-        return m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-    }
 };
