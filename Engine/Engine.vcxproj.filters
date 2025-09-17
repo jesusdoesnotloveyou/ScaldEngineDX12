@@ -12,6 +12,7 @@
     <ClCompile Include="Src\Core\Shapes.cpp" />
     <ClCompile Include="Src\Core\Camera.cpp" />
     <ClCompile Include="Src\Core\DDSTextureLoader.cpp" />
+    <ClCompile Include="Src\Core\ShadowMap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />

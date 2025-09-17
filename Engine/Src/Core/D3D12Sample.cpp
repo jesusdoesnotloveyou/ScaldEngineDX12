@@ -186,7 +186,7 @@ VOID D3D12Sample::Reset()
         optClear.DepthStencil.Stencil = 0u;
 
         ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed */),
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed (from CPU) */),
             D3D12_HEAP_FLAG_NONE,
             &depthStencilDesc,
             D3D12_RESOURCE_STATE_COMMON,
