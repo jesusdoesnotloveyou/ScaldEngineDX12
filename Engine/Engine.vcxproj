@@ -36,12 +36,19 @@
     <ClInclude Include="Src\Core\ScaldMath.h" />
     <ClInclude Include="Src\Core\ScaldTimer.h" />
     <ClInclude Include="Src\Core\ScaldUtil.h" />
+    <ClInclude Include="Src\Core\ShadowMap.h" />
     <ClInclude Include="Src\Core\Shapes.h" />
     <ClInclude Include="Src\Core\stdafx.h" />
     <ClInclude Include="Src\Core\UploadBuffer.h" />
     <ClInclude Include="Src\Core\Win32App.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="Assets\Shaders\GeometryShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Geometry</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Assets\Shaders\PixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
