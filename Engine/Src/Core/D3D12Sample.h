@@ -14,12 +14,17 @@ public:
     D3D12Sample(UINT width, UINT height, std::wstring name, std::wstring className);
     virtual ~D3D12Sample();
 
+public:
+
     int Run();
 
     virtual void OnInit() = 0;
     virtual void OnUpdate(const ScaldTimer& st) = 0;
     virtual void OnRender(const ScaldTimer& st) = 0;
     virtual void OnDestroy() = 0;
+
+    bool Get4xMsaaState()const;
+    void Set4xMsaaState(bool value);
 
     virtual void LoadPipeline();
 
@@ -98,7 +103,7 @@ protected:
 
     XMFLOAT2 m_lastMousePos = { 0.0f, 0.0f };
 
-    static const UINT FrameCount = 2;
+    static const UINT SwapChainFrameCount = 2;
     static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     static const DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
@@ -113,17 +118,17 @@ protected:
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 
     ComPtr<ID3D12CommandQueue> m_commandQueue;
-    ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
+    ComPtr<ID3D12CommandAllocator> m_commandAllocators[SwapChainFrameCount];
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
 
-    ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
+    ComPtr<ID3D12Resource> m_renderTargets[SwapChainFrameCount];
     ComPtr<ID3D12Resource> m_depthStencilBuffer;
 
     // Synchronization objects.
-    UINT m_frameIndex = 0u; // keep track of front and back buffers (see FrameCount)
+    UINT m_frameIndex = 0u; // keep track of front and back buffers (see SwapChainFrameCount)
     ComPtr<ID3D12Fence> m_fence;
     HANDLE m_fenceEvent;
-    UINT64 m_fenceValues[FrameCount];
+    UINT64 m_fenceValues[SwapChainFrameCount];
 
     D3D12_VIEWPORT m_viewport;
     D3D12_RECT m_scissorRect;
