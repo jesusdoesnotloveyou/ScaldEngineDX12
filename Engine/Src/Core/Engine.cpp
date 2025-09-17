@@ -94,17 +94,7 @@ VOID Engine::CreateRootSignature()
 
 VOID Engine::CreateShaders()
 {
-#if defined(_DEBUG) | defined(DEBUG)
-    // Enable better shader debugging with the graphics debugging tools.
-    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-    UINT compileFlags = 0;
-#endif
-
     //auto pixelShaderPath = GetAssetFullPath(L"./PixelShader.hlsl").c_str();
-
-    ComPtr<ID3DBlob> pErrorMsgVS;
-    ComPtr<ID3DBlob> pErrorMsgPS;
 
     const D3D_SHADER_MACRO fogDefines[] =
     {
@@ -119,8 +109,9 @@ VOID Engine::CreateShaders()
         NULL, NULL
     };
 
-    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", compileFlags, 0u, &m_shaders["defaultVS"], &pErrorMsgVS));
-    ThrowIfFailed(D3DCompileFromFile(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, nullptr, "main", "ps_5_1", compileFlags, 0u, &m_shaders["opaquePS"], &pErrorMsgPS));
+    m_shaders["defaultVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders["opaquePS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
+    m_shaders["shadowGS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
 
     // Define the vertex input layout.
     m_inputLayout =

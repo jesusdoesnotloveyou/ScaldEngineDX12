@@ -92,13 +92,26 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
 
     /* Keyboard */
     case WM_KEYDOWN:
+
         if (pSample)
         {
+            if (wParam == VK_F1)
+            {
+                pSample->Set4xMsaaState(!pSample->Get4xMsaaState());
+            }
+
             pSample->OnKeyDown(static_cast<UINT8>(wParam));
         }
         return 0;
 
     case WM_KEYUP:
+
+        if (wParam == VK_ESCAPE)
+        {
+            PostQuitMessage(0);
+        }
+        return 0;
+
         if (pSample)
         {
             pSample->OnKeyUp(static_cast<UINT8>(wParam));

@@ -64,6 +64,21 @@ int D3D12Sample::Run()
     return static_cast<char>(msg.wParam);
 }
 
+bool D3D12Sample::Get4xMsaaState() const
+{
+    return m_is4xMsaaState;
+}
+
+void D3D12Sample::Set4xMsaaState(bool value)
+{
+    if (m_is4xMsaaState != value)
+    {
+        m_is4xMsaaState = value;
+        CreateSwapChain();
+        OnResize();
+    }
+}
+
 void D3D12Sample::LoadPipeline()
 {
 #if defined(_DEBUG)
@@ -118,7 +133,7 @@ VOID D3D12Sample::Reset()
 
     ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), nullptr));
 
-    for (UINT i = 0; i < FrameCount; i++)
+    for (UINT i = 0; i < SwapChainFrameCount; i++)
     {
         m_renderTargets[i].Reset();
     }
@@ -126,7 +141,7 @@ VOID D3D12Sample::Reset()
 
     // Resize the swap chain
     ThrowIfFailed(m_swapChain->ResizeBuffers(
-        FrameCount,
+        SwapChainFrameCount,
         m_width,
         m_height,
         BackBufferFormat,
@@ -139,7 +154,7 @@ VOID D3D12Sample::Reset()
         // Create Render Targets
         // Start of the rtv heap
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-        for (UINT i = 0; i < FrameCount; i++)
+        for (UINT i = 0; i < SwapChainFrameCount; i++)
         {
             ThrowIfFailed(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
             m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHeapHandle);
@@ -159,8 +174,8 @@ VOID D3D12Sample::Reset()
         depthStencilDesc.MipLevels = 1;
         depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; //
         // MSAA, same settings as back buffer
-        depthStencilDesc.SampleDesc.Count = 1u;
-        depthStencilDesc.SampleDesc.Quality = 0u;
+        depthStencilDesc.SampleDesc.Count = m_is4xMsaaState ? 4u : 1u;
+        depthStencilDesc.SampleDesc.Quality = m_is4xMsaaState ? (m_4xMsaaQuality - 1u) : 0u;
 
         depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -171,7 +186,7 @@ VOID D3D12Sample::Reset()
         optClear.DepthStencil.Stencil = 0u;
 
         ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed */),
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed (from CPU) */),
             D3D12_HEAP_FLAG_NONE,
             &depthStencilDesc,
             D3D12_RESOURCE_STATE_COMMON,
@@ -207,8 +222,8 @@ VOID D3D12Sample::Reset()
     m_viewport.MinDepth = 0.0f;
     m_viewport.MaxDepth = 1.0f;
 
-    m_scissorRect.left = 0;
-    m_scissorRect.top = 0;
+    m_scissorRect.left = 0L;
+    m_scissorRect.top = 0L;
     m_scissorRect.right = static_cast<LONG>(m_width);
     m_scissorRect.bottom = static_cast<LONG>(m_height);
 
@@ -410,7 +425,7 @@ VOID D3D12Sample::CreateRtvAndDsvDescriptorHeaps()
     // Describe and create a render target view (RTV) descriptor heap.
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    rtvHeapDesc.NumDescriptors = FrameCount;
+    rtvHeapDesc.NumDescriptors = SwapChainFrameCount;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     rtvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
@@ -435,10 +450,10 @@ VOID D3D12Sample::CreateSwapChain()
     swapChainDesc.Width = m_width;
     swapChainDesc.Height = m_height;
     swapChainDesc.Format = BackBufferFormat; // Back buffer format
-    swapChainDesc.SampleDesc.Count = 1u; // MSAA
-    swapChainDesc.SampleDesc.Quality = 0u; // MSAA
+    swapChainDesc.SampleDesc.Count = m_is4xMsaaState ? 4u : 1u; // MSAA
+    swapChainDesc.SampleDesc.Quality = m_is4xMsaaState ? (m_4xMsaaQuality - 1u) : 0u; // MSAA
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.BufferCount = FrameCount;
+    swapChainDesc.BufferCount = SwapChainFrameCount;
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
