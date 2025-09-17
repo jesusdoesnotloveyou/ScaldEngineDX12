@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "ShadowMap.h"
 
 ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height)
