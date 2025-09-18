@@ -80,7 +80,7 @@ struct PassConstants
 
 	XMFLOAT4 FogColor = { 0.7f, 0.7f, 0.7f, 1.0f };
 	float FogStart = 5.0f;
-	float FogRange = 10.0f;
+	float FogRange = 15.0f;
 	XMFLOAT2 pad2 = { 0.0f, 0.0f };
 
 	// Indices [0, NUM_DIR_LIGHTS) are directional lights;

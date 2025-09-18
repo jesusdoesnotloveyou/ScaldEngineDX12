@@ -3,13 +3,14 @@
 #include "ScaldMath.h"
 
 Camera::Camera()
-	:
-	m_radius(5.0f),
-	m_fovAngleY(0.0f),
-	m_nearZ(1.0f),
-	m_farZ(1000.0f),
-	m_phi(XM_PIDIV4),
-	m_theta(1.5f * XM_PI)
+	: m_radius(5.0f)
+	, m_nearZ(1.0f)
+	, m_farZ(1000.0f)
+	, m_phi(XM_PIDIV4)
+	, m_theta(1.5f * XM_PI)
+	, m_x(0.0f)
+	, m_y(0.0f)
+	, m_z(0.0f)
 {
 	m_view = XMMatrixIdentity();
 	m_proj = XMMatrixIdentity();
@@ -18,12 +19,12 @@ Camera::Camera()
 void Camera::Update(float deltaTime)
 {
 	// Convert Spherical to Cartesian
-	float x = m_radius * sinf(m_phi) * cosf(m_theta);
-	float z = m_radius * sinf(m_phi) * sinf(m_theta);
-	float y = m_radius * cosf(m_phi);
+	m_x = m_radius * sinf(m_phi) * cosf(m_theta);
+	m_z = m_radius * sinf(m_phi) * sinf(m_theta);
+	m_y = m_radius * cosf(m_phi);
 
 	// View matrix
-	XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
+	XMVECTOR pos = XMVectorSet(m_x, m_y, m_z, 1.0f);
 	XMVECTOR target = XMVectorZero();
 	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
@@ -33,6 +34,8 @@ void Camera::Update(float deltaTime)
 void Camera::Reset(float fovAngleY, float aspectRatio, float nearZ, float farZ)
 {
 	m_proj = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, nearZ, farZ);
+	m_nearZ = nearZ;
+	m_farZ = farZ;
 }
 
 XMMATRIX Camera::GetViewMatrix() const
@@ -48,6 +51,11 @@ XMMATRIX Camera::GetPerspectiveProjectionMatrix() const
 XMMATRIX Camera::GetOrthoProjectionMatrix() const
 {
 	return XMMATRIX{};
+}
+
+XMFLOAT3 Camera::GetPosition() const
+{
+	return XMFLOAT3(m_x, m_y, m_z);
 }
 
 void Camera::AdjustCameraRadius(float adjustValue)
