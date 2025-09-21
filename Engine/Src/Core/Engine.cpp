@@ -681,6 +681,7 @@ void Engine::UpdatePassCB(const ScaldTimer& st)
     XMStoreFloat4x4(&m_passConstantBufferData.Proj, XMMatrixTranspose(proj));
     XMStoreFloat4x4(&m_passConstantBufferData.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&m_passConstantBufferData.InvViewProj, XMMatrixTranspose(invViewProj));
+    m_passConstantBufferData.EyePosW = m_camera->GetPosition();
     m_passConstantBufferData.NearZ = 1.0f;
     m_passConstantBufferData.FarZ = 1000.0f;
     m_passConstantBufferData.DeltaTime = st.DeltaTime();
@@ -766,7 +767,7 @@ VOID Engine::PopulateCommandList()
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     // Record commands.
-    const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    const float* clearColor = &m_passConstantBufferData.FogColor.x;
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
     m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
     m_commandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);

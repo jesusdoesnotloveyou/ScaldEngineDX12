@@ -208,7 +208,7 @@ float4 main(PSInput input) : SV_TARGET
     
     // linear fog
 #ifdef FOG
-    float fogAmount = saturate(distToEye - gFogStart) / gFogRange;
+    float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
     litColor = (1-fogAmount) * litColor + fogAmount * gFogColor;
 #endif
     
