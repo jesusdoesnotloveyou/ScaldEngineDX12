@@ -1,9 +1,10 @@
 #pragma once
 
-#include "DXHelper.h"
+#include "Common/DXHelper.h"
+#include "Common/ScaldTimer.h"
 #include "Win32App.h"
-#include "ScaldTimer.h"
 
+// target_link_libraries(${PROJECT_NAME} PRIVATE DirectXTK d3dcompiler dxguid dxgi d3d11 assimp)
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")

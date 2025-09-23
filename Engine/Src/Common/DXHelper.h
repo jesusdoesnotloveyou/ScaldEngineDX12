@@ -5,16 +5,21 @@
 
 #include "DirectXCollision.h"
 #include "d3dx12.h"
-
-#include "ScaldCoreTypes.h"
-
 #include "DDSTextureLoader.h"
+#include "ScaldCoreTypes.h"
 
 #include <unordered_map>
 #include <memory>
 #include <string>
 #include <array>
+#include <vector>
 #include <cassert>
+
+struct MeshData
+{
+    std::vector<SVertex> vertices;
+    std::vector<uint16_t> indices;
+};
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account

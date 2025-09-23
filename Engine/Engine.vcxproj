@@ -11,37 +11,60 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Components\ScaldComponent.cpp" />
     <ClCompile Include="Src\Core\Camera.cpp" />
     <ClCompile Include="Src\Core\D3D12Sample.cpp" />
-    <ClCompile Include="Src\Core\DDSTextureLoader.cpp" />
+    <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
     <ClCompile Include="Src\Core\Engine.cpp" />
     <ClCompile Include="Src\Core\FrameResource.cpp" />
     <ClCompile Include="Src\Core\Main.cpp" />
-    <ClCompile Include="Src\Core\ScaldTimer.cpp" />
-    <ClCompile Include="Src\Core\ScaldUtil.cpp" />
+    <ClCompile Include="Src\Common\ScaldTimer.cpp" />
+    <ClCompile Include="Src\Common\ScaldUtil.cpp" />
     <ClCompile Include="Src\Core\ShadowMap.cpp" />
     <ClCompile Include="Src\Core\Shapes.cpp" />
-    <ClCompile Include="Src\Core\stdafx.cpp" />
+    <ClCompile Include="Src\stdafx.cpp" />
     <ClCompile Include="Src\Core\Win32App.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
     <ClInclude Include="Src\Core\Camera.h" />
+    <ClInclude Include="Src\Components\ScaldComponent.h" />
     <ClInclude Include="Src\Core\D3D12Sample.h" />
-    <ClInclude Include="Src\Core\d3dx12.h" />
-    <ClInclude Include="Src\Core\DDSTextureLoader.h" />
-    <ClInclude Include="Src\Core\DXHelper.h" />
+    <ClInclude Include="Src\Common\d3dx12.h" />
+    <ClInclude Include="Src\Common\DDSTextureLoader.h" />
+    <ClInclude Include="Src\Common\DXHelper.h" />
     <ClInclude Include="Src\Core\Engine.h" />
     <ClInclude Include="Src\Core\FrameResource.h" />
-    <ClInclude Include="Src\Core\ScaldCoreTypes.h" />
-    <ClInclude Include="Src\Core\ScaldMath.h" />
-    <ClInclude Include="Src\Core\ScaldTimer.h" />
-    <ClInclude Include="Src\Core\ScaldUtil.h" />
+    <ClInclude Include="Src\Objects\Object.h" />
+    <ClInclude Include="Src\Common\ScaldCoreTypes.h" />
+    <ClInclude Include="Src\Common\ScaldMath.h" />
+    <ClInclude Include="Src\Common\ScaldTimer.h" />
+    <ClInclude Include="Src\Common\ScaldUtil.h" />
+    <ClInclude Include="Src\Objects\Actor.h" />
     <ClInclude Include="Src\Core\ShadowMap.h" />
     <ClInclude Include="Src\Core\Shapes.h" />
-    <ClInclude Include="Src\Core\stdafx.h" />
+    <ClInclude Include="Src\stdafx.h" />
     <ClInclude Include="Src\Core\UploadBuffer.h" />
     <ClInclude Include="Src\Core\Win32App.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Assets\Shaders\LightUtil.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
+    <FxCompile Include="Assets\Shaders\PixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\VertexShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -94,6 +117,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeader>Create</PrecompiledHeader>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -112,6 +136,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeader>Create</PrecompiledHeader>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

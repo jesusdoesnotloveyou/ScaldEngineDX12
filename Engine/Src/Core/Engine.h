@@ -1,10 +1,8 @@
 #pragma once
 
 #include "D3D12Sample.h"
-#include "UploadBuffer.h"
 #include "FrameResource.h"
 #include "Camera.h"
-#include <vector>
 
 const int gNumFrameResources = 3;
 
@@ -84,7 +82,10 @@ private:
     void UpdateObjectsCB(const ScaldTimer& st);
     void UpdatePassCB(const ScaldTimer& st);
     void UpdateMaterialCB(const ScaldTimer& st);
+    void UpdateShadowTransform(const ScaldTimer& st);
+    void UpdateShadowPassCB(const ScaldTimer& st);
     
+    void RenderDepthOnlyPass(ID3D12GraphicsCommandList* cmdList);
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
 
 private:
@@ -111,7 +112,6 @@ private:
     PassConstants m_passConstantBufferData;
     MaterialConstants m_perMaterialConstantBufferData;
 
-    //ComPtr<ID3D12Resource> m_texture;
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
     std::unordered_map < std::string, std::unique_ptr<Material>> m_materials;
     std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;

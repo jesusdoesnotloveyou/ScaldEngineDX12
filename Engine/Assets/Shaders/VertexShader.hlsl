@@ -1,14 +1,4 @@
-#define MaxLights 16
-
-struct Light
-{
-    float3 Strength;
-    float FallOfStart;
-    float3 Direction;
-    float FallOfEnd;
-    float3 Position;
-    float SpotPower;
-};
+#include "LightUtil.hlsl"
 
 cbuffer cbPerObject : register(b0)
 {
