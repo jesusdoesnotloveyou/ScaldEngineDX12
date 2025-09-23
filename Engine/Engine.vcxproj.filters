@@ -2,35 +2,46 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="Src\Core\Engine.cpp" />
-    <ClCompile Include="Src\Core\ScaldTimer.cpp" />
+    <ClCompile Include="Src\Common\ScaldTimer.cpp" />
     <ClCompile Include="Src\Core\Main.cpp" />
     <ClCompile Include="Src\Core\D3D12Sample.cpp" />
     <ClCompile Include="Src\Core\Win32App.cpp" />
-    <ClCompile Include="Src\Core\stdafx.cpp" />
-    <ClCompile Include="Src\Core\ScaldUtil.cpp" />
+    <ClCompile Include="Src\stdafx.cpp" />
+    <ClCompile Include="Src\Common\ScaldUtil.cpp" />
     <ClCompile Include="Src\Core\FrameResource.cpp" />
     <ClCompile Include="Src\Core\Shapes.cpp" />
     <ClCompile Include="Src\Core\Camera.cpp" />
-    <ClCompile Include="Src\Core\DDSTextureLoader.cpp" />
+    <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
     <ClCompile Include="Src\Core\ShadowMap.cpp" />
+    <ClCompile Include="Src\Components\ScaldComponent.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
     <ClInclude Include="Src\Core\Engine.h" />
-    <ClInclude Include="Src\Core\ScaldTimer.h" />
+    <ClInclude Include="Src\Common\ScaldTimer.h" />
     <ClInclude Include="Src\Core\Win32App.h" />
     <ClInclude Include="Src\Core\D3D12Sample.h" />
-    <ClInclude Include="Src\Core\stdafx.h" />
-    <ClInclude Include="Src\Core\DXHelper.h" />
-    <ClInclude Include="Src\Core\d3dx12.h" />
-    <ClInclude Include="Src\Core\ScaldCoreTypes.h" />
+    <ClInclude Include="Src\stdafx.h" />
+    <ClInclude Include="Src\Common\DXHelper.h" />
+    <ClInclude Include="Src\Common\d3dx12.h" />
+    <ClInclude Include="Src\Common\ScaldCoreTypes.h" />
     <ClInclude Include="Src\Core\UploadBuffer.h" />
-    <ClInclude Include="Src\Core\ScaldUtil.h" />
+    <ClInclude Include="Src\Common\ScaldUtil.h" />
     <ClInclude Include="Src\Core\FrameResource.h" />
     <ClInclude Include="Src\Core\Shapes.h" />
-    <ClInclude Include="Src\Core\ScaldMath.h" />
+    <ClInclude Include="Src\Common\ScaldMath.h" />
     <ClInclude Include="Src\Core\Camera.h" />
-    <ClInclude Include="Src\Core\DDSTextureLoader.h" />
+    <ClInclude Include="Src\Common\DDSTextureLoader.h" />
     <ClInclude Include="Src\Core\ShadowMap.h" />
+    <ClInclude Include="Src\Objects\Actor.h" />
+    <ClInclude Include="Src\Objects\Object.h" />
+    <ClInclude Include="Src\Components\ScaldComponent.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Assets\Shaders\PixelShader.hlsl" />
+    <FxCompile Include="Assets\Shaders\VertexShader.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Assets\Shaders\LightUtil.hlsl" />
   </ItemGroup>
 </Project>
