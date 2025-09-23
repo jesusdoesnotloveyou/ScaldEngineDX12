@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "Shapes.h"
 
-Shapes::MeshData Shapes::CreateBox(float width, float height, float depth)
+MeshData Shapes::CreateBox(float width, float height, float depth)
 {
     MeshData meshData;
 
@@ -80,7 +80,7 @@ Shapes::MeshData Shapes::CreateBox(float width, float height, float depth)
 	return meshData;
 }
 
-Shapes::MeshData Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
+MeshData Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
 {
     MeshData meshData;
 
@@ -170,7 +170,7 @@ Shapes::MeshData Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackC
 	return meshData;
 }
 
-Shapes::MeshData Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
+MeshData Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
 {
 	MeshData meshData;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DXHelper.h"
+#include "Common/DXHelper.h"
 
 class Camera
 {

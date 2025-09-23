@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "Camera.h"
-#include "ScaldMath.h"
+#include "Common/ScaldMath.h"
 
 Camera::Camera()
 	: m_radius(5.0f)
