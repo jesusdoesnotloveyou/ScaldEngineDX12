@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "Engine.h"
 #include "Shapes.h"
-#include "ScaldMath.h"
+#include "Common/ScaldMath.h"
 
 extern const int gNumFrameResources;
 
@@ -175,6 +175,16 @@ VOID Engine::CreatePSO()
     transparentPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&m_pipelineStates["transparency"])));
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = opaquePsoDesc;
+    shadowPsoDesc.VS = D3D12_SHADER_BYTECODE
+    {
+        
+    };
+    
+    shadowPsoDesc.NumRenderTargets = 0u;
+
+
 }
 
 VOID Engine::LoadTextures()
@@ -209,30 +219,43 @@ VOID Engine::LoadTextures()
     ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
         tileTex->Filename.c_str(), tileTex->Resource, tileTex->UploadHeap));
 
+    auto planksTex = std::make_unique<Texture>();
+    planksTex->Name = "planksTex";
+    planksTex->Filename = L"./Assets/Textures/planks.dds";
+    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
+        planksTex->Filename.c_str(), planksTex->Resource, planksTex->UploadHeap));
+
     m_textures[brickTex->Name] = std::move(brickTex);
     m_textures[grassTex->Name] = std::move(grassTex);
     m_textures[iceTex->Name] = std::move(iceTex);
     m_textures[stoneTex->Name] = std::move(stoneTex);
     m_textures[tileTex->Name] = std::move(tileTex);
+    m_textures[planksTex->Name] = std::move(planksTex);
 }
 
 VOID Engine::CreateGeometry()
 {
     // Just meshes
-    Shapes::MeshData box = Shapes::CreateBox(1.0f, 1.0f, 1.0f);
+    MeshData box = Shapes::CreateBox(1.0f, 1.0f, 1.0f);
     // the same mesh for all planets
-    Shapes::MeshData sphere = Shapes::CreateSphere(1.0f, 16u, 16u);
+    MeshData sphere = Shapes::CreateSphere(1.0f, 16u, 16u);
+
+    MeshData grid = Shapes::CreateGrid(20.0f, 30.0f, 60u, 40u);
 
     // Create shared vertex/index buffer for all geometry.
     UINT sunVertexOffset = 0u;
     UINT mercuryVertexOffset = sunVertexOffset + (UINT)sphere.vertices.size();
     UINT venusVertexOffset = mercuryVertexOffset + (UINT)sphere.vertices.size();
     UINT earthVertexOffset = venusVertexOffset + (UINT)sphere.vertices.size();
+    UINT marsVertexOffset = earthVertexOffset + (UINT)sphere.vertices.size();
+    UINT planeVertexOffset = marsVertexOffset + (UINT)sphere.vertices.size();
 
     UINT sunIndexOffset = 0u;
     UINT mercuryIndexOffset = sunIndexOffset + (UINT)sphere.indices.size();
     UINT venusIndexOffset = mercuryIndexOffset + (UINT)sphere.indices.size();
     UINT earthIndexOffset = venusIndexOffset + (UINT)sphere.indices.size();
+    UINT marsIndexOffset = earthIndexOffset + (UINT)sphere.indices.size();
+    UINT planeIndexOffset = marsIndexOffset + (UINT)sphere.indices.size();
 
     SubmeshGeometry sunSubmesh;
     sunSubmesh.IndexCount = (UINT)sphere.indices.size();
@@ -254,17 +277,31 @@ VOID Engine::CreateGeometry()
     earthSubmesh.StartIndexLocation = earthIndexOffset;
     earthSubmesh.BaseVertexLocation = earthVertexOffset;
 
+    SubmeshGeometry marsSubmesh;
+    marsSubmesh.IndexCount = (UINT)sphere.indices.size();
+    marsSubmesh.StartIndexLocation = marsIndexOffset;
+    marsSubmesh.BaseVertexLocation = marsVertexOffset;
+
+    SubmeshGeometry planeSubmesh;
+    planeSubmesh.IndexCount = (UINT)grid.indices.size();
+    planeSubmesh.StartIndexLocation = planeIndexOffset;
+    planeSubmesh.BaseVertexLocation = planeVertexOffset;
+
     auto totalVertexCount = 
         sphere.vertices.size() // sun
         + sphere.vertices.size() // merc
         + sphere.vertices.size() // venus
         + sphere.vertices.size() //earth
+        + sphere.vertices.size() //mars
+        + grid.vertices.size() //mars
         ;
     auto totalIndexCount = 
         sphere.indices.size()
         + sphere.indices.size()
         + sphere.indices.size()
         + sphere.indices.size()
+        + sphere.indices.size()
+        + grid.indices.size()
         ;
 
     std::vector<Vertex> vertices(totalVertexCount);
@@ -298,11 +335,27 @@ VOID Engine::CreateGeometry()
         vertices[k].texC = sphere.vertices[i].texCoord;
     }
 
+    for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
+    {
+        vertices[k].position = sphere.vertices[i].position;
+        vertices[k].normal = sphere.vertices[i].normal;
+        vertices[k].texC = sphere.vertices[i].texCoord;
+    }
+
+    for (size_t i = 0; i < grid.vertices.size(); ++i, ++k)
+    {
+        vertices[k].position = grid.vertices[i].position;
+        vertices[k].normal = grid.vertices[i].normal;
+        vertices[k].texC = grid.vertices[i].texCoord;
+    }
+
     std::vector<uint16_t> indices;
     indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
     indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
     indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
     indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
+    indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
+    indices.insert(indices.end(), grid.indices.begin(), grid.indices.end());
 
     const UINT64 vbByteSize = vertices.size() * sizeof(Vertex);
     const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -332,6 +385,8 @@ VOID Engine::CreateGeometry()
     geometry->DrawArgs["mercury"] = mercurySubmesh;
     geometry->DrawArgs["venus"] = venusSubmesh;
     geometry->DrawArgs["earth"] = earthSubmesh;
+    geometry->DrawArgs["mars"] = marsSubmesh;
+    geometry->DrawArgs["plane"] = planeSubmesh;
 
     m_geometries[geometry->Name] = std::move(geometry);
 }
@@ -371,14 +426,32 @@ VOID Engine::CreateGeometryMaterials()
     ground0->MatCBIndex = 3;
     ground0->DiffuseSrvHeapIndex = 3;
     //ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
-    ground0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05);
+    ground0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     ground0->Roughness = 0.3f;
     ground0->MatTransform = XMMatrixIdentity();
+
+    auto wood0 = std::make_unique<Material>();
+    wood0->Name = "wood0";
+    wood0->MatCBIndex = 4;
+    wood0->DiffuseSrvHeapIndex = 4;
+    wood0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+    wood0->Roughness = 0.5f;
+    wood0->MatTransform = XMMatrixIdentity();
+    
+    auto iron0 = std::make_unique<Material>();
+    iron0->Name = "iron0";
+    iron0->MatCBIndex = 5;
+    iron0->DiffuseSrvHeapIndex = 5;
+    iron0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+    iron0->Roughness = 0.1f;
+    iron0->MatTransform = XMMatrixIdentity();
 
     m_materials["flame0"] = std::move(flame0);
     m_materials["sand0"] = std::move(sand0);
     m_materials["stone0"] = std::move(stone0);
     m_materials["ground0"] = std::move(ground0);
+    m_materials["iron0"] = std::move(iron0);
+    m_materials["wood0"] = std::move(wood0);
 }
 
 VOID Engine::CreateRenderItems()
@@ -422,10 +495,32 @@ VOID Engine::CreateRenderItems()
     earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs["earth"].StartIndexLocation;
     earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs["earth"].BaseVertexLocation;
 
+    auto marsRenderItem = std::make_unique<RenderItem>();
+    marsRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(5.0f, 0.0f, 5.0f);
+    marsRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
+    marsRenderItem->Geo = m_geometries["solarSystem"].get();
+    marsRenderItem->Mat = m_materials["iron0"].get();
+    marsRenderItem->ObjCBIndex = 4u;
+    marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs["mars"].IndexCount;
+    marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs["mars"].StartIndexLocation;
+    marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs["mars"].BaseVertexLocation;
+
+    auto planeRenderItem = std::make_unique<RenderItem>();
+    planeRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, -1.5f, 0.0f);
+    //planeRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
+    planeRenderItem->Geo = m_geometries["solarSystem"].get();
+    planeRenderItem->Mat = m_materials["wood0"].get();
+    planeRenderItem->ObjCBIndex = 5u;
+    planeRenderItem->IndexCount = planeRenderItem->Geo->DrawArgs["plane"].IndexCount;
+    planeRenderItem->StartIndexLocation = planeRenderItem->Geo->DrawArgs["plane"].StartIndexLocation;
+    planeRenderItem->BaseVertexLocation = planeRenderItem->Geo->DrawArgs["plane"].BaseVertexLocation;
+
     m_renderItems.push_back(std::move(sunRenderItem));
     m_renderItems.push_back(std::move(mercuryRenderItem));
     m_renderItems.push_back(std::move(venusRenderItem));
     m_renderItems.push_back(std::move(earthRenderItem));
+    m_renderItems.push_back(std::move(marsRenderItem));
+    m_renderItems.push_back(std::move(planeRenderItem));
 
     for (auto& ri : m_renderItems)
     {
@@ -788,6 +883,11 @@ VOID Engine::PopulateCommandList()
     m_commandList->ResourceBarrier(1u, &transition);
 
     ThrowIfFailed(m_commandList->Close());
+}
+
+void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* cmdList)
+{
+    
 }
 
 void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
