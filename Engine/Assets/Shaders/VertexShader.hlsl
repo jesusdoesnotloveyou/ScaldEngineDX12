@@ -1,36 +1,4 @@
-#include "LightUtil.hlsl"
-
-cbuffer cbPerObject : register(b0)
-{
-    float4x4 gWorld;
-    float4x4 gTexTransform;
-};
-
-cbuffer cbPerMaterial : register(b1)
-{
-    float4 gDiffuseAlbedo;
-    float3 gFresnelR0;
-    float gRoughness;
-    float4x4 gMatTransform;
-};
-
-cbuffer cbPerPass : register(b2)
-{
-    float4x4 gView;
-    float4x4 gProj;
-    float4x4 gViewProj;
-    float4x4 gInvViewProj;
-    float3 gEyePos;
-    float pad1;
-    float gNearZ;
-    float gFarZ;
-    float gDeltaTime;
-    float gTotalTime;
-    
-    float4 gAmbient;
-    
-    Light gLights[MaxLights];
-};
+#include "Common.hlsl"
 
 struct VSInput
 {
