@@ -14,16 +14,16 @@ public:
 	virtual ~ShadowMap() noexcept;
 
 public:
-	UINT GetWidth()const;
-	UINT GetHeight()const;
+	FORCEINLINE UINT GetWidth()const { return m_mapWidth; }
+	FORCEINLINE UINT GetHeight()const { return m_mapHeight; }
 
 	ID3D12Resource* Get();
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrv()const;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv()const;
+	FORCEINLINE CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrv()const { return m_hGpuSrv; }
+	FORCEINLINE CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv()const { return m_hCpuDsv; }
 	
-	D3D12_VIEWPORT GetViewport()const;
-	D3D12_RECT GetScissorRect()const;
+	FORCEINLINE D3D12_VIEWPORT GetViewport()const { return m_viewport; }
+	FORCEINLINE D3D12_RECT GetScissorRect()const { return m_scissorRect; }
 
 	void CreateDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
