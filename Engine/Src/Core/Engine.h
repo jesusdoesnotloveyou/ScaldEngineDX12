@@ -3,6 +3,7 @@
 #include "D3D12Sample.h"
 #include "FrameResource.h"
 #include "Camera.h"
+#include "ShadowMap.h"
 
 const int gNumFrameResources = 3;
 
@@ -85,7 +86,7 @@ private:
     void UpdateShadowTransform(const ScaldTimer& st);
     void UpdateShadowPassCB(const ScaldTimer& st);
     
-    void RenderDepthOnlyPass(ID3D12GraphicsCommandList* cmdList);
+    void RenderDepthOnlyPass();
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
 
 private:
@@ -98,6 +99,13 @@ private:
     float m_sunPhi = XM_PIDIV4;
     float m_sunTheta = 1.25f * XM_PI;
 
+    float m_lightNearZ = 0.0f;
+    float m_lightFarZ = 0.0f;
+    XMFLOAT3 m_lightPosW;
+    XMMATRIX m_lightView = XMMatrixIdentity();
+    XMMATRIX m_lightProj = XMMatrixIdentity();
+    XMMATRIX m_shadowTransform = XMMatrixIdentity();
+
     ComPtr<ID3D12RootSignature> m_rootSignature;
 
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
@@ -108,9 +116,10 @@ private:
 
     std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> m_pipelineStates;
 
-    ObjectConstants m_perObjectConstantBufferData;
-    PassConstants m_passConstantBufferData;
-    MaterialConstants m_perMaterialConstantBufferData;
+    ObjectConstants m_perObjectCBData;
+    PassConstants m_mainPassCBData;
+    PassConstants m_shadowPassCBData;
+    MaterialConstants m_perMaterialCBData;
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
     std::unordered_map < std::string, std::unique_ptr<Material>> m_materials;
@@ -119,9 +128,13 @@ private:
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
+    std::unique_ptr<ShadowMap> m_shadowMap;
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_shadowSrv;
 
     VOID LoadPipeline() override;
     VOID Reset() override;
+    VOID CreateRtvAndDsvDescriptorHeaps() override;
     
     VOID LoadAssets();
     VOID CreateRootSignature();
@@ -143,5 +156,6 @@ private:
     VOID PopulateCommandList();
     VOID MoveToNextFrame();
 
-    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 3> Engine::GetStaticSamplers();
+    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers();
+    std::vector<XMVECTOR> GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection);
 };
