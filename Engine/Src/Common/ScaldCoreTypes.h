@@ -3,6 +3,10 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 
+#ifndef FORCEINLINE
+	#define FORCEINLINE __forceinline
+#endif
+
 using namespace DirectX;
 
 struct Vertex
