@@ -1,41 +1,17 @@
-#include "LightUtil.hlsl"
+#include "Common.hlsl"
 
-cbuffer cbPerMaterial : register(b1)
-{
-    float4 gDiffuseAlbedo;
-    float3 gFresnelR0;
-    float gRoughness;
-    float4x4 gMatTransform;
-};
+// Defaults for number of lights.
+#ifndef NUM_DIR_LIGHTS
+#define NUM_DIR_LIGHTS 1
+#endif
 
-cbuffer cbPerPass : register(b2)
-{
-    float4x4 gView;
-    float4x4 gProj;
-    float4x4 gViewProj;
-    float4x4 gInvViewProj;
-    float3 gEyePos;
-    float pad1;
-    float gNearZ;
-    float gFarZ;
-    float gDeltaTime;
-    float gTotalTime;
-    
-    float4 gAmbient;
-    
-    float4 gFogColor;
-    float gFogStart;
-    float gFogRange;
-    float2 pad2;
-    
-    Light gLights[MaxLights];
-};
+#ifndef NUM_POINT_LIGHTS
+#define NUM_POINT_LIGHTS 1
+#endif
 
-Texture2D gDiffuseMap : register(t0);
-
-SamplerState gSamplerPointWrap : register(s0);
-SamplerState gSamplerLinearWrap : register(s1);
-SamplerState gSamplerAnisotropicWrap : register(s2);
+#ifndef NUM_SPOT_LIGHTS
+#define NUM_SPOT_LIGHTS 0
+#endif
 
 struct PSInput
 {
@@ -155,6 +131,8 @@ float4 ComputeLight(float3 N, float3 posW, float3 viewDir, Material mat)
 
 float4 main(PSInput input) : SV_TARGET
 {
+    float2 shadowTex = 0.0f;
+    float4 depthFromShadowMap = gShadowMap.Sample(gShadowSamplerLinearBorder, shadowTex)/*.r*/;
     // Sample diff albedo from texture and multiply by material diffuse albedo for some tweak if we need one (gDiffuseAlbedo = (1, 1, 1, 1) by default).
     float4 diffuseAlbedo = gDiffuseMap.Sample(gSamplerAnisotropicWrap, input.iTexC) * gDiffuseAlbedo;
     
@@ -185,5 +163,5 @@ float4 main(PSInput input) : SV_TARGET
     // set the alpha channel of the diffuse material of the object itself
     litColor.a = diffuseAlbedo.a;
     
-    return litColor;
+    return litColor + /*ONLY FOR DEBUG*/depthFromShadowMap;
 }
