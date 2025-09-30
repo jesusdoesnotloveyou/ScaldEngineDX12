@@ -179,20 +179,24 @@ VOID Engine::CreatePSO()
 
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&m_pipelineStates["transparency"])));
 
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = opaquePsoDesc;
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = {};
+    ZeroMemory(&shadowPsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+    shadowPsoDesc.pRootSignature = m_rootSignature.Get();
+    shadowPsoDesc.VS = D3D12_SHADER_BYTECODE({ reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()), m_shaders["defaultVS"]->GetBufferSize() });
+    shadowPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
+    shadowPsoDesc.SampleMask = UINT_MAX;
+    shadowPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     shadowPsoDesc.RasterizerState.DepthBias = 1000;
     shadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
     shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
-    /*shadowPsoDesc.VS = D3D12_SHADER_BYTECODE
-    {
-
-    };
-    shadowPsoDesc.PS = D3D12_SHADER_BYTECODE
-    {
-
-    };*/
+    shadowPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    shadowPsoDesc.InputLayout = { m_inputLayout.data(), (UINT)m_inputLayout.size() };
+    shadowPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     shadowPsoDesc.NumRenderTargets = 0u;
     shadowPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+    shadowPsoDesc.DSVFormat = DepthStencilFormat;
+    shadowPsoDesc.SampleDesc.Count = 1u;
+    shadowPsoDesc.SampleDesc.Quality = 0u;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&shadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates["shadow_opaque"])));
 }
 
