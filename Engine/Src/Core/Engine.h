@@ -81,7 +81,7 @@ public:
 private:
     void OnKeyboardInput(const ScaldTimer& st);
     void UpdateObjectsCB(const ScaldTimer& st);
-    void UpdatePassCB(const ScaldTimer& st);
+    void UpdateMainPassCB(const ScaldTimer& st);
     void UpdateMaterialCB(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
     void UpdateShadowPassCB(const ScaldTimer& st);

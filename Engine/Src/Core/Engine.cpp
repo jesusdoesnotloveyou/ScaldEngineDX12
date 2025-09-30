@@ -180,9 +180,9 @@ VOID Engine::CreatePSO()
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&m_pipelineStates["transparency"])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = opaquePsoDesc;
-    shadowPsoDesc.RasterizerState.DepthBias = 100000;
+    shadowPsoDesc.RasterizerState.DepthBias = 1000;
     shadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
-    shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;;
+    shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
     /*shadowPsoDesc.VS = D3D12_SHADER_BYTECODE
     {
 
@@ -712,7 +712,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
     UpdateObjectsCB(st);
     UpdateMaterialCB(st);
     
-    UpdatePassCB(st); // pass
+    UpdateMainPassCB(st); // pass
 
     UpdateShadowTransform(st);
     UpdateShadowPassCB(st); // pass
@@ -822,7 +822,7 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
     }
 }
 
-void Engine::UpdatePassCB(const ScaldTimer& st)
+void Engine::UpdateMainPassCB(const ScaldTimer& st)
 {
     XMMATRIX view = m_camera->GetViewMatrix();
     XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
@@ -833,6 +833,7 @@ void Engine::UpdatePassCB(const ScaldTimer& st)
     XMStoreFloat4x4(&m_mainPassCBData.Proj, XMMatrixTranspose(proj));
     XMStoreFloat4x4(&m_mainPassCBData.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&m_mainPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
+    XMStoreFloat4x4(&m_mainPassCBData.ShadowTransform, XMMatrixTranspose(m_shadowTransform));
     m_mainPassCBData.EyePosW = m_camera->GetPosition();
     m_mainPassCBData.NearZ = 1.0f;
     m_mainPassCBData.FarZ = 1000.0f;
@@ -890,12 +891,12 @@ void Engine::UpdateShadowTransform(const ScaldTimer& st)
     const auto directionalLight = m_mainPassCBData.Lights[0];
 
     const XMVECTOR lightDir = XMLoadFloat3(&directionalLight.Direction);
-    const XMVECTOR lightPos = -2.0f * lightDir * 200.0f;
+    const XMVECTOR lightPos = 2.0f * lightDir * 50.0f;
     const XMVECTOR targetPos = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
     const XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
     XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
-    XMMATRIX lightProj = XMMatrixOrthographicLH(80.0f * 1.77778f, 80.0f, 0.1f, 500.0f);
+    XMMATRIX lightProj = XMMatrixOrthographicLH(50.0f * 1.77778f, 50.0f, 0.1f, 200.0f);
 
     const std::vector<XMVECTOR> frustumCorners = GetFrustumCornersWorldSpace(lightView, lightProj);
 

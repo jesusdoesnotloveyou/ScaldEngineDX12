@@ -15,10 +15,11 @@
 
 struct PSInput
 {
-    float4 iPosH    : SV_POSITION;
-    float3 iPosW    : POSITION0;
-    float3 iNormalW : NORMAL;
-    float2 iTexC    : TEXCOORD0;
+    float4 iPosH       : SV_POSITION;
+    float4 iShadowPosH : POSITION0;
+    float3 iPosW       : POSITION1;
+    float3 iNormalW    : NORMAL;
+    float2 iTexC       : TEXCOORD0;
 };
 
 float3 SchlickApproximation(float3 fresnelR0, float3 halfVec, float3 lightDir)
@@ -85,7 +86,7 @@ float3 CalcSpotLight(Light L, float3 N, float3 posW, float3 viewDir, Material ma
 
 // The idea is to calculate every light object's illumination strength related to it's type specific parameters
 // and to pass it in BlinnPhong model function
-float4 ComputeLight(float3 N, float3 posW, float3 viewDir, Material mat)
+float4 ComputeLight(float3 N, float3 posW, float3 viewDir, Material mat, float shadowFactor)
 {   
     float3 litColor = 0.0f;
     
@@ -96,7 +97,8 @@ float4 ComputeLight(float3 N, float3 posW, float3 viewDir, Material mat)
     [unroll]
     for (int i = 0; i < NUM_DIR_LIGHTS; i++)
     {
-        dirLight += CalcDirLight(gLights[i], N, viewDir, mat);
+        // stuff with shadows supposed to work with only one directional light
+        dirLight += shadowFactor * CalcDirLight(gLights[i], N, viewDir, mat);
     }
     litColor += dirLight;
 #endif
@@ -129,10 +131,38 @@ float4 ComputeLight(float3 N, float3 posW, float3 viewDir, Material mat)
     return float4(litColor, 0.0f);
 }
 
+float GetShadowFactor(float4 shadowPosH)
+{
+    // to NDC
+    shadowPosH.xyz /= shadowPosH.w;
+    // depth in NDC
+    float depth = shadowPosH.z;
+    
+    uint width, height, munMips;
+    gShadowMap.GetDimensions(0, width, height, munMips);
+    
+    float dx = 1.0f / (float) width;
+
+    float percentLit = 0.0f;
+    
+    const float2 offsets[9] = // we're in texCoord, imagine a pixel on texture and 8 pixel around it so they make a square
+    {
+        float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx),
+        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
+        float2(-dx, +dx), float2(0.0f, +dx), float2(dx, +dx)
+    };
+
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        percentLit += gShadowMap.SampleCmpLevelZero(gShadowSamplerComparisonLinearBorder, shadowPosH.xy + offsets[i], depth).r;
+    }
+    
+    return percentLit / 9.0f;
+}
+
 float4 main(PSInput input) : SV_TARGET
 {
-    float2 shadowTex = 0.0f;
-    float4 depthFromShadowMap = gShadowMap.Sample(gShadowSamplerLinearBorder, shadowTex)/*.r*/;
     // Sample diff albedo from texture and multiply by material diffuse albedo for some tweak if we need one (gDiffuseAlbedo = (1, 1, 1, 1) by default).
     float4 diffuseAlbedo = gDiffuseMap.Sample(gSamplerAnisotropicWrap, input.iTexC) * gDiffuseAlbedo;
     
@@ -152,7 +182,9 @@ float4 main(PSInput input) : SV_TARGET
     
     Material mat = { diffuseAlbedo, gFresnelR0, 1.0f - gRoughness };
     
-    litColor += ComputeLight(N, input.iPosW, viewDir, mat);
+    float shadowFactor = GetShadowFactor(input.iShadowPosH);
+    
+    litColor += ComputeLight(N, input.iPosW, viewDir, mat, shadowFactor);
     
     // linear fog
 #ifdef FOG
@@ -163,5 +195,5 @@ float4 main(PSInput input) : SV_TARGET
     // set the alpha channel of the diffuse material of the object itself
     litColor.a = diffuseAlbedo.a;
     
-    return litColor + /*ONLY FOR DEBUG*/depthFromShadowMap;
+    return litColor;
 }
