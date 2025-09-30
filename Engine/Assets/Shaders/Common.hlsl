@@ -20,6 +20,7 @@ cbuffer cbPerPass : register(b2)
     float4x4 gProj;
     float4x4 gViewProj;
     float4x4 gInvViewProj;
+    float4x4 gShadowTransform;
     float3 gEyePos;
     float pad1;
     float gNearZ;
