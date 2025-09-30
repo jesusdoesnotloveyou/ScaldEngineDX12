@@ -71,7 +71,7 @@ protected:
     VOID CreateDevice();
     VOID CreateCommandObjects();
     VOID CreateFence();
-    VOID CreateRtvAndDsvDescriptorHeaps();
+    virtual VOID CreateRtvAndDsvDescriptorHeaps();
     VOID CreateSwapChain();
 
     // Wait for pending GPU work to complete.

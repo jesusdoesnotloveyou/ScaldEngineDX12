@@ -43,5 +43,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\LightUtil.hlsl" />
+    <None Include="Assets\Shaders\Common.hlsl" />
   </ItemGroup>
 </Project>

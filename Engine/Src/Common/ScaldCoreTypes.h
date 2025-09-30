@@ -3,6 +3,10 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 
+#ifndef FORCEINLINE
+	#define FORCEINLINE __forceinline
+#endif
+
 using namespace DirectX;
 
 struct Vertex
@@ -67,6 +71,7 @@ struct PassConstants
 	XMFLOAT4X4 Proj;
 	XMFLOAT4X4 ViewProj;
 	XMFLOAT4X4 InvViewProj;
+	XMFLOAT4X4 ShadowTransform;
 
 	XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
 	float pad1 = 0.0f;

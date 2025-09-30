@@ -24,3 +24,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int nCmdShow)
     Engine engine(WindowWidth, WindowHeight, WindowTitle, WindowClass);
     return Win32App::Run(&engine, HInstance(), nCmdShow);
 }
+
+#ifdef CreateWindow
+#undef CreateWindow
+#endif

@@ -23,3 +23,11 @@
 
 #define MAX_NAME_STRING 256
 #define HInstance() GetModuleHandle(NULL)
+
+#ifdef max
+	#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif

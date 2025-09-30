@@ -23,6 +23,9 @@ Engine::~Engine()
 void Engine::OnInit()
 {
     LoadPipeline();
+
+    m_shadowMap = std::make_unique<ShadowMap>(m_device.Get(), 2048u, 2048u);
+    
     LoadAssets();
 }
 
@@ -30,6 +33,7 @@ void Engine::OnInit()
 VOID Engine::LoadPipeline()
 {
     D3D12Sample::LoadPipeline();
+
 }
 
 // Load the sample assets.
@@ -44,7 +48,7 @@ VOID Engine::LoadAssets()
     CreateRenderItems();
     CreateFrameResources();
     CreateDescriptorHeaps();
-    /*CreateConstantBufferViews();*/
+    //CreateConstantBufferViews();
     CreateRootSignature();
     // Create the pipeline state, which includes compiling and loading shaders.
     {
@@ -65,25 +69,24 @@ VOID Engine::CreateRootSignature()
     CD3DX12_DESCRIPTOR_RANGE texTable;
     texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
 
+    CD3DX12_DESCRIPTOR_RANGE nullSrv;
+    nullSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 1u);
+
     // Root parameter can be a table, root descriptor or root constants.
-    CD3DX12_ROOT_PARAMETER slotRootParameter[4];
-    
-    // Create a descriptor table for Pass CBV.
-    /*CD3DX12_DESCRIPTOR_RANGE cbvTable;
-    cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 2u);*/
+    CD3DX12_ROOT_PARAMETER slotRootParameter[5];
     
     // Perfomance TIP: Order from most frequent to least frequent.
-    slotRootParameter[0].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
-    slotRootParameter[1].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);  // a root descriptor for objects' CBVs.
-    slotRootParameter[2].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);     // a root descriptor for objects' materials CBVs.
-    //slotRootParameter[2].InitAsDescriptorTable(1u, &cbvTable);
-    slotRootParameter[3].InitAsConstantBufferView(2u, 0u, D3D12_SHADER_VISIBILITY_ALL);     // a root descriptor for Pass CBV.
+    slotRootParameter[0].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);   // a descriptor table for textures
+    slotRootParameter[1].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);      // a root descriptor for objects' CBVs.
+    slotRootParameter[2].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);         // a root descriptor for objects' materials CBVs.
+    slotRootParameter[3].InitAsConstantBufferView(2u, 0u, D3D12_SHADER_VISIBILITY_ALL);         // a root descriptor for Pass CBV.
+    slotRootParameter[4].InitAsDescriptorTable(1u, &nullSrv, D3D12_SHADER_VISIBILITY_PIXEL);    // a descriptor table for shadow map.
 
     auto staticSamplers = GetStaticSamplers();
 
     // Root signature is an array of root parameters
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(4u, slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rootSignatureDesc.Init(5u, slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     // create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
     ComPtr<ID3DBlob> signature = nullptr;
@@ -177,14 +180,20 @@ VOID Engine::CreatePSO()
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&m_pipelineStates["transparency"])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = opaquePsoDesc;
-    shadowPsoDesc.VS = D3D12_SHADER_BYTECODE
+    shadowPsoDesc.RasterizerState.DepthBias = 1000;
+    shadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
+    shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
+    /*shadowPsoDesc.VS = D3D12_SHADER_BYTECODE
     {
-        
+
     };
-    
+    shadowPsoDesc.PS = D3D12_SHADER_BYTECODE
+    {
+
+    };*/
     shadowPsoDesc.NumRenderTargets = 0u;
-
-
+    shadowPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&shadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates["shadow_opaque"])));
 }
 
 VOID Engine::LoadTextures()
@@ -532,7 +541,8 @@ VOID Engine::CreateFrameResources()
 {
     for (int i = 0; i < gNumFrameResources; i++)
     {
-        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), 1u, (UINT)m_renderItems.size(), (UINT)m_materials.size()));
+                                                                                 // shadow pass + main      
+        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), 2u, (UINT)m_renderItems.size(), (UINT)m_materials.size()));
     }
 }
 
@@ -561,7 +571,7 @@ VOID Engine::CreateDescriptorHeaps()
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    srvHeapDesc.NumDescriptors = (UINT)m_textures.size();
+    srvHeapDesc.NumDescriptors = (UINT)m_textures.size() + 1u;
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     srvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
@@ -588,6 +598,27 @@ VOID Engine::CreateDescriptorHeaps()
 
         handle.Offset(1, m_cbvSrvUavDescriptorSize);
     }
+
+    auto m_shadowMapHeapIndex = (UINT)m_textures.size();
+
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.Texture2D.MostDetailedMip = 0u;
+    srvDesc.Texture2D.MipLevels = 1u;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    
+    m_device->CreateShaderResourceView(nullptr, &srvDesc, handle);
+
+    auto srvCpuStart = m_srvHeap->GetCPUDescriptorHandleForHeapStart();
+    auto srvGpuStart = m_srvHeap->GetGPUDescriptorHandleForHeapStart();
+    auto dsvCpuStart = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+    m_shadowSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_shadowMapHeapIndex, m_cbvSrvUavDescriptorSize);
+
+    m_shadowMap->CreateDescriptors(
+        CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_shadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
+        CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_shadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
+        CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, m_dsvDescriptorSize));
 }
 
 VOID Engine::CreateConstantBufferViews()
@@ -645,20 +676,46 @@ VOID Engine::Reset()
     m_camera->Reset(0.25f * XM_PI, m_aspectRatio, 1.0f, 1000.0f);
 }
 
+VOID Engine::CreateRtvAndDsvDescriptorHeaps()
+{
+    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+    rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    rtvHeapDesc.NumDescriptors = SwapChainFrameCount;
+    rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    rtvHeapDesc.NodeMask = 0u;
+    ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
+
+    m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+    // 1 dsv + 1 shadow map
+    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+    dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    dsvHeapDesc.NumDescriptors = 2u;
+    dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    dsvHeapDesc.NodeMask = 0u;
+    ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+
+    m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+}
+
 // Update frame-based values.
 void Engine::OnUpdate(const ScaldTimer& st)
 {
     OnKeyboardInput(st);
 
     m_camera->Update(st.DeltaTime());
-
+    
     // Cycle through the circular frame resource array.
     m_currFrameResourceIndex = (m_currFrameResourceIndex + 1) % gNumFrameResources;
     m_currFrameResource = m_frameResources[m_currFrameResourceIndex].get();
 
     UpdateObjectsCB(st);
     UpdateMaterialCB(st);
-    UpdatePassCB(st);
+    
+    UpdateMainPassCB(st); // pass
+
+    UpdateShadowTransform(st);
+    UpdateShadowPassCB(st); // pass
 }
 
 // Render the scene.
@@ -756,51 +813,52 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
         // Looks like it just forces the code to update the object's constant buffer regardless of whether it has been modified or not.
         if (ri->NumFramesDirty > 0)
         {
-            XMStoreFloat4x4(&m_perObjectConstantBufferData.World, XMMatrixTranspose(ri->World));
-            XMStoreFloat4x4(&m_perObjectConstantBufferData.TexTransform, XMMatrixTranspose(ri->TexTransform));
-            objectCB->CopyData(ri->ObjCBIndex, m_perObjectConstantBufferData); // In this case ri->ObjCBIndex would be equal to index 'i' of traditional for loop
+            XMStoreFloat4x4(&m_perObjectCBData.World, XMMatrixTranspose(ri->World));
+            XMStoreFloat4x4(&m_perObjectCBData.TexTransform, XMMatrixTranspose(ri->TexTransform));
+            objectCB->CopyData(ri->ObjCBIndex, m_perObjectCBData); // In this case ri->ObjCBIndex would be equal to index 'i' of traditional for loop
 
             ri->NumFramesDirty--;
         }
     }
 }
 
-void Engine::UpdatePassCB(const ScaldTimer& st)
+void Engine::UpdateMainPassCB(const ScaldTimer& st)
 {
     XMMATRIX view = m_camera->GetViewMatrix();
     XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
     XMMATRIX viewProj = XMMatrixMultiply(view, proj);
     XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
-    XMStoreFloat4x4(&m_passConstantBufferData.View, XMMatrixTranspose(view));
-    XMStoreFloat4x4(&m_passConstantBufferData.Proj, XMMatrixTranspose(proj));
-    XMStoreFloat4x4(&m_passConstantBufferData.ViewProj, XMMatrixTranspose(viewProj));
-    XMStoreFloat4x4(&m_passConstantBufferData.InvViewProj, XMMatrixTranspose(invViewProj));
-    m_passConstantBufferData.EyePosW = m_camera->GetPosition();
-    m_passConstantBufferData.NearZ = 1.0f;
-    m_passConstantBufferData.FarZ = 1000.0f;
-    m_passConstantBufferData.DeltaTime = st.DeltaTime();
-    m_passConstantBufferData.TotalTime = st.TotalTime();
+    XMStoreFloat4x4(&m_mainPassCBData.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&m_mainPassCBData.Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&m_mainPassCBData.ViewProj, XMMatrixTranspose(viewProj));
+    XMStoreFloat4x4(&m_mainPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
+    XMStoreFloat4x4(&m_mainPassCBData.ShadowTransform, XMMatrixTranspose(m_shadowTransform));
+    m_mainPassCBData.EyePosW = m_camera->GetPosition();
+    m_mainPassCBData.NearZ = 1.0f;
+    m_mainPassCBData.FarZ = 1000.0f;
+    m_mainPassCBData.DeltaTime = st.DeltaTime();
+    m_mainPassCBData.TotalTime = st.TotalTime();
 
     // Invert sign because other way light would be pointing up
     XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
 
-    m_passConstantBufferData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
+    m_mainPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
 
 #pragma region DirLights
-    XMStoreFloat3(&m_passConstantBufferData.Lights[0].Direction, lightDir);
-    m_passConstantBufferData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+    XMStoreFloat3(&m_mainPassCBData.Lights[0].Direction, lightDir);
+    m_mainPassCBData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
 #pragma endregion DirLights
 
 #pragma region PointLights
-    m_passConstantBufferData.Lights[1].Position = {0.0f, 0.0f, 2.0f};
-    m_passConstantBufferData.Lights[1].FallOfStart = 5.0f;
-    m_passConstantBufferData.Lights[1].FallOfEnd = 10.0f;
-    m_passConstantBufferData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
+    m_mainPassCBData.Lights[1].Position = {0.0f, 0.0f, 2.0f};
+    m_mainPassCBData.Lights[1].FallOfStart = 5.0f;
+    m_mainPassCBData.Lights[1].FallOfEnd = 10.0f;
+    m_mainPassCBData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
 #pragma endregion PointLights
 
     auto currPassCB = m_currFrameResource->PassCB.get();
-    currPassCB->CopyData(0, m_passConstantBufferData);
+    currPassCB->CopyData(/*main pass data in 0 element*/0, m_mainPassCBData);
 }
 
 void Engine::UpdateMaterialCB(const ScaldTimer& st)
@@ -812,16 +870,106 @@ void Engine::UpdateMaterialCB(const ScaldTimer& st)
         Material* mat = e.second.get();
         if (mat->NumFramesDirty > 0)
         {
-            m_perMaterialConstantBufferData.DiffuseAlbedo = mat->DiffuseAlbedo;
-            m_perMaterialConstantBufferData.FresnelR0 = mat->FresnelR0;
-            m_perMaterialConstantBufferData.Roughness = mat->Roughness;
-            XMStoreFloat4x4(&m_perMaterialConstantBufferData.MatTransform, XMMatrixTranspose(mat->MatTransform));
+            m_perMaterialCBData.DiffuseAlbedo = mat->DiffuseAlbedo;
+            m_perMaterialCBData.FresnelR0 = mat->FresnelR0;
+            m_perMaterialCBData.Roughness = mat->Roughness;
+            XMStoreFloat4x4(&m_perMaterialCBData.MatTransform, XMMatrixTranspose(mat->MatTransform));
 
-            materialCB->CopyData(mat->MatCBIndex, m_perMaterialConstantBufferData);
+            materialCB->CopyData(mat->MatCBIndex, m_perMaterialCBData);
 
             mat->NumFramesDirty--;
         }
     }
+}
+
+void Engine::UpdateShadowTransform(const ScaldTimer& st)
+{
+    // for CSM
+    //mDeviceContext->GSSetShader(mCSMGeometryShader.Get(), nullptr, 0u);
+    //mDeviceContext->GSSetConstantBuffers(0u, 1u, mCBGS.GetAddressOf());
+    
+    const auto directionalLight = m_mainPassCBData.Lights[0];
+
+    const XMVECTOR lightDir = XMLoadFloat3(&directionalLight.Direction);
+    const XMVECTOR lightPos = 2.0f * lightDir * 50.0f;
+    const XMVECTOR targetPos = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+    const XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+    XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
+    XMMATRIX lightProj = XMMatrixOrthographicLH(50.0f * 1.77778f, 50.0f, 0.1f, 200.0f);
+
+    const std::vector<XMVECTOR> frustumCorners = GetFrustumCornersWorldSpace(lightView, lightProj);
+
+    XMVECTOR center = XMVectorZero();
+    for (auto&& v : frustumCorners)
+    {
+        center += v;
+    }
+    center /= (float)frustumCorners.size();
+
+    lightView = XMMatrixLookAtLH(center, center + XMVectorSet(directionalLight.Direction.x, directionalLight.Direction.y, directionalLight.Direction.z, 1.0f), lightUp);
+
+    // Measuring cascade
+    float minX = std::numeric_limits<float>::max();
+    float minY = std::numeric_limits<float>::max();
+    float minZ = std::numeric_limits<float>::max();
+    float maxX = std::numeric_limits<float>::lowest();
+    float maxY = std::numeric_limits<float>::lowest();
+    float maxZ = std::numeric_limits<float>::lowest();
+
+    for (const auto& v : frustumCorners)
+    {
+        const auto trf = XMVector4Transform(v, lightView);
+
+        minX = std::min(minX, XMVectorGetX(trf));
+        maxX = std::max(maxX, XMVectorGetX(trf));
+        minY = std::min(minY, XMVectorGetY(trf));
+        maxY = std::max(maxY, XMVectorGetY(trf));
+        minZ = std::min(minZ, XMVectorGetZ(trf));
+        maxZ = std::max(maxZ, XMVectorGetZ(trf));
+    }
+
+    constexpr float zMult = 10.0f;
+
+    minZ = (minZ < 0) ? minZ * zMult : minZ / zMult;
+    maxZ = (maxZ < 0) ? maxZ / zMult : maxZ * zMult;
+
+    m_lightNearZ = minZ;
+    m_lightFarZ = maxZ;
+    XMStoreFloat3(&m_lightPosW, lightPos);
+
+    lightProj = XMMatrixOrthographicOffCenterLH(minX, maxX, minY, maxY, minZ, maxZ);
+    
+    // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+    XMMATRIX T(
+        0.5f, 0.0f, 0.0f, 0.0f,
+        0.0f, -0.5f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.0f, 1.0f);
+
+    XMMATRIX S = lightView * lightProj * T;
+    m_lightView = lightView;
+    m_lightProj = lightProj;
+    m_shadowTransform = S;
+}
+
+void Engine::UpdateShadowPassCB(const ScaldTimer& st)
+{
+    XMMATRIX view = m_lightView;
+    XMMATRIX proj = m_lightProj;
+    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+    XMStoreFloat4x4(&m_shadowPassCBData.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&m_shadowPassCBData.Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&m_shadowPassCBData.ViewProj, XMMatrixTranspose(viewProj));
+    XMStoreFloat4x4(&m_shadowPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
+    m_shadowPassCBData.EyePosW = m_lightPosW;
+    m_shadowPassCBData.NearZ = m_lightNearZ;
+    m_shadowPassCBData.FarZ = m_lightFarZ;
+    
+    auto currPassCB = m_currFrameResource->PassCB.get();
+    currPassCB->CopyData(/*shadow pass data in 1 element*/1, m_shadowPassCBData);
 }
 
 VOID Engine::PopulateCommandList()
@@ -850,6 +998,8 @@ VOID Engine::PopulateCommandList()
     ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.Get() };
     m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
+    RenderDepthOnlyPass();
+
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     // Indicate that the back buffer will be used as a render target.
     m_commandList->ResourceBarrier(1u, &transition);
@@ -862,20 +1012,19 @@ VOID Engine::PopulateCommandList()
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     // Record commands.
-    const float* clearColor = &m_passConstantBufferData.FogColor.x;
+    const float* clearColor = &m_mainPassCBData.FogColor.x;
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
     m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
     m_commandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
-
-    // For root descriptor table
-    //int passCbvIndex = m_passCbvOffset + m_currFrameResourceIndex;
-    //CD3DX12_GPU_DESCRIPTOR_HANDLE passCbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-    //passCbvHandle.Offset(passCbvIndex, m_cbvSrvUavDescriptorSize);
-    //m_commandList->SetGraphicsRootDescriptorTable(/*see root signiture*/1u, passCbvHandle);
     
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
     m_commandList->SetGraphicsRootConstantBufferView(3u, currFramePassCB->GetGPUVirtualAddress());
 
+    // Set shaadow map texture for main pass
+    CD3DX12_GPU_DESCRIPTOR_HANDLE shadowMapHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+    m_commandList->SetGraphicsRootDescriptorTable(4u, m_shadowSrv);
+
+    m_commandList->SetPipelineState(m_pipelineStates["opaque"].Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -885,9 +1034,29 @@ VOID Engine::PopulateCommandList()
     ThrowIfFailed(m_commandList->Close());
 }
 
-void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* cmdList)
+void Engine::RenderDepthOnlyPass()
 {
-    
+    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
+    m_commandList->RSSetViewports(1u, &m_shadowMap->GetViewport());
+    m_commandList->RSSetScissorRects(1u, &m_shadowMap->GetScissorRect());
+
+    // change to depth write state
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    m_commandList->ResourceBarrier(1u, &transition);
+
+    auto currFramePassCB = m_currFrameResource->PassCB->Get();
+    m_commandList->SetGraphicsRootConstantBufferView(3u, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); //cause shadow pass data lies in the second element
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_shadowMap->GetDsv());
+    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
+    m_commandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
+
+    m_commandList->SetPipelineState(m_pipelineStates["shadow_opaque"].Get());
+    DrawRenderItems(m_commandList.Get(), m_renderItems);
+
+    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+    m_commandList->ResourceBarrier(1u, &transition);
 }
 
 void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
@@ -917,11 +1086,6 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std
         cmdList->SetGraphicsRootConstantBufferView(1u, objCBAddress);
         cmdList->SetGraphicsRootConstantBufferView(2u, materialCBAddress);
 
-        // The approach to bind cbv using Root Descriptor Table via Handle and cbvHeapStart address
-        //CD3DX12_GPU_DESCRIPTOR_HANDLE objCbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-        //objCbvHandle.Offset(objCount * m_currFrameResourceIndex + ri->ObjCBIndex, m_cbvSrvUavDescriptorSize);
-        //cmdList->SetGraphicsRootDescriptorTable(/*see root signiture*/0u, objCbvHandle);
-
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
 }
@@ -946,7 +1110,7 @@ VOID Engine::MoveToNextFrame()
     m_fenceValues[m_frameIndex] = currentFenceValue + 1;
 }
 
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 3> Engine::GetStaticSamplers()
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers()
 {
     const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
         0u, // shaderRegister
@@ -971,5 +1135,57 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 3> Engine::GetStaticSamplers()
         0.0f,                             // mipLODBias
         8u);                              // maxAnisotropy
 
-    return { pointWrap, linearWrap, anisotropicWrap };
+    const CD3DX12_STATIC_SAMPLER_DESC shadowSampler(
+        3u,
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        0.0f,
+        16u
+        );
+
+    const CD3DX12_STATIC_SAMPLER_DESC shadowComparison(
+        4u,
+        D3D12_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR,
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        0.0f,
+        16u,
+        D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK
+    );
+
+    return { pointWrap, linearWrap, anisotropicWrap, shadowSampler, shadowComparison };
+}
+
+std::vector<XMVECTOR> Engine::GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection)
+{
+    const auto viewProj = view * projection;
+
+    XMVECTOR det = XMMatrixDeterminant(viewProj);
+    const auto invViewProj = XMMatrixInverse(&det, viewProj);
+
+    std::vector<XMVECTOR> frustumCorners;
+    frustumCorners.reserve(8);
+
+    for (UINT x = 0; x < 2; ++x)
+    {
+        for (UINT y = 0; y < 2; ++y)
+        {
+            for (UINT z = 0; z < 2; ++z)
+            {
+                // translate NDC coords to world space
+                const XMVECTOR pt = XMVector4Transform(std::move(
+                    XMVectorSet(
+                        2.0f * x - 1.0f,
+                        2.0f * y - 1.0f,
+                        (float)z,
+                        1.0f)), invViewProj);
+                frustumCorners.push_back(pt / XMVectorGetW(pt));
+            }
+        }
+    }
+    return frustumCorners;
 }
