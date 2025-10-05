@@ -32,4 +32,9 @@ public:
 			1.0f
 		);
 	}
+
+	static inline const XMVECTOR ForwardVector = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	static inline const XMVECTOR RightVector = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+	static inline const XMVECTOR UpVector = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	static inline const XMVECTOR ZeroVector = XMVectorZero();
 };
