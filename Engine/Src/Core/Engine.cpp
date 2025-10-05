@@ -24,8 +24,10 @@ void Engine::OnInit()
 {
     LoadPipeline();
 
-    m_shadowMap = std::make_unique<ShadowMap>(m_device.Get(), 2048u, 2048u);
-    
+    //m_shadowMap = std::make_unique<ShadowMap>(m_device.Get(), 2048u, 2048u);
+    m_cascadeShadowMap = std::make_unique<CascadeShadowMap>(m_device.Get(), 2048u, 2048u, MaxCascades);
+    CreateShadowCascadeSplits();
+
     LoadAssets();
 }
 
@@ -33,7 +35,6 @@ void Engine::OnInit()
 VOID Engine::LoadPipeline()
 {
     D3D12Sample::LoadPipeline();
-
 }
 
 // Load the sample assets.
@@ -42,7 +43,6 @@ VOID Engine::LoadAssets()
     ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), nullptr));
     
     LoadTextures();
-    //!!!!!!!!!!!!!!!!!!! problem
     CreateGeometry();
     CreateGeometryMaterials();
     CreateRenderItems();
@@ -59,9 +59,6 @@ VOID Engine::LoadAssets()
     m_commandList->Close();
     ID3D12CommandList* cmdLists[] = { m_commandList.Get() };
     m_commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-
-    // There is a problem in causing D3D12 ERROR: ID3D12CommandAllocator::LUCPrepareForDestruction: A command allocator 0x0000020DACB147D0:'Unnamed ID3D12CommandAllocator Object' is being reset before previous executions associated with the allocator have completed. [ EXECUTION ERROR #552: COMMAND_ALLOCATOR_SYNC]:
-    // I suppouse, there is some fence stuff I have no idea how to handle for now
 }
 
 VOID Engine::CreateRootSignature()
@@ -69,8 +66,8 @@ VOID Engine::CreateRootSignature()
     CD3DX12_DESCRIPTOR_RANGE texTable;
     texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
 
-    CD3DX12_DESCRIPTOR_RANGE nullSrv;
-    nullSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 1u);
+    CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
+    cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 1u);
 
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[5];
@@ -80,15 +77,14 @@ VOID Engine::CreateRootSignature()
     slotRootParameter[1].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);      // a root descriptor for objects' CBVs.
     slotRootParameter[2].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);         // a root descriptor for objects' materials CBVs.
     slotRootParameter[3].InitAsConstantBufferView(2u, 0u, D3D12_SHADER_VISIBILITY_ALL);         // a root descriptor for Pass CBV.
-    slotRootParameter[4].InitAsDescriptorTable(1u, &nullSrv, D3D12_SHADER_VISIBILITY_PIXEL);    // a descriptor table for shadow map.
+    slotRootParameter[4].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL); // a descriptor table for shadow maps array.
 
     auto staticSamplers = GetStaticSamplers();
 
     // Root signature is an array of root parameters
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(5u, slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rootSignatureDesc.Init(ARRAYSIZE(slotRootParameter), slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-    // create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
     ComPtr<ID3DBlob> signature = nullptr;
     ComPtr<ID3DBlob> error = nullptr;
     ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
@@ -112,11 +108,17 @@ VOID Engine::CreateShaders()
         NULL, NULL
     };
 
+    const D3D_SHADER_MACRO shadowDebugDefines[] =
+    {
+        "SHADOW_DEBUG", "1",
+        NULL, NULL
+    };
+
     m_shaders["defaultVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
     m_shaders["opaquePS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
     m_shaders["shadowGS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
+    m_shaders["shadowVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
 
-    // Define the vertex input layout.
     m_inputLayout =
     {
         { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
@@ -132,8 +134,17 @@ VOID Engine::CreatePSO()
     ZeroMemory(&opaquePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 
     opaquePsoDesc.pRootSignature = m_rootSignature.Get();
-    opaquePsoDesc.VS = D3D12_SHADER_BYTECODE({ reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()), m_shaders["defaultVS"]->GetBufferSize() });
-    opaquePsoDesc.PS = D3D12_SHADER_BYTECODE({ reinterpret_cast<BYTE*>(m_shaders["opaquePS"]->GetBufferPointer()), m_shaders["opaquePS"]->GetBufferSize() });
+    opaquePsoDesc.VS = D3D12_SHADER_BYTECODE(
+        { 
+            reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()), 
+            m_shaders["defaultVS"]->GetBufferSize()
+        });
+    opaquePsoDesc.PS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders["opaquePS"]->GetBufferPointer()),
+            m_shaders["opaquePS"]->GetBufferSize()
+        });
+
     opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     opaquePsoDesc.SampleMask = UINT_MAX;
     opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -173,20 +184,22 @@ VOID Engine::CreatePSO()
     transparentPsoDesc.BlendState.AlphaToCoverageEnable = FALSE;
     transparentPsoDesc.BlendState.IndependentBlendEnable = FALSE;
     transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
-
     // since we can see through transparent objects, we have to see their back faces
     transparentPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&m_pipelineStates["transparency"])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = {};
     ZeroMemory(&shadowPsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
     shadowPsoDesc.pRootSignature = m_rootSignature.Get();
-    shadowPsoDesc.VS = D3D12_SHADER_BYTECODE({ reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()), m_shaders["defaultVS"]->GetBufferSize() });
+    shadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()),
+            m_shaders["defaultVS"]->GetBufferSize()
+        });
     shadowPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     shadowPsoDesc.SampleMask = UINT_MAX;
     shadowPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    shadowPsoDesc.RasterizerState.DepthBias = 1000;
+    shadowPsoDesc.RasterizerState.DepthBias = 10000;
     shadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
     shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
     shadowPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -198,6 +211,20 @@ VOID Engine::CreatePSO()
     shadowPsoDesc.SampleDesc.Count = 1u;
     shadowPsoDesc.SampleDesc.Quality = 0u;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&shadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates["shadow_opaque"])));
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = shadowPsoDesc;
+    cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders["shadowVS"]->GetBufferPointer()),
+                m_shaders["shadowVS"]->GetBufferSize()
+        });
+    cascadeShadowPsoDesc.GS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders["shadowGS"]->GetBufferPointer()),
+                m_shaders["shadowGS"]->GetBufferSize()
+        });
+
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&cascadeShadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates["cascades_opaque"])));
 }
 
 VOID Engine::LoadTextures()
@@ -253,7 +280,7 @@ VOID Engine::CreateGeometry()
     // the same mesh for all planets
     MeshData sphere = Shapes::CreateSphere(1.0f, 16u, 16u);
 
-    MeshData grid = Shapes::CreateGrid(20.0f, 30.0f, 60u, 40u);
+    MeshData grid = Shapes::CreateGrid(100.0f, 100.0f, 60u, 60u);
 
     // Create shared vertex/index buffer for all geometry.
     UINT sunVertexOffset = 0u;
@@ -575,6 +602,7 @@ VOID Engine::CreateDescriptorHeaps()
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    //!!!!!!!!!!
     srvHeapDesc.NumDescriptors = (UINT)m_textures.size() + 1u;
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     srvHeapDesc.NodeMask = 0u;
@@ -603,25 +631,27 @@ VOID Engine::CreateDescriptorHeaps()
         handle.Offset(1, m_cbvSrvUavDescriptorSize);
     }
 
-    auto m_shadowMapHeapIndex = (UINT)m_textures.size();
+    auto m_cascadeShadowMapHeapIndex = (UINT)m_textures.size();
 
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    // configuring srv for shadow maps texture2Darray in the srv heap
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
     srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    srvDesc.Texture2D.MostDetailedMip = 0u;
-    srvDesc.Texture2D.MipLevels = 1u;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-    
+    srvDesc.Texture2DArray.MostDetailedMip = 0u;
+    srvDesc.Texture2DArray.MipLevels = -1;
+    srvDesc.Texture2DArray.FirstArraySlice = 0u;
+    srvDesc.Texture2DArray.ArraySize = m_cascadeShadowMap->Get()->GetDesc().DepthOrArraySize;
+    srvDesc.Texture2DArray.PlaneSlice = 0u;
+    srvDesc.Texture2DArray.ResourceMinLODClamp = 0.0f;
     m_device->CreateShaderResourceView(nullptr, &srvDesc, handle);
 
     auto srvCpuStart = m_srvHeap->GetCPUDescriptorHandleForHeapStart();
     auto srvGpuStart = m_srvHeap->GetGPUDescriptorHandleForHeapStart();
     auto dsvCpuStart = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
 
-    m_shadowSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_shadowMapHeapIndex, m_cbvSrvUavDescriptorSize);
-
-    m_shadowMap->CreateDescriptors(
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_shadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
-        CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_shadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
+    m_cascadeShadowSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_cascadeShadowMapHeapIndex, m_cbvSrvUavDescriptorSize);
+    m_cascadeShadowMap->CreateDescriptors(
+        CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_cascadeShadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
+        CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_cascadeShadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
         CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, m_dsvDescriptorSize));
 }
 
@@ -677,7 +707,7 @@ VOID Engine::Reset()
     D3D12Sample::Reset();
 
     // Init/Reinit camera
-    m_camera->Reset(0.25f * XM_PI, m_aspectRatio, 1.0f, 1000.0f);
+    m_camera->Reset(60.0f, m_aspectRatio, 1.0f, 100.0f);
 }
 
 VOID Engine::CreateRtvAndDsvDescriptorHeaps()
@@ -691,7 +721,7 @@ VOID Engine::CreateRtvAndDsvDescriptorHeaps()
 
     m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    // 1 dsv + 1 shadow map
+    // 1 dsv + 1 cascade shadow map
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
     dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     dsvHeapDesc.NumDescriptors = 2u;
@@ -716,10 +746,10 @@ void Engine::OnUpdate(const ScaldTimer& st)
     UpdateObjectsCB(st);
     UpdateMaterialCB(st);
     
-    UpdateMainPassCB(st); // pass
-
     UpdateShadowTransform(st);
     UpdateShadowPassCB(st); // pass
+
+    UpdateMainPassCB(st); // pass
 }
 
 // Render the scene.
@@ -837,10 +867,10 @@ void Engine::UpdateMainPassCB(const ScaldTimer& st)
     XMStoreFloat4x4(&m_mainPassCBData.Proj, XMMatrixTranspose(proj));
     XMStoreFloat4x4(&m_mainPassCBData.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&m_mainPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
-    XMStoreFloat4x4(&m_mainPassCBData.ShadowTransform, XMMatrixTranspose(m_shadowTransform));
+
     m_mainPassCBData.EyePosW = m_camera->GetPosition();
-    m_mainPassCBData.NearZ = 1.0f;
-    m_mainPassCBData.FarZ = 1000.0f;
+    m_mainPassCBData.NearZ = m_camera->GetNearZ();
+    m_mainPassCBData.FarZ = m_camera->GetFarZ();
     m_mainPassCBData.DeltaTime = st.DeltaTime();
     m_mainPassCBData.TotalTime = st.TotalTime();
 
@@ -888,62 +918,9 @@ void Engine::UpdateMaterialCB(const ScaldTimer& st)
 
 void Engine::UpdateShadowTransform(const ScaldTimer& st)
 {
-    // for CSM
-    //mDeviceContext->GSSetShader(mCSMGeometryShader.Get(), nullptr, 0u);
-    //mDeviceContext->GSSetConstantBuffers(0u, 1u, mCBGS.GetAddressOf());
-    
-    const auto directionalLight = m_mainPassCBData.Lights[0];
+    std::vector<std::pair<XMMATRIX, XMMATRIX>> lightSpaceMatrices;
+    GetLightSpaceMatrices(lightSpaceMatrices);
 
-    const XMVECTOR lightDir = XMLoadFloat3(&directionalLight.Direction);
-    const XMVECTOR lightPos = 2.0f * lightDir * 50.0f;
-    const XMVECTOR targetPos = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-    const XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-    XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
-    XMMATRIX lightProj = XMMatrixOrthographicLH(50.0f * 1.77778f, 50.0f, 0.1f, 200.0f);
-
-    const std::vector<XMVECTOR> frustumCorners = GetFrustumCornersWorldSpace(lightView, lightProj);
-
-    XMVECTOR center = XMVectorZero();
-    for (auto&& v : frustumCorners)
-    {
-        center += v;
-    }
-    center /= (float)frustumCorners.size();
-
-    lightView = XMMatrixLookAtLH(center, center + XMVectorSet(directionalLight.Direction.x, directionalLight.Direction.y, directionalLight.Direction.z, 1.0f), lightUp);
-
-    // Measuring cascade
-    float minX = std::numeric_limits<float>::max();
-    float minY = std::numeric_limits<float>::max();
-    float minZ = std::numeric_limits<float>::max();
-    float maxX = std::numeric_limits<float>::lowest();
-    float maxY = std::numeric_limits<float>::lowest();
-    float maxZ = std::numeric_limits<float>::lowest();
-
-    for (const auto& v : frustumCorners)
-    {
-        const auto trf = XMVector4Transform(v, lightView);
-
-        minX = std::min(minX, XMVectorGetX(trf));
-        maxX = std::max(maxX, XMVectorGetX(trf));
-        minY = std::min(minY, XMVectorGetY(trf));
-        maxY = std::max(maxY, XMVectorGetY(trf));
-        minZ = std::min(minZ, XMVectorGetZ(trf));
-        maxZ = std::max(maxZ, XMVectorGetZ(trf));
-    }
-
-    constexpr float zMult = 10.0f;
-
-    minZ = (minZ < 0) ? minZ * zMult : minZ / zMult;
-    maxZ = (maxZ < 0) ? maxZ / zMult : maxZ * zMult;
-
-    m_lightNearZ = minZ;
-    m_lightFarZ = maxZ;
-    XMStoreFloat3(&m_lightPosW, lightPos);
-
-    lightProj = XMMatrixOrthographicOffCenterLH(minX, maxX, minY, maxY, minZ, maxZ);
-    
     // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
     XMMATRIX T(
         0.5f, 0.0f, 0.0f, 0.0f,
@@ -951,16 +928,20 @@ void Engine::UpdateShadowTransform(const ScaldTimer& st)
         0.0f, 0.0f, 1.0f, 0.0f,
         0.5f, 0.5f, 0.0f, 1.0f);
 
-    XMMATRIX S = lightView * lightProj * T;
-    m_lightView = lightView;
-    m_lightProj = lightProj;
-    m_shadowTransform = S;
+    for (UINT i = 0; i < MaxCascades; ++i)
+    {
+        XMMATRIX shadowTransform = lightSpaceMatrices[i].first * lightSpaceMatrices[i].second /** T*/;
+        m_shadowPassCBData.Cascades.CascadeViewProj[i] = XMMatrixTranspose(shadowTransform);
+
+        m_mainPassCBData.Cascades.CascadeViewProj[i] = XMMatrixTranspose(shadowTransform);
+        m_mainPassCBData.Cascades.Distances[i] = m_shadowCascadeLevels[i];
+    }
 }
 
 void Engine::UpdateShadowPassCB(const ScaldTimer& st)
 {
-    XMMATRIX view = m_lightView;
-    XMMATRIX proj = m_lightProj;
+    XMMATRIX view = XMMatrixIdentity();
+    XMMATRIX proj = XMMatrixIdentity();
     XMMATRIX viewProj = XMMatrixMultiply(view, proj);
     XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
@@ -968,9 +949,6 @@ void Engine::UpdateShadowPassCB(const ScaldTimer& st)
     XMStoreFloat4x4(&m_shadowPassCBData.Proj, XMMatrixTranspose(proj));
     XMStoreFloat4x4(&m_shadowPassCBData.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&m_shadowPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
-    m_shadowPassCBData.EyePosW = m_lightPosW;
-    m_shadowPassCBData.NearZ = m_lightNearZ;
-    m_shadowPassCBData.FarZ = m_lightFarZ;
     
     auto currPassCB = m_currFrameResource->PassCB.get();
     currPassCB->CopyData(/*shadow pass data in 1 element*/1, m_shadowPassCBData);
@@ -1026,7 +1004,7 @@ VOID Engine::PopulateCommandList()
 
     // Set shaadow map texture for main pass
     CD3DX12_GPU_DESCRIPTOR_HANDLE shadowMapHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-    m_commandList->SetGraphicsRootDescriptorTable(4u, m_shadowSrv);
+    m_commandList->SetGraphicsRootDescriptorTable(4u, m_cascadeShadowSrv);
 
     m_commandList->SetPipelineState(m_pipelineStates["opaque"].Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
@@ -1042,24 +1020,24 @@ void Engine::RenderDepthOnlyPass()
 {
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
-    m_commandList->RSSetViewports(1u, &m_shadowMap->GetViewport());
-    m_commandList->RSSetScissorRects(1u, &m_shadowMap->GetScissorRect());
+    m_commandList->RSSetViewports(1u, &m_cascadeShadowMap->GetViewport());
+    m_commandList->RSSetScissorRects(1u, &m_cascadeShadowMap->GetScissorRect());
 
     // change to depth write state
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     m_commandList->ResourceBarrier(1u, &transition);
 
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
     m_commandList->SetGraphicsRootConstantBufferView(3u, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); //cause shadow pass data lies in the second element
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_shadowMap->GetDsv());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_cascadeShadowMap->GetDsv());
     m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
     m_commandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
 
-    m_commandList->SetPipelineState(m_pipelineStates["shadow_opaque"].Get());
+    m_commandList->SetPipelineState(m_pipelineStates["cascades_opaque"].Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
-    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
     m_commandList->ResourceBarrier(1u, &transition);
 }
 
@@ -1164,9 +1142,93 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers()
     return { pointWrap, linearWrap, anisotropicWrap, shadowSampler, shadowComparison };
 }
 
-std::vector<XMVECTOR> Engine::GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection)
+std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, const float farZ)
 {
-    const auto viewProj = view * projection;
+    const auto directionalLight = m_mainPassCBData.Lights[0];
+
+    const XMFLOAT3 lightDir = directionalLight.Direction;
+
+    const auto cameraProj = XMMatrixPerspectiveFovLH(m_camera->GetFovRad(), m_aspectRatio, nearZ, farZ);
+    const auto frustumCorners = GetFrustumCornersWorldSpace(m_camera->GetViewMatrix(), cameraProj);
+
+    XMVECTOR center = XMVectorZero();
+    for (const auto& v : frustumCorners)
+    {
+        center += v;
+    }
+    center /= (float)frustumCorners.size();
+
+    const XMMATRIX lightView = XMMatrixLookAtLH(center, center + XMVectorSet(lightDir.x, lightDir.y, lightDir.z, 1.0f), ScaldMath::UpVector);
+
+    // Measuring cascade
+    float minX = std::numeric_limits<float>::max();
+    float minY = std::numeric_limits<float>::max();
+    float minZ = std::numeric_limits<float>::max();
+    float maxX = std::numeric_limits<float>::lowest();
+    float maxY = std::numeric_limits<float>::lowest();
+    float maxZ = std::numeric_limits<float>::lowest();
+
+    for (const auto& v : frustumCorners)
+    {
+        const auto trf = XMVector4Transform(v, lightView);
+
+        minX = std::min(minX, XMVectorGetX(trf));
+        maxX = std::max(maxX, XMVectorGetX(trf));
+        minY = std::min(minY, XMVectorGetY(trf));
+        maxY = std::max(maxY, XMVectorGetY(trf));
+        minZ = std::min(minZ, XMVectorGetZ(trf));
+        maxZ = std::max(maxZ, XMVectorGetZ(trf));
+    }
+    // Tune this parameter according to the scene
+    constexpr float zMult = 10.0f;
+    minZ = (minZ < 0) ? minZ * zMult : minZ / zMult;
+    maxZ = (maxZ < 0) ? maxZ / zMult : maxZ * zMult;
+
+    const XMMATRIX lightProj = XMMatrixOrthographicOffCenterLH(minX, maxX, minY, maxY, minZ, maxZ);
+
+    return std::make_pair(lightView, lightProj);
+}
+
+void Engine::GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices)
+{
+    for (UINT i = 0; i < MaxCascades; ++i)
+    {
+        if (i == 0)
+        {
+            outMatrices.push_back(GetLightSpaceMatrix(m_camera->GetNearZ(), m_shadowCascadeLevels[i]));
+        }
+        else if (i < MaxCascades - 1)
+        {
+            outMatrices.push_back(GetLightSpaceMatrix(m_shadowCascadeLevels[i - 1], m_shadowCascadeLevels[i]));
+        }
+        else
+        {
+            outMatrices.push_back(GetLightSpaceMatrix(m_shadowCascadeLevels[i - 1], m_shadowCascadeLevels[i]));
+        }
+    }
+}
+
+void Engine::CreateShadowCascadeSplits()
+{
+    const float minZ = m_camera->GetNearZ();
+    const float maxZ = m_camera->GetFarZ();
+
+    const float range = maxZ - minZ;
+    const float ratio = maxZ / minZ;
+
+    for (int i = 0; i < MaxCascades; i++)
+    {
+        float p = (i + 1) / (float)(MaxCascades);
+        float log = (float)(minZ * pow(ratio, p));
+        float uniform = minZ + range * p;
+        float d = 0.95f * (log - uniform) + uniform; // 0.95f - idk, just magic value
+        m_shadowCascadeLevels[i] = ((d - minZ) / range) * maxZ;
+    }
+}
+
+std::vector<XMVECTOR> Engine::GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& proj)
+{
+    const auto viewProj = view * proj;
 
     XMVECTOR det = XMMatrixDeterminant(viewProj);
     const auto invViewProj = XMMatrixInverse(&det, viewProj);
@@ -1181,12 +1243,12 @@ std::vector<XMVECTOR> Engine::GetFrustumCornersWorldSpace(const XMMATRIX& view, 
             for (UINT z = 0; z < 2; ++z)
             {
                 // translate NDC coords to world space
-                const XMVECTOR pt = XMVector4Transform(std::move(
+                const XMVECTOR pt = XMVector4Transform(
                     XMVectorSet(
                         2.0f * x - 1.0f,
                         2.0f * y - 1.0f,
                         (float)z,
-                        1.0f)), invViewProj);
+                        1.0f), invViewProj);
                 frustumCorners.push_back(pt / XMVectorGetW(pt));
             }
         }

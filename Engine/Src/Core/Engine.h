@@ -3,7 +3,7 @@
 #include "D3D12Sample.h"
 #include "FrameResource.h"
 #include "Camera.h"
-#include "ShadowMap.h"
+#include "CascadeShadowMap.h"
 
 const int gNumFrameResources = 3;
 
@@ -98,13 +98,8 @@ private:
 
     float m_sunPhi = XM_PIDIV4;
     float m_sunTheta = 1.25f * XM_PI;
-
-    float m_lightNearZ = 0.0f;
-    float m_lightFarZ = 0.0f;
-    XMFLOAT3 m_lightPosW;
-    XMMATRIX m_lightView = XMMatrixIdentity();
-    XMMATRIX m_lightProj = XMMatrixIdentity();
-    XMMATRIX m_shadowTransform = XMMatrixIdentity();
+    
+    float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     ComPtr<ID3D12RootSignature> m_rootSignature;
 
@@ -128,9 +123,9 @@ private:
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
-    std::unique_ptr<ShadowMap> m_shadowMap;
+    std::unique_ptr<ShadowMap> m_cascadeShadowMap;
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_shadowSrv;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
 
     VOID LoadPipeline() override;
     VOID Reset() override;
@@ -157,5 +152,11 @@ private:
     VOID MoveToNextFrame();
 
     std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers();
+
+    std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
+    // Doubt that't a good idea to return vector of matrices. Should rather pass vector as a parameter probalby and fill it inside function.
+    void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
+    void CreateShadowCascadeSplits();
+
     std::vector<XMVECTOR> GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection);
 };
