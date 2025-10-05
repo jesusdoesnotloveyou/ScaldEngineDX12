@@ -1,10 +1,11 @@
 #include "stdafx.h"
 #include "ShadowMap.h"
 
-ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height)
+ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount)
 	: m_device(device)
 	, m_mapWidth(width)
 	, m_mapHeight(height)
+	, m_cascadesCount(cascadesCount)
 {
 	m_viewport.TopLeftX = 0.0f;
 	m_viewport.TopLeftY = 0.0f;
@@ -18,7 +19,10 @@ ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height)
 	m_scissorRect.right = static_cast<LONG>(width);
 	m_scissorRect.bottom = static_cast<LONG>(height);
 
-	CreateResource();
+	if (m_cascadesCount == 0)
+	{
+		CreateResource();
+	}
 }
 
 ShadowMap::~ShadowMap() noexcept {}

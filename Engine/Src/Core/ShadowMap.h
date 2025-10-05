@@ -7,7 +7,7 @@ using namespace Microsoft::WRL;
 class ShadowMap
 {
 public:
-	ShadowMap(ID3D12Device* device, UINT width, UINT height);
+	ShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount = 0u);
 	ShadowMap(const ShadowMap& lhs) = delete;
 	ShadowMap& operator=(const ShadowMap& lhs) = delete;
 
@@ -31,10 +31,12 @@ public:
 
 	void OnResize(UINT newWidth, UINT newHeight);
 
+protected:
+	virtual void CreateDescriptors();
 private:
-	void CreateDescriptors();
 	void CreateResource();
-private:
+
+protected:
 	ID3D12Device* m_device = nullptr;
 
 	D3D12_VIEWPORT m_viewport;
@@ -48,6 +50,8 @@ private:
 
 	UINT m_mapWidth = 0u;
 	UINT m_mapHeight = 0u;
+
+	UINT m_cascadesCount = 0u;
 
 	// actual gpu resource
 	ComPtr<ID3D12Resource> m_shadowMap = nullptr;
