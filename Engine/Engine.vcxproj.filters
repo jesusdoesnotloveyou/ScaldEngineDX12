@@ -14,6 +14,7 @@
     <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
     <ClCompile Include="Src\Core\ShadowMap.cpp" />
     <ClCompile Include="Src\Components\ScaldComponent.cpp" />
+    <ClCompile Include="Src\Core\CascadeShadowMap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
@@ -36,10 +37,13 @@
     <ClInclude Include="Src\Objects\Actor.h" />
     <ClInclude Include="Src\Objects\Object.h" />
     <ClInclude Include="Src\Components\ScaldComponent.h" />
+    <ClInclude Include="Src\Core\CascadeShadowMap.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\PixelShader.hlsl" />
     <FxCompile Include="Assets\Shaders\VertexShader.hlsl" />
+    <FxCompile Include="Assets\Shaders\GeometryShader.hlsl" />
+    <FxCompile Include="Assets\Shaders\ShadowVertexShader.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\LightUtil.hlsl" />

@@ -46,6 +46,23 @@ struct SVertex
 	{}
 };
 
+#define MaxCascades 4
+
+struct CascadesShadows
+{
+	CascadesShadows()
+	{
+		for (int i = 0; i < MaxCascades; ++i)
+		{
+			CascadeViewProj[i] = XMMatrixIdentity();
+			Distances[i] = 0.0f;
+		}
+	}
+
+	XMMATRIX CascadeViewProj[MaxCascades];
+	float Distances[MaxCascades];
+};
+
 struct Light
 {
 	XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
@@ -71,7 +88,8 @@ struct PassConstants
 	XMFLOAT4X4 Proj;
 	XMFLOAT4X4 ViewProj;
 	XMFLOAT4X4 InvViewProj;
-	XMFLOAT4X4 ShadowTransform;
+
+	CascadesShadows Cascades;
 
 	XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
 	float pad1 = 0.0f;

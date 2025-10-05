@@ -1,5 +1,13 @@
 #include "LightUtil.hlsl"
 
+#define MaxCascades 4
+
+struct CascadesShadows
+{
+    float4x4 CascadeViewProj[MaxCascades];
+    float4 Distances;
+};
+
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
@@ -20,7 +28,7 @@ cbuffer cbPerPass : register(b2)
     float4x4 gProj;
     float4x4 gViewProj;
     float4x4 gInvViewProj;
-    float4x4 gShadowTransform;
+    CascadesShadows gCascadeData;
     float3 gEyePos;
     float pad1;
     float gNearZ;
@@ -39,7 +47,7 @@ cbuffer cbPerPass : register(b2)
 };
 
 Texture2D gDiffuseMap : register(t0);
-Texture2D gShadowMap : register(t1);
+Texture2DArray gShadowMaps : register(t1);
 
 SamplerState gSamplerPointWrap : register(s0);
 SamplerState gSamplerLinearWrap : register(s1);

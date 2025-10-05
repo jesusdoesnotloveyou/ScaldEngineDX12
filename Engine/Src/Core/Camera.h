@@ -15,6 +15,10 @@ public:
 	XMMATRIX GetPerspectiveProjectionMatrix() const;
 	XMMATRIX GetOrthoProjectionMatrix() const;
 
+	FORCEINLINE float GetNearZ() const { return m_nearZ; }
+	FORCEINLINE float GetFarZ() const { return m_farZ; }
+	FORCEINLINE float GetFovRad() const { return m_fovYRad; }
+
 	XMFLOAT3 GetPosition() const;
 
 	void AdjustCameraRadius(float adjustRadiusValue);
@@ -25,6 +29,7 @@ private:
 	float m_radius;
 	float m_nearZ;
 	float m_farZ;
+	float m_fovYRad;
 
 	float m_phi;
 	float m_theta;

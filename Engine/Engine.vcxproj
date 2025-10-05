@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClCompile Include="Src\Components\ScaldComponent.cpp" />
     <ClCompile Include="Src\Core\Camera.cpp" />
+    <ClCompile Include="Src\Core\CascadeShadowMap.cpp" />
     <ClCompile Include="Src\Core\D3D12Sample.cpp" />
     <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
     <ClCompile Include="Src\Core\Engine.cpp" />
@@ -29,6 +30,7 @@
     <ClInclude Include="Core\framework.h" />
     <ClInclude Include="Src\Core\Camera.h" />
     <ClInclude Include="Src\Components\ScaldComponent.h" />
+    <ClInclude Include="Src\Core\CascadeShadowMap.h" />
     <ClInclude Include="Src\Core\D3D12Sample.h" />
     <ClInclude Include="Src\Common\d3dx12.h" />
     <ClInclude Include="Src\Common\DDSTextureLoader.h" />
@@ -58,10 +60,22 @@
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
+    <FxCompile Include="Assets\Shaders\GeometryShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Geometry</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Assets\Shaders\PixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\ShadowVertexShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
     </FxCompile>
     <FxCompile Include="Assets\Shaders\VertexShader.hlsl">

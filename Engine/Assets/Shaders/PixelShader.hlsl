@@ -16,8 +16,7 @@
 struct PSInput
 {
     float4 iPosH       : SV_POSITION;
-    float4 iShadowPosH : POSITION0;
-    float3 iPosW       : POSITION1;
+    float3 iPosW       : POSITION0;
     float3 iNormalW    : NORMAL;
     float2 iTexC       : TEXCOORD0;
 };
@@ -68,7 +67,7 @@ float3 CalcPointLight(Light L, float3 N, float3 posW, float3 viewDir, Material m
     float d = length(lightVec);
     
     if (d > L.FallOfEnd)
-        return 0.0f;
+        return .0f;
     
     float3 lightDir = lightVec / d;
     float NdotL = max(dot(lightDir, N), 0.0f);
@@ -131,34 +130,49 @@ float4 ComputeLight(float3 N, float3 posW, float3 viewDir, Material mat, float s
     return float4(litColor, 0.0f);
 }
 
-float GetShadowFactor(float4 shadowPosH)
+float SampleShadowMap(uint layer, float2 uv, float depth)
 {
+    return gShadowMaps.SampleCmp(gShadowSamplerComparisonLinearBorder, float3(uv, layer), depth).r;
+}
+
+float GetShadowFactor(float3 posW, uint layer)
+{
+    //                                           cascade's view * proj
+    float4 cascadePosH = mul(float4(posW, 1.0f), gCascadeData.CascadeViewProj[layer]);
     // to NDC
-    shadowPosH.xyz /= shadowPosH.w;
-    // depth in NDC
-    float depth = shadowPosH.z;
+    cascadePosH.xyz /= cascadePosH.w;
+    cascadePosH.xy = cascadePosH.xy * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
     
-    uint width, height, munMips;
-    gShadowMap.GetDimensions(0, width, height, munMips);
-    
-    float dx = 1.0f / (float) width;
-
-    float percentLit = 0.0f;
-    
-    const float2 offsets[9] = // we're in texCoord, imagine a pixel on texture and 8 pixel around it so they make a square
+    // !!!!!!!!! nothing changes if remove this if-statement below
+    if (saturate(cascadePosH.x) == cascadePosH.x && saturate(cascadePosH.y) == cascadePosH.y)
     {
-        float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx),
-        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
-        float2(-dx, +dx), float2(0.0f, +dx), float2(dx, +dx)
-    };
+        // depth in NDC
+        float depth = cascadePosH.z;
+    
+        uint width, height, elements, levels;
+        gShadowMaps.GetDimensions(0u, width, height, elements, levels);
+    
+        float dx = 1.0f / (float) width;
 
-    [unroll]
-    for (int i = 0; i < 9; ++i)
-    {
-        percentLit += gShadowMap.SampleCmpLevelZero(gShadowSamplerComparisonLinearBorder, shadowPosH.xy + offsets[i], depth).r;
+        float percentLit = 0.0f;
+    
+        const float2 offsets[9] = // we're in texCoord, imagine a pixel on texture and 8 pixel around it so they make a square
+        {
+            float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx),
+            float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
+            float2(-dx, +dx), float2(0.0f, +dx), float2(dx, +dx)
+        };
+
+        [unroll]
+        for (int i = 0; i < 9; ++i)
+        {
+            percentLit += SampleShadowMap(layer, cascadePosH.xy + offsets[i], depth);
+        }
+    
+        return percentLit / 9.0f;
     }
     
-    return percentLit / 9.0f;
+    return 1.0f;
 }
 
 float4 main(PSInput input) : SV_TARGET
@@ -180,9 +194,33 @@ float4 main(PSInput input) : SV_TARGET
     float4 ambient = gAmbient * diffuseAlbedo;
     float4 litColor = ambient;
     
+    float viewDepth = mul(float4(input.iPosW, 1.0f), gView).z;
+    
     Material mat = { diffuseAlbedo, gFresnelR0, 1.0f - gRoughness };
     
-    float shadowFactor = GetShadowFactor(input.iShadowPosH);
+    uint layer = MaxCascades - 1;
+    
+    [unroll]
+    for (uint i = 0; i < MaxCascades; ++i)
+    {
+        if (viewDepth < gCascadeData.Distances[i])
+        {
+            layer = i;
+            break;
+        }
+    }
+    
+    float3 cascadeColor = float3(0.0f, 0.0f, 0.0f);
+    if (layer == 0)
+        cascadeColor = float3(1.0f, 0.5f, 0.5f);
+    else if (layer == 1)
+        cascadeColor = float3(0.5f, 1.0f, 0.5f);
+    else if (layer == 2)
+        cascadeColor = float3(1.0f, 0.5f, 1.0f);
+    else
+        cascadeColor = float3(0.5f, 1.0f, 1.0f);
+    
+    float shadowFactor = GetShadowFactor(input.iPosW, layer);
     
     litColor += ComputeLight(N, input.iPosW, viewDir, mat, shadowFactor);
     
@@ -195,5 +233,8 @@ float4 main(PSInput input) : SV_TARGET
     // set the alpha channel of the diffuse material of the object itself
     litColor.a = diffuseAlbedo.a;
     
+#ifdef SHADOW_DEBUG
+    return litColor * float4(cascadeColor, 1.0f);
+#endif
     return litColor;
 }

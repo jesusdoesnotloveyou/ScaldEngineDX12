@@ -6,6 +6,7 @@ Camera::Camera()
 	: m_radius(5.0f)
 	, m_nearZ(1.0f)
 	, m_farZ(1000.0f)
+	, m_fovYRad(0.0f)
 	, m_phi(XM_PIDIV4)
 	, m_theta(1.5f * XM_PI)
 	, m_x(0.0f)
@@ -31,9 +32,11 @@ void Camera::Update(float deltaTime)
 	m_view = XMMatrixLookAtLH(pos, target, up);
 }
 
-void Camera::Reset(float fovAngleY, float aspectRatio, float nearZ, float farZ)
+void Camera::Reset(float fovAngleYDegrees, float aspectRatio, float nearZ, float farZ)
 {
-	m_proj = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, nearZ, farZ);
+	m_fovYRad = (fovAngleYDegrees / 180.0f) * XM_PI;
+	m_proj = XMMatrixPerspectiveFovLH(m_fovYRad, aspectRatio, nearZ, farZ);
+
 	m_nearZ = nearZ;
 	m_farZ = farZ;
 }
