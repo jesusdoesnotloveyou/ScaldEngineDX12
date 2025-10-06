@@ -77,6 +77,8 @@ public:
     virtual void OnMouseDown(WPARAM btnState, int x, int y) override;
     virtual void OnMouseUp(WPARAM btnState, int x, int y) override;
     virtual void OnMouseMove(WPARAM btnState, int x, int y) override;
+    virtual void OnKeyDown(UINT8 key) override;
+    virtual void OnKeyUp(UINT8 key) override;
 
 private:
     void OnKeyboardInput(const ScaldTimer& st);
@@ -99,8 +101,6 @@ private:
     float m_sunPhi = XM_PIDIV4;
     float m_sunTheta = 1.25f * XM_PI;
     
-    float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
     ComPtr<ID3D12RootSignature> m_rootSignature;
 
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
@@ -126,6 +126,7 @@ private:
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
+    float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     VOID LoadPipeline() override;
     VOID Reset() override;
