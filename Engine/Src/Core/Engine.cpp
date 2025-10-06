@@ -24,7 +24,6 @@ void Engine::OnInit()
 {
     LoadPipeline();
 
-    //m_shadowMap = std::make_unique<ShadowMap>(m_device.Get(), 2048u, 2048u);
     m_cascadeShadowMap = std::make_unique<CascadeShadowMap>(m_device.Get(), 2048u, 2048u, MaxCascades);
     CreateShadowCascadeSplits();
 
@@ -547,7 +546,7 @@ VOID Engine::CreateRenderItems()
 
     auto planeRenderItem = std::make_unique<RenderItem>();
     planeRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, -1.5f, 0.0f);
-    //planeRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
+    planeRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
     planeRenderItem->Geo = m_geometries["solarSystem"].get();
     planeRenderItem->Mat = m_materials["wood0"].get();
     planeRenderItem->ObjCBIndex = 5u;
@@ -736,7 +735,6 @@ VOID Engine::CreateRtvAndDsvDescriptorHeaps()
 void Engine::OnUpdate(const ScaldTimer& st)
 {
     OnKeyboardInput(st);
-
     m_camera->Update(st.DeltaTime());
     
     // Cycle through the circular frame resource array.
@@ -800,26 +798,45 @@ void Engine::OnMouseMove(WPARAM btnState, int x, int y)
         m_camera->AdjustYaw(dx); 
         m_camera->AdjustPitch(dy);
     }
-    else if ((btnState & MK_RBUTTON) != 0)
-    {
-        float dx = 0.005f * static_cast<float>(x - m_lastMousePos.x);
-        float dy = 0.005f * static_cast<float>(y - m_lastMousePos.y);
-
-        m_camera->AdjustCameraRadius(dx - dy);
-    }
 
     m_lastMousePos.x = static_cast<float>(x);
     m_lastMousePos.y = static_cast<float>(y);
 }
 
+void Engine::OnKeyDown(UINT8 key)
+{
+}
+
+void Engine::OnKeyUp(UINT8 key)
+{
+}
+
 void Engine::OnKeyboardInput(const ScaldTimer& st)
 {
+    const float dt = st.DeltaTime();
+
+#pragma region CameraMovement
+
+    if (GetAsyncKeyState('W') & 0x8000)
+        m_camera->MoveForward(10.0f * dt);
+    
+    if (GetAsyncKeyState('S') & 0x8000)
+        m_camera->MoveForward(-10.0f * dt);
+
+    if (GetAsyncKeyState('A') & 0x8000)
+        m_camera->MoveRight(-10.0f * dt);
+
+    if (GetAsyncKeyState('D') & 0x8000)
+        m_camera->MoveRight(10.0f * dt);
+
+#pragma endregion CameraMovement
+
     if (GetAsyncKeyState('1') & 0x8000)
         m_isWireframe = true;
     else
         m_isWireframe = false;
 
-    const float dt = st.DeltaTime();
+#pragma region GlobalLightDirection
 
     if (GetAsyncKeyState(VK_LEFT) & 0x8000)
         m_sunTheta -= 1.0f * dt;
@@ -834,6 +851,8 @@ void Engine::OnKeyboardInput(const ScaldTimer& st)
         m_sunPhi += 1.0f * dt;
 
     m_sunPhi = ScaldMath::Clamp(m_sunPhi, 0.1f, XM_PIDIV2);
+
+#pragma endregion GlobalLightDirection
 }
 
 void Engine::UpdateObjectsCB(const ScaldTimer& st)
@@ -868,7 +887,7 @@ void Engine::UpdateMainPassCB(const ScaldTimer& st)
     XMStoreFloat4x4(&m_mainPassCBData.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&m_mainPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
 
-    m_mainPassCBData.EyePosW = m_camera->GetPosition();
+    m_mainPassCBData.EyePosW = m_camera->GetPosition3f();
     m_mainPassCBData.NearZ = m_camera->GetNearZ();
     m_mainPassCBData.FarZ = m_camera->GetFarZ();
     m_mainPassCBData.DeltaTime = st.DeltaTime();
@@ -1148,7 +1167,7 @@ std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, con
 
     const XMFLOAT3 lightDir = directionalLight.Direction;
 
-    const auto cameraProj = XMMatrixPerspectiveFovLH(m_camera->GetFovRad(), m_aspectRatio, nearZ, farZ);
+    const auto cameraProj = XMMatrixPerspectiveFovLH(m_camera->GetFovYRad(), m_aspectRatio, nearZ, farZ);
     const auto frustumCorners = GetFrustumCornersWorldSpace(m_camera->GetViewMatrix(), cameraProj);
 
     XMVECTOR center = XMVectorZero();

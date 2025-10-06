@@ -3,42 +3,46 @@
 #include "Common/ScaldMath.h"
 
 Camera::Camera()
-	: m_radius(5.0f)
-	, m_nearZ(1.0f)
+	: m_nearZ(1.0f)
 	, m_farZ(1000.0f)
 	, m_fovYRad(0.0f)
-	, m_phi(XM_PIDIV4)
-	, m_theta(1.5f * XM_PI)
-	, m_x(0.0f)
-	, m_y(0.0f)
-	, m_z(0.0f)
+	, m_aspectRatio(0.0f)
+	, m_nearWindowHeight(0.0f)
+	, m_farWindowHeight(0.0f)
 {
 	m_view = XMMatrixIdentity();
-	m_proj = XMMatrixIdentity();
+	m_persProj = XMMatrixIdentity();
+	m_orthProj = XMMatrixIdentity();
+	// to update view matrix on the first update call
+	m_isDirty = true;
 }
 
 void Camera::Update(float deltaTime)
 {
-	// Convert Spherical to Cartesian
-	m_x = m_radius * sinf(m_phi) * cosf(m_theta);
-	m_z = m_radius * sinf(m_phi) * sinf(m_theta);
-	m_y = m_radius * cosf(m_phi);
+	if (!m_isDirty) return;
 
 	// View matrix
-	XMVECTOR pos = XMVectorSet(m_x, m_y, m_z, 1.0f);
-	XMVECTOR target = XMVectorZero();
-	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMVECTOR pos = GetPosition();
+	XMVECTOR target = pos + XMLoadFloat3(&m_forward);
+	XMVECTOR up = XMLoadFloat3(&m_up);
 
 	m_view = XMMatrixLookAtLH(pos, target, up);
+
+	m_isDirty = false;
 }
 
 void Camera::Reset(float fovAngleYDegrees, float aspectRatio, float nearZ, float farZ)
 {
-	m_fovYRad = (fovAngleYDegrees / 180.0f) * XM_PI;
-	m_proj = XMMatrixPerspectiveFovLH(m_fovYRad, aspectRatio, nearZ, farZ);
-
 	m_nearZ = nearZ;
 	m_farZ = farZ;
+	m_fovYRad = (fovAngleYDegrees / 180.0f) * XM_PI;
+	m_aspectRatio = aspectRatio;
+
+	m_nearWindowHeight = 2.0f * tanf(0.5f * m_fovYRad) * m_nearZ;
+	m_farWindowHeight = 2.0f * tanf(0.5f * m_fovYRad) * m_farZ;
+
+	m_persProj = XMMatrixPerspectiveFovLH(m_fovYRad, m_aspectRatio, m_nearZ, m_farZ);
+	m_orthProj = XMMatrixOrthographicLH(GetNearWindowWidth(), GetNearWindowHeight(), nearZ, farZ);
 }
 
 XMMATRIX Camera::GetViewMatrix() const
@@ -48,32 +52,81 @@ XMMATRIX Camera::GetViewMatrix() const
 
 XMMATRIX Camera::GetPerspectiveProjectionMatrix() const
 {
-	return m_proj;
+	return m_persProj;
 }
 
 XMMATRIX Camera::GetOrthoProjectionMatrix() const
 {
-	return XMMATRIX{};
+	return m_orthProj;
 }
 
-XMFLOAT3 Camera::GetPosition() const
+float Camera::GetFovYRad() const
 {
-	return XMFLOAT3(m_x, m_y, m_z);
+	return m_fovYRad;
 }
 
-void Camera::AdjustCameraRadius(float adjustValue)
+float Camera::GetFovXRad() const
 {
-	m_radius += adjustValue;
-	m_radius = ScaldMath::Clamp(m_radius, 3.0f, 15.0f);
+	return 2.0f * atanf(GetFarWindowWidth() * 0.5f / m_farZ);
 }
 
-void Camera::AdjustYaw(float adjustYawValue)
+XMFLOAT3 Camera::GetPosition3f() const
 {
-	m_theta += adjustYawValue;
+	return m_position;
 }
 
-void Camera::AdjustPitch(float adjustPitchValue)
+XMVECTOR Camera::GetPosition() const
 {
-	m_phi += adjustPitchValue;
-	m_phi = ScaldMath::Clamp(m_phi, 0.1f, XM_PI - 0.1f);
+	return XMLoadFloat3(&m_position);
+}
+
+void Camera::SetPosition(float x, float y, float z)
+{
+	m_position = XMFLOAT3(x, y, z);
+	m_isDirty = true;
+}
+
+void Camera::SetPosition(const XMFLOAT3& v)
+{
+	m_position = v;
+	m_isDirty = true;
+}
+
+void Camera::MoveRight(float d)
+{
+	// m_position += d * m_right;
+	XMVECTOR s = XMVectorReplicate(d);
+	XMVECTOR r = XMLoadFloat3(&m_right);
+	XMVECTOR p = GetPosition();
+	XMStoreFloat3(&m_position, XMVectorMultiplyAdd(s, r, p));
+	m_isDirty = true;
+}
+
+void Camera::MoveForward(float d)
+{
+	// m_position += d * m_forward;
+	XMVECTOR s = XMVectorReplicate(d);
+	XMVECTOR f = XMLoadFloat3(&m_forward);
+	XMVECTOR p = GetPosition();
+	XMStoreFloat3(&m_position, XMVectorMultiplyAdd(s, f, p));
+	m_isDirty = true;
+}
+
+// Rotation around world's Y axis
+void Camera::AdjustYaw(float angle)
+{
+	XMMATRIX R = XMMatrixRotationY(angle);
+	XMStoreFloat3(&m_right,	  XMVector3TransformNormal(XMLoadFloat3(&m_right), R));
+	XMStoreFloat3(&m_up,	  XMVector3TransformNormal(XMLoadFloat3(&m_up), R));
+	XMStoreFloat3(&m_forward, XMVector3TransformNormal(XMLoadFloat3(&m_forward), R));
+	m_isDirty = true;
+}
+
+// Rotation around X axis
+void Camera::AdjustPitch(float angle)
+{
+	XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&m_right), angle);
+	XMStoreFloat3(&m_up,	  XMVector3TransformNormal(XMLoadFloat3(&m_up), R));
+	XMStoreFloat3(&m_forward, XMVector3TransformNormal(XMLoadFloat3(&m_forward), R));
+	m_isDirty = true;
 }
