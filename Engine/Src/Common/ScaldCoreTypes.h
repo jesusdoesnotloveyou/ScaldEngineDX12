@@ -78,6 +78,10 @@ struct ObjectConstants
 {
 	XMFLOAT4X4 World;
 	XMFLOAT4X4 TexTransform;
+	UINT MaterialIndex = 0u;
+	UINT objPad0 = 0u;
+	UINT objPad1 = 0u;
+	UINT objPad2 = 0u;
 };
 
 #define MaxLights 16
@@ -113,10 +117,15 @@ struct PassConstants
 	Light Lights[MaxLights];
 };
 
-struct MaterialConstants
+// Structured buffers
+struct MaterialData
 {
 	XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
 	XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
 	float Roughness = 0.25f;
 	XMFLOAT4X4 MatTransform;
+	UINT DiffusseMapIndex = 0u;
+	UINT matPad0 = 0u;
+	UINT matPad1 = 0u;
+	UINT matPad2 = 0u;
 };
