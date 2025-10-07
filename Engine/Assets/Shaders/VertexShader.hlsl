@@ -18,6 +18,8 @@ struct VSOutput
 VSOutput main(VSInput input)
 {
     VSOutput output = (VSOutput) 0;
+ 
+    MaterialData matData = gMaterialData[gMaterialIndex];
     
     float4 oPosW = mul(float4(input.iPosL, 1.0f), gWorld);
     
@@ -26,6 +28,6 @@ VSOutput main(VSInput input)
     output.oNormalW = mul(input.inNormalL, (float3x3) gWorld);
 
     float4 texCoord = mul(float4(input.inTexC, 0.0f, 1.0f), gTexTransform);
-    output.oTexC = mul(texCoord, gMatTransform).xy;
+    output.oTexC = mul(texCoord, matData.MatTransform).xy;
     return output;
 }

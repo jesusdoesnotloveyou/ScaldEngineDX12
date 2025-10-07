@@ -8,21 +8,29 @@ struct CascadesShadows
     float4 Distances;
 };
 
+struct MaterialData
+{
+    float4 DiffuseAlbedo;
+    float3 FresnelR0;
+    float Roughness;
+    float4x4 MatTransform;
+    uint DiffuseMapIndex;
+    uint pad0;
+    uint pad1;
+    uint pad2;
+};
+
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
     float4x4 gTexTransform;
+    uint gMaterialIndex;
+    uint gObjPad0;
+    uint gObjPad1;
+    uint gObjPad2;
 };
 
-cbuffer cbPerMaterial : register(b1)
-{
-    float4 gDiffuseAlbedo;
-    float3 gFresnelR0;
-    float gRoughness;
-    float4x4 gMatTransform;
-};
-
-cbuffer cbPerPass : register(b2)
+cbuffer cbPerPass : register(b1)
 {
     float4x4 gView;
     float4x4 gProj;
@@ -30,7 +38,7 @@ cbuffer cbPerPass : register(b2)
     float4x4 gInvViewProj;
     CascadesShadows gCascadeData;
     float3 gEyePos;
-    float pad1;
+    float gPassPad0;
     float gNearZ;
     float gFarZ;
     float gDeltaTime;
@@ -41,13 +49,16 @@ cbuffer cbPerPass : register(b2)
     float4 gFogColor;
     float gFogStart;
     float gFogRange;
-    float2 pad2;
+    float2 gPassPad1;
     
     Light gLights[MaxLights];
 };
 
-Texture2D gDiffuseMap : register(t0);
-Texture2DArray gShadowMaps : register(t1);
+Texture2DArray gShadowMaps : register(t0);
+StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
+
+Texture2D gDiffuseMap[6/*magic hardcode*/] : register(t1); // t1, t2, t3, t4, t5, t6 in space0
+
 
 SamplerState gSamplerPointWrap : register(s0);
 SamplerState gSamplerLinearWrap : register(s1);

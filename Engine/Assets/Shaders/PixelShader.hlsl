@@ -143,7 +143,7 @@ float GetShadowFactor(float3 posW, uint layer)
     cascadePosH.xyz /= cascadePosH.w;
     cascadePosH.xy = cascadePosH.xy * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
     
-    // !!!!!!!!! nothing changes if remove this if-statement below
+    // !!!!!!!!! nothing really changes if you remove this if-statement below
     if (saturate(cascadePosH.x) == cascadePosH.x && saturate(cascadePosH.y) == cascadePosH.y)
     {
         // depth in NDC
@@ -177,8 +177,14 @@ float GetShadowFactor(float3 posW, uint layer)
 
 float4 main(PSInput input) : SV_TARGET
 {
+    MaterialData matData = gMaterialData[gMaterialIndex];
+    float4 diffuseAlbedo = matData.DiffuseAlbedo;
+    float3 fresnelR0 = matData.FresnelR0;
+    float roughness = matData.Roughness;
+    uint diffuseTexIndex = matData.DiffuseMapIndex;
+    
     // Sample diff albedo from texture and multiply by material diffuse albedo for some tweak if we need one (gDiffuseAlbedo = (1, 1, 1, 1) by default).
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gSamplerAnisotropicWrap, input.iTexC) * gDiffuseAlbedo;
+    diffuseAlbedo *= gDiffuseMap[diffuseTexIndex].Sample(gSamplerAnisotropicWrap, input.iTexC);
     
     // To reject pixel as early as possible if it is completely transparent
 #ifdef ALPHA_TEST
@@ -196,7 +202,7 @@ float4 main(PSInput input) : SV_TARGET
     
     float viewDepth = mul(float4(input.iPosW, 1.0f), gView).z;
     
-    Material mat = { diffuseAlbedo, gFresnelR0, 1.0f - gRoughness };
+    Material mat = { diffuseAlbedo, fresnelR0, 1.0f - roughness };
     
     uint layer = MaxCascades - 1;
     
