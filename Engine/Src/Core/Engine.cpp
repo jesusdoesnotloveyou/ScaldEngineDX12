@@ -47,7 +47,6 @@ VOID Engine::LoadAssets()
     CreateRenderItems();
     CreateFrameResources();
     CreateDescriptorHeaps();
-    //CreateConstantBufferViews();
     CreateRootSignature();
     // Create the pipeline state, which includes compiling and loading shaders.
     {
@@ -63,20 +62,20 @@ VOID Engine::LoadAssets()
 VOID Engine::CreateRootSignature()
 {
     CD3DX12_DESCRIPTOR_RANGE texTable;
-    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
+    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /* number of textures 2D */(UINT)m_textures.size(), 1u, 0u);
 
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
-    cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 1u);
+    cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
 
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[5];
     
     // Perfomance TIP: Order from most frequent to least frequent.
-    slotRootParameter[0].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);   // a descriptor table for textures
-    slotRootParameter[1].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_VERTEX);      // a root descriptor for objects' CBVs.
-    slotRootParameter[2].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);         // a root descriptor for objects' materials CBVs.
-    slotRootParameter[3].InitAsConstantBufferView(2u, 0u, D3D12_SHADER_VISIBILITY_ALL);         // a root descriptor for Pass CBV.
-    slotRootParameter[4].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL); // a descriptor table for shadow maps array.
+    slotRootParameter[0].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */);  // a root descriptor for objects' CBVs.
+    slotRootParameter[1].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);                                            // a root descriptor for Pass CBV.
+    slotRootParameter[2].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[3].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                              // a descriptor table for shadow maps array.
+    slotRootParameter[4].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                      // a descriptor table for textures
 
     auto staticSamplers = GetStaticSamplers();
 
@@ -601,7 +600,7 @@ VOID Engine::CreateDescriptorHeaps()
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    //!!!!!!!!!!
+                                            // textures + csm
     srvHeapDesc.NumDescriptors = (UINT)m_textures.size() + 1u;
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     srvHeapDesc.NodeMask = 0u;
@@ -654,59 +653,12 @@ VOID Engine::CreateDescriptorHeaps()
         CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, m_dsvDescriptorSize));
 }
 
-VOID Engine::CreateConstantBufferViews()
-{
-    UINT objCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants)); // make multiple of 256
-    UINT objCount = (UINT)m_renderItems.size();
-
-    for (int frameInd = 0; frameInd < gNumFrameResources; frameInd++)
-    {
-        auto objectCB = m_frameResources[frameInd]->ObjectsCB->Get();
-        for (UINT i = 0; i < objCount; i++)
-        {
-            D3D12_GPU_VIRTUAL_ADDRESS cbAddress = objectCB->GetGPUVirtualAddress();
-            // offset to ith object cb in the buffer
-            cbAddress += i * objCBByteSize;
-
-            // Offset to the object cbv in the descriptor heap.
-            int heapIndex = frameInd * objCount + i;
-            auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
-            handle.Offset(heapIndex, m_cbvSrvUavDescriptorSize);
-
-            D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-            cbvDesc.BufferLocation = cbAddress;
-            cbvDesc.SizeInBytes = objCBByteSize;
-
-            m_device->CreateConstantBufferView(&cbvDesc, handle);
-        }
-    }
-
-    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants)); // make multiple of 256
-    // only one pass at this moment
-    for (int frameInd = 0; frameInd < gNumFrameResources; frameInd++)
-    {
-        auto passCB = m_frameResources[frameInd]->PassCB->Get();
-        D3D12_GPU_VIRTUAL_ADDRESS cbAddress = passCB->GetGPUVirtualAddress();
-
-        // Offset to the pass cbv in the descriptor heap.
-        int heapIndex = m_passCbvOffset + frameInd;
-        auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
-        handle.Offset(heapIndex, m_cbvSrvUavDescriptorSize);
-
-        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-        cbvDesc.BufferLocation = cbAddress;
-        cbvDesc.SizeInBytes = passCBByteSize;
-
-        m_device->CreateConstantBufferView(&cbvDesc, handle);
-    }
-}
-
 VOID Engine::Reset()
 {
     D3D12Sample::Reset();
 
     // Init/Reinit camera
-    m_camera->Reset(60.0f, m_aspectRatio, 1.0f, 100.0f);
+    m_camera->Reset(75.0f, m_aspectRatio, 1.0f, 250.0f);
 }
 
 VOID Engine::CreateRtvAndDsvDescriptorHeaps()
@@ -742,7 +694,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
     m_currFrameResource = m_frameResources[m_currFrameResourceIndex].get();
 
     UpdateObjectsCB(st);
-    UpdateMaterialCB(st);
+    UpdateMaterialBuffer(st);
     
     UpdateShadowTransform(st);
     UpdateShadowPassCB(st); // pass
@@ -868,8 +820,9 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
         {
             XMStoreFloat4x4(&m_perObjectCBData.World, XMMatrixTranspose(ri->World));
             XMStoreFloat4x4(&m_perObjectCBData.TexTransform, XMMatrixTranspose(ri->TexTransform));
-            objectCB->CopyData(ri->ObjCBIndex, m_perObjectCBData); // In this case ri->ObjCBIndex would be equal to index 'i' of traditional for loop
+            m_perObjectCBData.MaterialIndex = ri->Mat->MatCBIndex;
 
+            objectCB->CopyData(ri->ObjCBIndex, m_perObjectCBData); // In this case ri->ObjCBIndex would be equal to index 'i' of traditional for loop
             ri->NumFramesDirty--;
         }
     }
@@ -914,21 +867,22 @@ void Engine::UpdateMainPassCB(const ScaldTimer& st)
     currPassCB->CopyData(/*main pass data in 0 element*/0, m_mainPassCBData);
 }
 
-void Engine::UpdateMaterialCB(const ScaldTimer& st)
+void Engine::UpdateMaterialBuffer(const ScaldTimer& st)
 {
-    auto materialCB = m_currFrameResource->MaterialCB.get();
+    auto currMaterialDataSB = m_currFrameResource->MaterialSB.get();
 
     for (auto& e : m_materials)
     {
         Material* mat = e.second.get();
         if (mat->NumFramesDirty > 0)
         {
-            m_perMaterialCBData.DiffuseAlbedo = mat->DiffuseAlbedo;
-            m_perMaterialCBData.FresnelR0 = mat->FresnelR0;
-            m_perMaterialCBData.Roughness = mat->Roughness;
-            XMStoreFloat4x4(&m_perMaterialCBData.MatTransform, XMMatrixTranspose(mat->MatTransform));
+            m_perMaterialSBData.DiffuseAlbedo = mat->DiffuseAlbedo;
+            m_perMaterialSBData.FresnelR0 = mat->FresnelR0;
+            m_perMaterialSBData.Roughness = mat->Roughness;
+            XMStoreFloat4x4(&m_perMaterialSBData.MatTransform, XMMatrixTranspose(mat->MatTransform));
+            m_perMaterialSBData.DiffusseMapIndex = mat->DiffuseSrvHeapIndex;
 
-            materialCB->CopyData(mat->MatCBIndex, m_perMaterialCBData);
+            currMaterialDataSB->CopyData(mat->MatCBIndex, m_perMaterialSBData);
 
             mat->NumFramesDirty--;
         }
@@ -940,16 +894,9 @@ void Engine::UpdateShadowTransform(const ScaldTimer& st)
     std::vector<std::pair<XMMATRIX, XMMATRIX>> lightSpaceMatrices;
     GetLightSpaceMatrices(lightSpaceMatrices);
 
-    // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
-    XMMATRIX T(
-        0.5f, 0.0f, 0.0f, 0.0f,
-        0.0f, -0.5f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.0f, 1.0f);
-
     for (UINT i = 0; i < MaxCascades; ++i)
     {
-        XMMATRIX shadowTransform = lightSpaceMatrices[i].first * lightSpaceMatrices[i].second /** T*/;
+        XMMATRIX shadowTransform = lightSpaceMatrices[i].first * lightSpaceMatrices[i].second;
         m_shadowPassCBData.Cascades.CascadeViewProj[i] = XMMatrixTranspose(shadowTransform);
 
         m_mainPassCBData.Cascades.CascadeViewProj[i] = XMMatrixTranspose(shadowTransform);
@@ -1018,12 +965,22 @@ VOID Engine::PopulateCommandList()
     m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
     m_commandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
     
+#pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(3u, currFramePassCB->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootConstantBufferView(1u, currFramePassCB->GetGPUVirtualAddress());
+
+    // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
+    auto matBuffer = m_currFrameResource->MaterialSB->Get();
+    m_commandList->SetGraphicsRootShaderResourceView(2u, matBuffer->GetGPUVirtualAddress());
 
     // Set shaadow map texture for main pass
-    CD3DX12_GPU_DESCRIPTOR_HANDLE shadowMapHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-    m_commandList->SetGraphicsRootDescriptorTable(4u, m_cascadeShadowSrv);
+    m_commandList->SetGraphicsRootDescriptorTable(3u, m_cascadeShadowSrv);
+
+    // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
+    // The root signature knows how many descriptors are expected in the table.
+    m_commandList->SetGraphicsRootDescriptorTable(4u, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+
+#pragma endregion BypassResources
 
     m_commandList->SetPipelineState(m_pipelineStates["opaque"].Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
@@ -1047,7 +1004,7 @@ void Engine::RenderDepthOnlyPass()
     m_commandList->ResourceBarrier(1u, &transition);
 
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(3u, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); //cause shadow pass data lies in the second element
+    m_commandList->SetGraphicsRootConstantBufferView(1u, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); //cause shadow pass data lies in the second element
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_cascadeShadowMap->GetDsv());
     m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
@@ -1062,14 +1019,9 @@ void Engine::RenderDepthOnlyPass()
 
 void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
 {
-    UINT objCount = (UINT)renderItems.size();
-    UINT materialCount = (UINT)m_materials.size();
-
     UINT objCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
-    UINT materialCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
 
     auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();       // Get actual ID3D12Resource*
-    auto currFrameMaterialCB = m_currFrameResource->MaterialCB->Get(); // Get actual ID3D12Resource*
 
     for (auto& ri : renderItems)
     {
@@ -1077,15 +1029,14 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std
         cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
         cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 
-        CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-        texHandle.Offset(ri->Mat->DiffuseSrvHeapIndex, m_cbvSrvUavDescriptorSize);
+        //CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+        //texHandle.Offset(ri->Mat->DiffuseSrvHeapIndex, m_cbvSrvUavDescriptorSize);
 
         D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = currFrameObjCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
-        D3D12_GPU_VIRTUAL_ADDRESS materialCBAddress = currFrameMaterialCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex * materialCBByteSize;
 
-        cmdList->SetGraphicsRootDescriptorTable(0u, texHandle);
-        cmdList->SetGraphicsRootConstantBufferView(1u, objCBAddress);
-        cmdList->SetGraphicsRootConstantBufferView(2u, materialCBAddress);
+        // set only objects' cbv per item
+        cmdList->SetGraphicsRootConstantBufferView(0u, objCBAddress);
+        //cmdList->SetGraphicsRootDescriptorTable(3u, texHandle);
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
