@@ -19,10 +19,10 @@ struct Material
 {
     std::string Name;
 
-    // Index into constant buffer corresponding to this material.
+    // Index into constant buffer corresponding to this material (to map with render item).
     int MatCBIndex = -1;
 
-    // Index into SRV heap for diffuse texture.
+    // Index into SRV heap for diffuse texture. Index of corresponding texture in Texture2D[n] 
     int DiffuseSrvHeapIndex = -1;
 
     // Index into SRV heap for normal texture.
@@ -84,7 +84,7 @@ private:
     void OnKeyboardInput(const ScaldTimer& st);
     void UpdateObjectsCB(const ScaldTimer& st);
     void UpdateMainPassCB(const ScaldTimer& st);
-    void UpdateMaterialCB(const ScaldTimer& st);
+    void UpdateMaterialBuffer(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
     void UpdateShadowPassCB(const ScaldTimer& st);
     
@@ -114,7 +114,7 @@ private:
     ObjectConstants m_perObjectCBData;
     PassConstants m_mainPassCBData;
     PassConstants m_shadowPassCBData;
-    MaterialConstants m_perMaterialCBData;
+    MaterialData m_perMaterialSBData;
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
     std::unordered_map < std::string, std::unique_ptr<Material>> m_materials;
@@ -147,7 +147,6 @@ private:
     VOID CreateFrameResources();
     // Heaps are created if there are root descriptor tables in root signature 
     VOID CreateDescriptorHeaps();
-    VOID CreateConstantBufferViews();
 
     VOID PopulateCommandList();
     VOID MoveToNextFrame();
