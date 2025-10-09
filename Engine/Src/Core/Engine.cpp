@@ -278,7 +278,7 @@ VOID Engine::CreateGeometry()
     // the same mesh for all planets
     MeshData sphere = Shapes::CreateSphere(1.0f, 16u, 16u);
 
-    MeshData grid = Shapes::CreateGrid(100.0f, 100.0f, 60u, 60u);
+    MeshData grid = Shapes::CreateGrid(100.0f, 100.0f, 2u, 2u);
 
     // Create shared vertex/index buffer for all geometry.
     UINT sunVertexOffset = 0u;
@@ -299,30 +299,36 @@ VOID Engine::CreateGeometry()
     sunSubmesh.IndexCount = (UINT)sphere.indices.size();
     sunSubmesh.StartIndexLocation = sunIndexOffset;
     sunSubmesh.BaseVertexLocation = sunVertexOffset;
+    sunSubmesh.Bounds = sphere.Bounds;
 
     SubmeshGeometry mercurySubmesh;
     mercurySubmesh.IndexCount = (UINT)sphere.indices.size();
     mercurySubmesh.StartIndexLocation = mercuryIndexOffset;
     mercurySubmesh.BaseVertexLocation = mercuryVertexOffset;
+    mercurySubmesh.Bounds = sphere.Bounds;
 
     SubmeshGeometry venusSubmesh;
     venusSubmesh.IndexCount = (UINT)sphere.indices.size();
     venusSubmesh.StartIndexLocation = venusIndexOffset;
     venusSubmesh.BaseVertexLocation = venusVertexOffset;
+    venusSubmesh.Bounds = sphere.Bounds;
 
     SubmeshGeometry earthSubmesh;
     earthSubmesh.IndexCount = (UINT)sphere.indices.size();
     earthSubmesh.StartIndexLocation = earthIndexOffset;
     earthSubmesh.BaseVertexLocation = earthVertexOffset;
+    earthSubmesh.Bounds = sphere.Bounds;
 
     SubmeshGeometry marsSubmesh;
     marsSubmesh.IndexCount = (UINT)sphere.indices.size();
     marsSubmesh.StartIndexLocation = marsIndexOffset;
     marsSubmesh.BaseVertexLocation = marsVertexOffset;
+    marsSubmesh.Bounds = sphere.Bounds;;
 
     SubmeshGeometry planeSubmesh;
     planeSubmesh.IndexCount = (UINT)grid.indices.size();
     planeSubmesh.StartIndexLocation = planeIndexOffset;
+    planeSubmesh.BaseVertexLocation = planeVertexOffset;
     planeSubmesh.BaseVertexLocation = planeVertexOffset;
 
     auto totalVertexCount = 
@@ -434,7 +440,7 @@ VOID Engine::CreateGeometryMaterials()
     // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
     auto flame0 = std::make_unique<Material>();
     flame0->Name = "flame0";
-    flame0->MatCBIndex = 0;
+    flame0->MatBufferIndex = 0;
     flame0->DiffuseSrvHeapIndex = 0;
     //flame0->DiffuseAlbedo = XMFLOAT4(Colors::Gold);
     flame0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
@@ -443,7 +449,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto sand0 = std::make_unique<Material>();
     sand0->Name = "sand0";
-    sand0->MatCBIndex = 1;
+    sand0->MatBufferIndex = 1;
     sand0->DiffuseSrvHeapIndex = 1;
     //sand0->DiffuseAlbedo = XMFLOAT4(Colors::Brown);
     sand0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
@@ -452,7 +458,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto stone0 = std::make_unique<Material>();
     stone0->Name = "stone0";
-    stone0->MatCBIndex = 2;
+    stone0->MatBufferIndex = 2;
     stone0->DiffuseSrvHeapIndex = 2;
     //stone0->DiffuseAlbedo = XMFLOAT4(Colors::Orchid);
     stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
@@ -461,7 +467,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto ground0 = std::make_unique<Material>();
     ground0->Name = "ground0";
-    ground0->MatCBIndex = 3;
+    ground0->MatBufferIndex = 3;
     ground0->DiffuseSrvHeapIndex = 3;
     //ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
     ground0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
@@ -470,7 +476,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto wood0 = std::make_unique<Material>();
     wood0->Name = "wood0";
-    wood0->MatCBIndex = 4;
+    wood0->MatBufferIndex = 4;
     wood0->DiffuseSrvHeapIndex = 4;
     wood0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     wood0->Roughness = 0.5f;
@@ -478,7 +484,7 @@ VOID Engine::CreateGeometryMaterials()
     
     auto iron0 = std::make_unique<Material>();
     iron0->Name = "iron0";
-    iron0->MatCBIndex = 5;
+    iron0->MatBufferIndex = 5;
     iron0->DiffuseSrvHeapIndex = 5;
     iron0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     iron0->Roughness = 0.1f;
@@ -503,6 +509,7 @@ VOID Engine::CreateRenderItems()
     sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs["sun"].IndexCount;
     sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs["sun"].StartIndexLocation;
     sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs["sun"].BaseVertexLocation;
+    sunRenderItem->Bounds = sunRenderItem->Geo->DrawArgs["sun"].Bounds;
 
     auto mercuryRenderItem = std::make_unique<RenderItem>();
     mercuryRenderItem->World = XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(2.0f, 0.0f, 0.0f);
@@ -512,6 +519,7 @@ VOID Engine::CreateRenderItems()
     mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs["mercury"].IndexCount;
     mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].StartIndexLocation;
     mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].BaseVertexLocation;
+    mercuryRenderItem->Bounds = mercuryRenderItem->Geo->DrawArgs["mercury"].Bounds;
 
     auto venusRenderItem = std::make_unique<RenderItem>();
     venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
@@ -522,6 +530,7 @@ VOID Engine::CreateRenderItems()
     venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs["venus"].IndexCount;
     venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs["venus"].StartIndexLocation;
     venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs["venus"].BaseVertexLocation;
+    venusRenderItem->Bounds = venusRenderItem->Geo->DrawArgs["venus"].Bounds;
 
     auto earthRenderItem = std::make_unique<RenderItem>();
     earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
@@ -532,6 +541,7 @@ VOID Engine::CreateRenderItems()
     earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs["earth"].IndexCount;
     earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs["earth"].StartIndexLocation;
     earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs["earth"].BaseVertexLocation;
+    earthRenderItem->Bounds = earthRenderItem->Geo->DrawArgs["earth"].Bounds;
 
     auto marsRenderItem = std::make_unique<RenderItem>();
     marsRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(5.0f, 0.0f, 5.0f);
@@ -542,6 +552,7 @@ VOID Engine::CreateRenderItems()
     marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs["mars"].IndexCount;
     marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs["mars"].StartIndexLocation;
     marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs["mars"].BaseVertexLocation;
+    marsRenderItem->Bounds = marsRenderItem->Geo->DrawArgs["mars"].Bounds;
 
     auto planeRenderItem = std::make_unique<RenderItem>();
     planeRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, -1.5f, 0.0f);
@@ -820,7 +831,7 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
         {
             XMStoreFloat4x4(&m_perObjectCBData.World, XMMatrixTranspose(ri->World));
             XMStoreFloat4x4(&m_perObjectCBData.TexTransform, XMMatrixTranspose(ri->TexTransform));
-            m_perObjectCBData.MaterialIndex = ri->Mat->MatCBIndex;
+            m_perObjectCBData.MaterialIndex = ri->Mat->MatBufferIndex;
 
             objectCB->CopyData(ri->ObjCBIndex, m_perObjectCBData); // In this case ri->ObjCBIndex would be equal to index 'i' of traditional for loop
             ri->NumFramesDirty--;
@@ -882,7 +893,7 @@ void Engine::UpdateMaterialBuffer(const ScaldTimer& st)
             XMStoreFloat4x4(&m_perMaterialSBData.MatTransform, XMMatrixTranspose(mat->MatTransform));
             m_perMaterialSBData.DiffusseMapIndex = mat->DiffuseSrvHeapIndex;
 
-            currMaterialDataSB->CopyData(mat->MatCBIndex, m_perMaterialSBData);
+            currMaterialDataSB->CopyData(mat->MatBufferIndex, m_perMaterialSBData);
 
             mat->NumFramesDirty--;
         }

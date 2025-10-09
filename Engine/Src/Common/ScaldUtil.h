@@ -25,8 +25,7 @@ struct SubmeshGeometry
 	INT BaseVertexLocation = 0;
 
 	// Bounding box of the geometry defined by this submesh. 
-	// This is used in later chapters of the book.
-	DirectX::BoundingBox Bounds;
+	BoundingBox Bounds;
 };
 
 struct MeshGeometry

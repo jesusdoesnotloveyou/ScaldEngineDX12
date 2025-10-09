@@ -19,8 +19,8 @@ struct Material
 {
     std::string Name;
 
-    // Index into constant buffer corresponding to this material (to map with render item).
-    int MatCBIndex = -1;
+    // Index into constant/structured buffer corresponding to this material (to map with render item).
+    int MatBufferIndex = -1;
 
     // Index into SRV heap for diffuse texture. Index of corresponding texture in Texture2D[n] 
     int DiffuseSrvHeapIndex = -1;
@@ -61,6 +61,8 @@ struct RenderItem
     UINT IndexCount = 0;
     UINT StartIndexLocation = 0;
     int BaseVertexLocation = 0;
+
+    BoundingBox Bounds;
 };
 
 class Engine : public D3D12Sample
@@ -128,6 +130,7 @@ private:
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
     float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
+private:
     VOID LoadPipeline() override;
     VOID Reset() override;
     VOID CreateRtvAndDsvDescriptorHeaps() override;

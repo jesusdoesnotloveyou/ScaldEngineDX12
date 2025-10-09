@@ -77,13 +77,15 @@ MeshData Shapes::CreateBox(float width, float height, float depth)
 
 	meshData.indices.assign(&i[0], &i[36]);
 
+	BoundingBox::CreateFromPoints(meshData.Bounds, meshData.vertices.size(), &meshData.vertices[0].position, sizeof(SVertex));
+
 	return meshData;
 }
 
 MeshData Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
 {
     MeshData meshData;
-
+	
 	SVertex topVertex(0.0f, +radius, 0.0f, 0.0f, +1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 	SVertex bottomVertex(0.0f, -radius, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -166,6 +168,8 @@ MeshData Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
 		meshData.indices.push_back(baseIndex + i);
 		meshData.indices.push_back(baseIndex + i + 1);
 	}
+
+	BoundingBox::CreateFromPoints(meshData.Bounds, meshData.vertices.size(), &meshData.vertices[0].position, sizeof(SVertex));
 
 	return meshData;
 }
