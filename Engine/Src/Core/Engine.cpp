@@ -117,6 +117,13 @@ VOID Engine::CreateShaders()
     m_shaders["shadowGS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
     m_shaders["shadowVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
 
+#pragma region DeferredShading
+    m_shaders["gBufferVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders["gBufferPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders["deferredLightVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredLightVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders["deferredLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredLightPS.hlsl", nullptr, "main", "ps_5_1");
+#pragma endregion DeferredShading
+
     m_inputLayout =
     {
         { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },

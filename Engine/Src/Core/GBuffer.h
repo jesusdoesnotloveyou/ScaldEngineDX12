@@ -9,8 +9,7 @@
 class GBuffer final
 {
 public:
-
-	GBuffer();
+	GBuffer(ID3D12Device* device);
 	GBuffer(const GBuffer& buffer) = delete;
 	GBuffer& operator=(const GBuffer& buffer) = delete;
 
@@ -21,6 +20,7 @@ private:
 
 
 private:
-
-	ComPtr<ID3D12Resource> Buffer[GBufferSize];
+	ID3D12Device* m_device = nullptr;
+	ComPtr<ID3D12Resource> m_buffer[GBufferSize];
+	DXGI_FORMAT m_bufferFormats[GBufferSize];
 };

@@ -1,7 +1,9 @@
 #include "stdafx.h"
 #include "GBuffer.h"
 
-GBuffer::GBuffer()
+GBuffer::GBuffer(ID3D12Device* device)
+	: m_device(device)
+	
 {
 
 }
