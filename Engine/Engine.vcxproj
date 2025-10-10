@@ -18,6 +18,7 @@
     <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
     <ClCompile Include="Src\Core\Engine.cpp" />
     <ClCompile Include="Src\Core\FrameResource.cpp" />
+    <ClCompile Include="Src\Core\GBuffer.cpp" />
     <ClCompile Include="Src\Core\Main.cpp" />
     <ClCompile Include="Src\Common\ScaldTimer.cpp" />
     <ClCompile Include="Src\Common\ScaldUtil.cpp" />
@@ -37,6 +38,7 @@
     <ClInclude Include="Src\Common\DXHelper.h" />
     <ClInclude Include="Src\Core\Engine.h" />
     <ClInclude Include="Src\Core\FrameResource.h" />
+    <ClInclude Include="Src\Core\GBuffer.h" />
     <ClInclude Include="Src\Objects\Object.h" />
     <ClInclude Include="Src\Common\ScaldCoreTypes.h" />
     <ClInclude Include="Src\Common\ScaldMath.h" />
@@ -60,6 +62,30 @@
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
+    <FxCompile Include="Assets\Shaders\DeferredLightPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\DeferredLightVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\GBufferPassPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\GBufferPassVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Assets\Shaders\GeometryShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
