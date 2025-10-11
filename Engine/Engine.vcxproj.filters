@@ -13,9 +13,12 @@
     <ClCompile Include="Src\Core\Camera.cpp" />
     <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
     <ClCompile Include="Src\Core\ShadowMap.cpp" />
-    <ClCompile Include="Src\Components\ScaldComponent.cpp" />
+    <ClCompile Include="Src\Components\SComponent.cpp" />
     <ClCompile Include="Src\Core\CascadeShadowMap.cpp" />
     <ClCompile Include="Src\Core\GBuffer.cpp" />
+    <ClCompile Include="Src\Core\Device.cpp" />
+    <ClCompile Include="Src\Components\Transform.cpp" />
+    <ClCompile Include="Src\Components\Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
@@ -36,10 +39,15 @@
     <ClInclude Include="Src\Common\DDSTextureLoader.h" />
     <ClInclude Include="Src\Core\ShadowMap.h" />
     <ClInclude Include="Src\Objects\Actor.h" />
-    <ClInclude Include="Src\Objects\Object.h" />
-    <ClInclude Include="Src\Components\ScaldComponent.h" />
+    <ClInclude Include="Src\Objects\SObject.h" />
+    <ClInclude Include="Src\Components\SComponent.h" />
     <ClInclude Include="Src\Core\CascadeShadowMap.h" />
     <ClInclude Include="Src\Core\GBuffer.h" />
+    <ClInclude Include="Src\Core\Device.h" />
+    <ClInclude Include="Src\Components\ComponentManager.h" />
+    <ClInclude Include="Src\Components\SceneManager.h" />
+    <ClInclude Include="Src\Components\Renderer.h" />
+    <ClInclude Include="Src\Components\Transform.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Assets\Shaders\PixelShader.hlsl" />

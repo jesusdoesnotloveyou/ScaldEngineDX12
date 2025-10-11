@@ -4,6 +4,7 @@
 #include "FrameResource.h"
 #include "Camera.h"
 #include "CascadeShadowMap.h"
+#include "Objects/SObject.h"
 
 const int gNumFrameResources = 3;
 
@@ -122,6 +123,7 @@ private:
     std::unordered_map < std::string, std::unique_ptr<Material>> m_materials;
     std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
+    std::vector<Scald::SObject> m_sceneObjects;
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
@@ -146,6 +148,7 @@ private:
     // Propertirs of shapes' surfaces to model light interaction
     VOID CreateGeometryMaterials();
     // Shapes could constist of some items to render
+    VOID CreateSceneObjects();
     VOID CreateRenderItems();
     VOID CreateFrameResources();
     // Heaps are created if there are root descriptor tables in root signature 

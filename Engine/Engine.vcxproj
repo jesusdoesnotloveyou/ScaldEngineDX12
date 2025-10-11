@@ -11,11 +11,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Src\Components\ScaldComponent.cpp" />
+    <ClCompile Include="Src\Components\Renderer.cpp" />
+    <ClCompile Include="Src\Components\SComponent.cpp" />
+    <ClCompile Include="Src\Components\Transform.cpp" />
     <ClCompile Include="Src\Core\Camera.cpp" />
     <ClCompile Include="Src\Core\CascadeShadowMap.cpp" />
     <ClCompile Include="Src\Core\D3D12Sample.cpp" />
     <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
+    <ClCompile Include="Src\Core\Device.cpp" />
     <ClCompile Include="Src\Core\Engine.cpp" />
     <ClCompile Include="Src\Core\FrameResource.cpp" />
     <ClCompile Include="Src\Core\GBuffer.cpp" />
@@ -29,17 +32,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
+    <ClInclude Include="Src\Components\ComponentManager.h" />
+    <ClInclude Include="Src\Components\Renderer.h" />
+    <ClInclude Include="Src\Components\SceneManager.h" />
+    <ClInclude Include="Src\Components\Transform.h" />
     <ClInclude Include="Src\Core\Camera.h" />
-    <ClInclude Include="Src\Components\ScaldComponent.h" />
+    <ClInclude Include="Src\Components\SComponent.h" />
     <ClInclude Include="Src\Core\CascadeShadowMap.h" />
     <ClInclude Include="Src\Core\D3D12Sample.h" />
     <ClInclude Include="Src\Common\d3dx12.h" />
     <ClInclude Include="Src\Common\DDSTextureLoader.h" />
     <ClInclude Include="Src\Common\DXHelper.h" />
+    <ClInclude Include="Src\Core\Device.h" />
     <ClInclude Include="Src\Core\Engine.h" />
     <ClInclude Include="Src\Core\FrameResource.h" />
     <ClInclude Include="Src\Core\GBuffer.h" />
-    <ClInclude Include="Src\Objects\Object.h" />
+    <ClInclude Include="Src\Objects\SObject.h" />
     <ClInclude Include="Src\Common\ScaldCoreTypes.h" />
     <ClInclude Include="Src\Common\ScaldMath.h" />
     <ClInclude Include="Src\Common\ScaldTimer.h" />
@@ -167,7 +175,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -186,7 +194,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
