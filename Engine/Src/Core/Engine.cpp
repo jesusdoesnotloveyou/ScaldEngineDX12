@@ -2,6 +2,8 @@
 #include "Engine.h"
 #include "Shapes.h"
 #include "Common/ScaldMath.h"
+#include "Components/Transform.h"
+#include "Components/Renderer.h"
 
 extern const int gNumFrameResources;
 
@@ -141,13 +143,13 @@ VOID Engine::CreatePSO()
     opaquePsoDesc.pRootSignature = m_rootSignature.Get();
     opaquePsoDesc.VS = D3D12_SHADER_BYTECODE(
         { 
-            reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()), 
-            m_shaders["defaultVS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("defaultVS")->GetBufferPointer()), 
+            m_shaders.at("defaultVS")->GetBufferSize()
         });
     opaquePsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["opaquePS"]->GetBufferPointer()),
-            m_shaders["opaquePS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("opaquePS")->GetBufferPointer()),
+            m_shaders.at("opaquePS")->GetBufferSize()
         });
 
     opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
@@ -198,8 +200,8 @@ VOID Engine::CreatePSO()
     shadowPsoDesc.pRootSignature = m_rootSignature.Get();
     shadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()),
-            m_shaders["defaultVS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("defaultVS")->GetBufferPointer()),
+            m_shaders.at("defaultVS")->GetBufferSize()
         });
     shadowPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     shadowPsoDesc.SampleMask = UINT_MAX;
@@ -220,13 +222,13 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = shadowPsoDesc;
     cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["shadowVS"]->GetBufferPointer()),
-                m_shaders["shadowVS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("shadowVS")->GetBufferPointer()),
+                m_shaders.at("shadowVS")->GetBufferSize()
         });
     cascadeShadowPsoDesc.GS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["shadowGS"]->GetBufferPointer()),
-                m_shaders["shadowGS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("shadowGS")->GetBufferPointer()),
+                m_shaders.at("shadowGS")->GetBufferSize()
         });
 
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&cascadeShadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates["cascades_opaque"])));
@@ -505,71 +507,78 @@ VOID Engine::CreateGeometryMaterials()
     m_materials["wood0"] = std::move(wood0);
 }
 
+VOID Engine::CreateSceneObjects()
+{
+    auto testObj = std::make_shared<Scald::SObject>();
+    testObj->AddComponent<Scald::Transform>(ScaldMath::ZeroVector, ScaldMath::ZeroVector, ScaldMath::One);
+    testObj->AddComponent<Scald::Renderer>();
+}
+
 VOID Engine::CreateRenderItems()
 {
     auto sunRenderItem = std::make_unique<RenderItem>();
     sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
     sunRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
-    sunRenderItem->Geo = m_geometries["solarSystem"].get();
-    sunRenderItem->Mat = m_materials["flame0"].get();
+    sunRenderItem->Geo = m_geometries.at("solarSystem").get();
+    sunRenderItem->Mat = m_materials.at("flame0").get();
     sunRenderItem->ObjCBIndex = 0u;
-    sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs["sun"].IndexCount;
-    sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs["sun"].StartIndexLocation;
-    sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs["sun"].BaseVertexLocation;
-    sunRenderItem->Bounds = sunRenderItem->Geo->DrawArgs["sun"].Bounds;
+    sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs.at("sun").IndexCount;
+    sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs.at("sun").StartIndexLocation;
+    sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs.at("sun").BaseVertexLocation;
+    sunRenderItem->Bounds = sunRenderItem->Geo->DrawArgs.at("sun").Bounds;
 
     auto mercuryRenderItem = std::make_unique<RenderItem>();
     mercuryRenderItem->World = XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(2.0f, 0.0f, 0.0f);
-    mercuryRenderItem->Geo = m_geometries["solarSystem"].get();
-    mercuryRenderItem->Mat = m_materials["sand0"].get();
+    mercuryRenderItem->Geo = m_geometries.at("solarSystem").get();
+    mercuryRenderItem->Mat = m_materials.at("sand0").get();
     mercuryRenderItem->ObjCBIndex = 1u;
-    mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs["mercury"].IndexCount;
-    mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].StartIndexLocation;
-    mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].BaseVertexLocation;
-    mercuryRenderItem->Bounds = mercuryRenderItem->Geo->DrawArgs["mercury"].Bounds;
+    mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs.at("mercury").IndexCount;
+    mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").StartIndexLocation;
+    mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").BaseVertexLocation;
+    mercuryRenderItem->Bounds = mercuryRenderItem->Geo->DrawArgs.at("mercury").Bounds;
 
     auto venusRenderItem = std::make_unique<RenderItem>();
     venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
     venusRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
-    venusRenderItem->Geo = m_geometries["solarSystem"].get();
-    venusRenderItem->Mat = m_materials["stone0"].get();
+    venusRenderItem->Geo = m_geometries.at("solarSystem").get();
+    venusRenderItem->Mat = m_materials.at("stone0").get();
     venusRenderItem->ObjCBIndex = 2u;
-    venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs["venus"].IndexCount;
-    venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs["venus"].StartIndexLocation;
-    venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs["venus"].BaseVertexLocation;
-    venusRenderItem->Bounds = venusRenderItem->Geo->DrawArgs["venus"].Bounds;
+    venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs.at("venus").IndexCount;
+    venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs.at("venus").StartIndexLocation;
+    venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs.at("venus").BaseVertexLocation;
+    venusRenderItem->Bounds = venusRenderItem->Geo->DrawArgs.at("venus").Bounds;
 
     auto earthRenderItem = std::make_unique<RenderItem>();
     earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
     earthRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
-    earthRenderItem->Geo = m_geometries["solarSystem"].get();
-    earthRenderItem->Mat = m_materials["ground0"].get();
+    earthRenderItem->Geo = m_geometries.at("solarSystem").get();
+    earthRenderItem->Mat = m_materials.at("ground0").get();
     earthRenderItem->ObjCBIndex = 3u;
-    earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs["earth"].IndexCount;
-    earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs["earth"].StartIndexLocation;
-    earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs["earth"].BaseVertexLocation;
-    earthRenderItem->Bounds = earthRenderItem->Geo->DrawArgs["earth"].Bounds;
+    earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs.at("earth").IndexCount;
+    earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs.at("earth").StartIndexLocation;
+    earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs.at("earth").BaseVertexLocation;
+    earthRenderItem->Bounds = earthRenderItem->Geo->DrawArgs.at("earth").Bounds;
 
     auto marsRenderItem = std::make_unique<RenderItem>();
     marsRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(5.0f, 0.0f, 5.0f);
     marsRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
-    marsRenderItem->Geo = m_geometries["solarSystem"].get();
-    marsRenderItem->Mat = m_materials["iron0"].get();
+    marsRenderItem->Geo = m_geometries.at("solarSystem").get();
+    marsRenderItem->Mat = m_materials.at("iron0").get();
     marsRenderItem->ObjCBIndex = 4u;
-    marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs["mars"].IndexCount;
-    marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs["mars"].StartIndexLocation;
-    marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs["mars"].BaseVertexLocation;
-    marsRenderItem->Bounds = marsRenderItem->Geo->DrawArgs["mars"].Bounds;
+    marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs.at("mars").IndexCount;
+    marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs.at("mars").StartIndexLocation;
+    marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs.at("mars").BaseVertexLocation;
+    marsRenderItem->Bounds = marsRenderItem->Geo->DrawArgs.at("mars").Bounds;
 
     auto planeRenderItem = std::make_unique<RenderItem>();
     planeRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, -1.5f, 0.0f);
     planeRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
-    planeRenderItem->Geo = m_geometries["solarSystem"].get();
-    planeRenderItem->Mat = m_materials["wood0"].get();
+    planeRenderItem->Geo = m_geometries.at("solarSystem").get();
+    planeRenderItem->Mat = m_materials.at("wood0").get();
     planeRenderItem->ObjCBIndex = 5u;
-    planeRenderItem->IndexCount = planeRenderItem->Geo->DrawArgs["plane"].IndexCount;
-    planeRenderItem->StartIndexLocation = planeRenderItem->Geo->DrawArgs["plane"].StartIndexLocation;
-    planeRenderItem->BaseVertexLocation = planeRenderItem->Geo->DrawArgs["plane"].BaseVertexLocation;
+    planeRenderItem->IndexCount = planeRenderItem->Geo->DrawArgs.at("plane").IndexCount;
+    planeRenderItem->StartIndexLocation = planeRenderItem->Geo->DrawArgs.at("plane").StartIndexLocation;
+    planeRenderItem->BaseVertexLocation = planeRenderItem->Geo->DrawArgs.at("plane").BaseVertexLocation;
 
     m_renderItems.push_back(std::move(sunRenderItem));
     m_renderItems.push_back(std::move(mercuryRenderItem));
@@ -799,6 +808,12 @@ void Engine::OnKeyboardInput(const ScaldTimer& st)
     if (GetAsyncKeyState('D') & 0x8000)
         m_camera->MoveRight(10.0f * dt);
 
+    if (GetAsyncKeyState('Q') & 0x8000)
+        m_camera->MoveUp(-8.f * dt);
+
+    if (GetAsyncKeyState('E') & 0x8000)
+        m_camera->MoveUp(8.f * dt);
+
 #pragma endregion CameraMovement
 
     if (GetAsyncKeyState('1') & 0x8000)
@@ -950,11 +965,11 @@ VOID Engine::PopulateCommandList()
     // that command list can then be reset at any time and must be before re-recording.
     if (m_isWireframe)
     {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates["opaque_wireframe"].Get()));
+        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at("opaque_wireframe").Get()));
     }
     else
     {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates["opaque"].Get()));
+        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at("opaque").Get()));
     }
 
     // Set necessary state.
@@ -1000,7 +1015,7 @@ VOID Engine::PopulateCommandList()
 
 #pragma endregion BypassResources
 
-    m_commandList->SetPipelineState(m_pipelineStates["opaque"].Get());
+    m_commandList->SetPipelineState(m_pipelineStates.at("opaque").Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -1028,7 +1043,7 @@ void Engine::RenderDepthOnlyPass()
     m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
     m_commandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
 
-    m_commandList->SetPipelineState(m_pipelineStates["cascades_opaque"].Get());
+    m_commandList->SetPipelineState(m_pipelineStates.at("cascades_opaque").Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
