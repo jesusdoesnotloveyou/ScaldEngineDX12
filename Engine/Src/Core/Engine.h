@@ -4,7 +4,7 @@
 #include "FrameResource.h"
 #include "Camera.h"
 #include "CascadeShadowMap.h"
-#include "Objects/SObject.h"
+#include "GameFramework/Objects/SObject.h"
 
 const int gNumFrameResources = 3;
 

@@ -2,8 +2,8 @@
 #include "Engine.h"
 #include "Shapes.h"
 #include "Common/ScaldMath.h"
-#include "Components/Transform.h"
-#include "Components/Renderer.h"
+#include "GameFramework/Components/Transform.h"
+#include "GameFramework/Components/Renderer.h"
 
 extern const int gNumFrameResources;
 

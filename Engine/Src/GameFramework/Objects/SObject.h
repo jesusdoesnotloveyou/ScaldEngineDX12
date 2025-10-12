@@ -2,7 +2,7 @@
 
 #include "Common/DXHelper.h"
 #include "Common/ScaldTimer.h"
-#include "Components/ComponentManager.h"
+#include "GameFrameWork/Components/ComponentManager.h"
 
 namespace Scald
 {

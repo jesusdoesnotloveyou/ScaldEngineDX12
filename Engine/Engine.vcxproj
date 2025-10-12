@@ -11,9 +11,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Src\Components\Renderer.cpp" />
-    <ClCompile Include="Src\Components\SComponent.cpp" />
-    <ClCompile Include="Src\Components\Transform.cpp" />
+    <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
+    <ClCompile Include="Src\GameFramework\Components\SComponent.cpp" />
+    <ClCompile Include="Src\GameFramework\Components\Transform.cpp" />
     <ClCompile Include="Src\Core\Camera.cpp" />
     <ClCompile Include="Src\Core\CascadeShadowMap.cpp" />
     <ClCompile Include="Src\Core\D3D12Sample.cpp" />
@@ -32,12 +32,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
-    <ClInclude Include="Src\Components\ComponentManager.h" />
-    <ClInclude Include="Src\Components\Renderer.h" />
-    <ClInclude Include="Src\Components\SceneManager.h" />
-    <ClInclude Include="Src\Components\Transform.h" />
+    <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
+    <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
+    <ClInclude Include="Src\GameFramework\Components\SceneManager.h" />
+    <ClInclude Include="Src\GameFramework\Components\Transform.h" />
     <ClInclude Include="Src\Core\Camera.h" />
-    <ClInclude Include="Src\Components\SComponent.h" />
+    <ClInclude Include="Src\GameFramework\Components\SComponent.h" />
     <ClInclude Include="Src\Core\CascadeShadowMap.h" />
     <ClInclude Include="Src\Core\D3D12Sample.h" />
     <ClInclude Include="Src\Common\d3dx12.h" />
@@ -47,12 +47,12 @@
     <ClInclude Include="Src\Core\Engine.h" />
     <ClInclude Include="Src\Core\FrameResource.h" />
     <ClInclude Include="Src\Core\GBuffer.h" />
-    <ClInclude Include="Src\Objects\SObject.h" />
+    <ClInclude Include="Src\GameFramework\Objects\SObject.h" />
     <ClInclude Include="Src\Common\ScaldCoreTypes.h" />
     <ClInclude Include="Src\Common\ScaldMath.h" />
     <ClInclude Include="Src\Common\ScaldTimer.h" />
     <ClInclude Include="Src\Common\ScaldUtil.h" />
-    <ClInclude Include="Src\Objects\Actor.h" />
+    <ClInclude Include="Src\GameFramework\Objects\Actor.h" />
     <ClInclude Include="Src\Core\ShadowMap.h" />
     <ClInclude Include="Src\Core\Shapes.h" />
     <ClInclude Include="Src\stdafx.h" />
