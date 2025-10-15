@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "Shapes.h"
 
-MeshData Shapes::CreateBox(float width, float height, float depth)
+MeshData<SVertex, uint16_t> Shapes::CreateBox(float width, float height, float depth)
 {
-    MeshData meshData;
+    MeshData<SVertex, uint16_t> meshData;
 
     SVertex v[24];
 
@@ -47,7 +47,7 @@ MeshData Shapes::CreateBox(float width, float height, float depth)
 	v[22] = SVertex(+w2, +h2, +d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
 	v[23] = SVertex(+w2, -h2, +d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
 
-	meshData.vertices.assign(&v[0], &v[24]);
+	meshData.LODVertices[0].assign(&v[0], &v[24]);
 
 	uint16_t i[36];
 
@@ -75,21 +75,24 @@ MeshData Shapes::CreateBox(float width, float height, float depth)
 	i[30] = 20; i[31] = 21; i[32] = 22;
 	i[33] = 20; i[34] = 22; i[35] = 23;
 
-	meshData.indices.assign(&i[0], &i[36]);
+	meshData.LODIndices[0].assign(&i[0], &i[36]);
 
-	BoundingBox::CreateFromPoints(meshData.Bounds, meshData.vertices.size(), &meshData.vertices[0].position, sizeof(SVertex));
+	for (UINT i = 0; i < meshData.NumLODs; ++i)
+	{
+		BoundingBox::CreateFromPoints(meshData.LODBounds[i], meshData.LODVertices[i].size(), &meshData.LODVertices[i][0].position, sizeof(SVertex));
+	}
 
 	return meshData;
 }
 
-MeshData Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
+MeshData<SVertex, uint16_t> Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
 {
-    MeshData meshData;
+	MeshData<SVertex, uint16_t> meshData;
 	
 	SVertex topVertex(0.0f, +radius, 0.0f, 0.0f, +1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 	SVertex bottomVertex(0.0f, -radius, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 
-	meshData.vertices.push_back(topVertex);
+	meshData.LODVertices[0].push_back(topVertex);
 
 	float phiStep = XM_PI / stackCount;
 	float thetaStep = 2.0f * XM_PI / sliceCount;
@@ -125,17 +128,17 @@ MeshData Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
 			v.texCoord.x = theta / XM_2PI;
 			v.texCoord.y = phi / XM_PI;
 
-			meshData.vertices.push_back(v);
+			meshData.LODVertices[0].push_back(v);
 		}
 	}
 
-	meshData.vertices.push_back(bottomVertex);
+	meshData.LODVertices[0].push_back(bottomVertex);
 
 	for (UINT i = 1; i <= sliceCount; ++i)
 	{
-		meshData.indices.push_back(0);
-		meshData.indices.push_back(i + 1);
-		meshData.indices.push_back(i);
+		meshData.LODIndices[0].push_back(0);
+		meshData.LODIndices[0].push_back(i + 1);
+		meshData.LODIndices[0].push_back(i);
 	}
 
 	// Offset the indices to the index of the first vertex in the first ring.
@@ -146,37 +149,40 @@ MeshData Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
 	{
 		for (UINT j = 0; j < sliceCount; ++j)
 		{
-			meshData.indices.push_back(baseIndex + i * ringVertexCount + j);
-			meshData.indices.push_back(baseIndex + i * ringVertexCount + j + 1);
-			meshData.indices.push_back(baseIndex + (i + 1) * ringVertexCount + j);
+			meshData.LODIndices[0].push_back(baseIndex + i * ringVertexCount + j);
+			meshData.LODIndices[0].push_back(baseIndex + i * ringVertexCount + j + 1);
+			meshData.LODIndices[0].push_back(baseIndex + (i + 1) * ringVertexCount + j);
 
-			meshData.indices.push_back(baseIndex + (i + 1) * ringVertexCount + j);
-			meshData.indices.push_back(baseIndex + i * ringVertexCount + j + 1);
-			meshData.indices.push_back(baseIndex + (i + 1) * ringVertexCount + j + 1);
+			meshData.LODIndices[0].push_back(baseIndex + (i + 1) * ringVertexCount + j);
+			meshData.LODIndices[0].push_back(baseIndex + i * ringVertexCount + j + 1);
+			meshData.LODIndices[0].push_back(baseIndex + (i + 1) * ringVertexCount + j + 1);
 		}
 	}
 
 	// South pole vertex was added last.
-	UINT southPoleIndex = (UINT)meshData.vertices.size() - 1;
+	UINT southPoleIndex = (UINT)meshData.LODVertices[0].size() - 1;
 
 	// Offset the indices to the index of the first vertex in the last ring.
 	baseIndex = southPoleIndex - ringVertexCount;
 
 	for (UINT i = 0; i < sliceCount; ++i)
 	{
-		meshData.indices.push_back(southPoleIndex);
-		meshData.indices.push_back(baseIndex + i);
-		meshData.indices.push_back(baseIndex + i + 1);
+		meshData.LODIndices[0].push_back(southPoleIndex);
+		meshData.LODIndices[0].push_back(baseIndex + i);
+		meshData.LODIndices[0].push_back(baseIndex + i + 1);
 	}
 
-	BoundingBox::CreateFromPoints(meshData.Bounds, meshData.vertices.size(), &meshData.vertices[0].position, sizeof(SVertex));
+	for (UINT i = 0; i < meshData.NumLODs; ++i)
+	{
+		BoundingBox::CreateFromPoints(meshData.LODBounds[i], meshData.LODVertices[i].size(), &meshData.LODVertices[i][0].position, sizeof(SVertex));
+	}
 
 	return meshData;
 }
 
-MeshData Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
+MeshData<SVertex, uint16_t> Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
 {
-	MeshData meshData;
+	MeshData<SVertex, uint16_t> meshData;
 
 	UINT vertexCount = m * n;
 	UINT faceCount = (m - 1) * (n - 1) * 2;
@@ -194,7 +200,7 @@ MeshData Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
 	float du = 1.0f / (n - 1);
 	float dv = 1.0f / (m - 1);
 
-	meshData.vertices.resize(vertexCount);
+	meshData.LODVertices[0].resize(vertexCount);
 	for (UINT i = 0; i < m; ++i)
 	{
 		float z = halfDepth - i * dz;
@@ -202,13 +208,13 @@ MeshData Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
 		{
 			float x = -halfWidth + j * dx;
 
-			meshData.vertices[i * n + j].position = XMFLOAT3(x, 0.0f, z);
-			meshData.vertices[i * n + j].normal = XMFLOAT3(0.0f, 1.0f, 0.0f);
-			meshData.vertices[i * n + j].tangent = XMFLOAT3(1.0f, 0.0f, 0.0f);
+			meshData.LODVertices[0][i * n + j].position = XMFLOAT3(x, 0.0f, z);
+			meshData.LODVertices[0][i * n + j].normal = XMFLOAT3(0.0f, 1.0f, 0.0f);
+			meshData.LODVertices[0][i * n + j].tangent = XMFLOAT3(1.0f, 0.0f, 0.0f);
 
 			// Stretch texture over grid.
-			meshData.vertices[i * n + j].texCoord.x = j * du;
-			meshData.vertices[i * n + j].texCoord.y = i * dv;
+			meshData.LODVertices[0][i * n + j].texCoord.x = j * du;
+			meshData.LODVertices[0][i * n + j].texCoord.y = i * dv;
 		}
 	}
 
@@ -216,7 +222,7 @@ MeshData Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
 	// Create the indices.
 	//
 
-	meshData.indices.resize(faceCount * 3); // 3 indices per face
+	meshData.LODIndices[0].resize(faceCount * 3); // 3 indices per face
 
 	// Iterate over each quad and compute indices.
 	UINT k = 0;
@@ -224,13 +230,13 @@ MeshData Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
 	{
 		for (UINT j = 0; j < n - 1; ++j)
 		{
-			meshData.indices[k] = i * n + j;
-			meshData.indices[k + 1] = i * n + j + 1;
-			meshData.indices[k + 2] = (i + 1) * n + j;
+			meshData.LODIndices[0][k] = i * n + j;
+			meshData.LODIndices[0][k + 1] = i * n + j + 1;
+			meshData.LODIndices[0][k + 2] = (i + 1) * n + j;
 
-			meshData.indices[k + 3] = (i + 1) * n + j;
-			meshData.indices[k + 4] = i * n + j + 1;
-			meshData.indices[k + 5] = (i + 1) * n + j + 1;
+			meshData.LODIndices[0][k + 3] = (i + 1) * n + j;
+			meshData.LODIndices[0][k + 4] = i * n + j + 1;
+			meshData.LODIndices[0][k + 5] = (i + 1) * n + j + 1;
 
 			k += 6; // next quad
 		}

@@ -4,6 +4,7 @@
 #include "FrameResource.h"
 #include "Camera.h"
 #include "CascadeShadowMap.h"
+#include "GameFramework/Components/Scene.h"
 #include "GameFramework/Objects/SObject.h"
 
 const int gNumFrameResources = 3;
@@ -128,6 +129,7 @@ private:
 
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
+    std::shared_ptr<Scald::Scene> m_scene;
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
     float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -142,6 +144,7 @@ private:
     VOID CreateShaders();
     VOID CreatePSO();
     
+    VOID LoadScene();
     VOID LoadTextures();
     // Shapes
     VOID CreateGeometry();

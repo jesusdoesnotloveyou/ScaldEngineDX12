@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
+    <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
     <ClCompile Include="Src\GameFramework\Components\SComponent.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Transform.cpp" />
     <ClCompile Include="Src\Core\Camera.cpp" />
@@ -34,7 +35,7 @@
     <ClInclude Include="Core\framework.h" />
     <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
-    <ClInclude Include="Src\GameFramework\Components\SceneManager.h" />
+    <ClInclude Include="Src\GameFramework\Components\Scene.h" />
     <ClInclude Include="Src\GameFramework\Components\Transform.h" />
     <ClInclude Include="Src\Core\Camera.h" />
     <ClInclude Include="Src\GameFramework\Components\SComponent.h" />

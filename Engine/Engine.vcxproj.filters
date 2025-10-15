@@ -19,6 +19,7 @@
     <ClCompile Include="Src\Core\Device.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Transform.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
+    <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
@@ -45,7 +46,7 @@
     <ClInclude Include="Src\Core\GBuffer.h" />
     <ClInclude Include="Src\Core\Device.h" />
     <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
-    <ClInclude Include="Src\GameFramework\Components\SceneManager.h" />
+    <ClInclude Include="Src\GameFramework\Components\Scene.h" />
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
     <ClInclude Include="Src\GameFramework\Components\Transform.h" />
   </ItemGroup>
