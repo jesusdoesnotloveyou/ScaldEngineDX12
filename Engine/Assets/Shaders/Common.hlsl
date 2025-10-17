@@ -1,23 +1,24 @@
-#include "LightUtil.hlsl"
+// Defaults for number of lights.
+#ifndef NUM_DIR_LIGHTS
+#define NUM_DIR_LIGHTS 1
+#endif
+
+#ifndef NUM_POINT_LIGHTS
+#define NUM_POINT_LIGHTS 1
+#endif
+
+#ifndef NUM_SPOT_LIGHTS
+#define NUM_SPOT_LIGHTS 0
+#endif
 
 #define MaxCascades 4
+
+#include "LightUtil.hlsl"
 
 struct CascadesShadows
 {
     float4x4 CascadeViewProj[MaxCascades];
     float4 Distances;
-};
-
-struct MaterialData
-{
-    float4 DiffuseAlbedo;
-    float3 FresnelR0;
-    float Roughness;
-    float4x4 MatTransform;
-    uint DiffuseMapIndex;
-    uint pad0;
-    uint pad1;
-    uint pad2;
 };
 
 cbuffer cbPerObject : register(b0)
