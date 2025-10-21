@@ -12,6 +12,7 @@
 #endif
 
 #define MaxCascades 4
+#define GBufferSize 5 // should be sync with GBuffer class
 
 #include "LightUtil.hlsl"
 
@@ -57,7 +58,7 @@ cbuffer cbPerPass : register(b1)
 
 Texture2DArray gShadowMaps : register(t0);
 StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
-
+Texture2D gGBuffer[GBufferSize] : register(t1, space1); // t1, t2, t3, t4, t5 in space1
 Texture2D gDiffuseMap[6/*magic hardcode*/] : register(t1); // t1, t2, t3, t4, t5, t6 in space0
 
 
