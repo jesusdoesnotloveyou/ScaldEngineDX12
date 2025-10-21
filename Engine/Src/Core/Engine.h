@@ -4,6 +4,7 @@
 #include "FrameResource.h"
 #include "Camera.h"
 #include "CascadeShadowMap.h"
+#include "GBuffer.h"
 
 const int gNumFrameResources = 3;
 
@@ -91,6 +92,11 @@ private:
     void UpdateShadowPassCB(const ScaldTimer& st);
     
     void RenderDepthOnlyPass();
+    void RenderGeometryPass();
+    void RenderLightingPass();
+    void DeferredDirectionalLightPass();
+    void DeferredPointLightPass();
+
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
 
 private:
@@ -116,6 +122,8 @@ private:
     ObjectConstants m_perObjectCBData;
     PassConstants m_mainPassCBData;
     PassConstants m_shadowPassCBData;
+    //PassConstants m_lightingPassCBData;
+    //PassConstants m_geometryPassCBData;
     MaterialData m_perMaterialSBData;
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
@@ -127,7 +135,11 @@ private:
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
 
+#pragma region DeferredRendering
+    std::unique_ptr<GBuffer> m_GBuffer;
+
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_GBufferTexturesSrv;
     float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 private:

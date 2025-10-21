@@ -8,7 +8,7 @@ enum EGBufferLayer : UINT
 	LIGHT_ACCUM,
 	NORMAL,
 	SPECULAR,
-	DEPTH,	
+	DEPTH,
 
 	MAX = 5
 };
