@@ -67,6 +67,13 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
     }
     return 0;
 
+    case WM_SIZE:
+    {
+        pSample->SetWidth(LOWORD(lParam));
+        pSample->SetHeight(HIWORD(lParam));
+    }
+    return 0;
+
     // WM_ENTERSIZEMOVE is sent when the user grabs the resize bars.
     case WM_ENTERSIZEMOVE:
     {
