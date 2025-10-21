@@ -27,6 +27,8 @@ void Engine::OnInit()
     m_cascadeShadowMap = std::make_unique<CascadeShadowMap>(m_device.Get(), 2048u, 2048u, MaxCascades);
     CreateShadowCascadeSplits();
 
+    m_GBuffer = std::make_unique<GBuffer>(m_device.Get(), m_width, m_height);
+
     LoadAssets();
 }
 
@@ -67,8 +69,11 @@ VOID Engine::CreateRootSignature()
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
     cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
 
+    CD3DX12_DESCRIPTOR_RANGE gBufferTable;
+    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)EGBufferLayer::MAX, 1u, 1u);
+
     // Root parameter can be a table, root descriptor or root constants.
-    CD3DX12_ROOT_PARAMETER slotRootParameter[5];
+    CD3DX12_ROOT_PARAMETER slotRootParameter[6];
     
     // Perfomance TIP: Order from most frequent to least frequent.
     slotRootParameter[0].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */);  // a root descriptor for objects' CBVs.
@@ -76,6 +81,7 @@ VOID Engine::CreateRootSignature()
     slotRootParameter[2].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
     slotRootParameter[3].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                              // a descriptor table for shadow maps array.
     slotRootParameter[4].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                      // a descriptor table for textures
+    slotRootParameter[5].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                    // a descriptor table for GBuffer
 
     auto staticSamplers = GetStaticSamplers();
 
@@ -116,6 +122,13 @@ VOID Engine::CreateShaders()
     m_shaders["opaquePS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
     m_shaders["shadowGS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
     m_shaders["shadowVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
+
+#pragma region DeferredShading
+    m_shaders["gBufferVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders["gBufferPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders["deferredLightVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredLightVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders["deferredLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredLightPS.hlsl", nullptr, "main", "ps_5_1");
+#pragma endregion DeferredShading
 
     m_inputLayout =
     {
@@ -223,6 +236,48 @@ VOID Engine::CreatePSO()
         });
 
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&cascadeShadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates["cascades_opaque"])));
+
+#pragma region DeferredShading
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC GBufferPsoDesc = opaquePsoDesc;
+    GBufferPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders["gBufferVS"]->GetBufferPointer()),
+            m_shaders["gBufferVS"]->GetBufferSize()
+        });
+    GBufferPsoDesc.PS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders["gBufferPS"]->GetBufferPointer()),
+            m_shaders["gBufferPS"]->GetBufferSize()
+        });
+
+    GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(EGBufferLayer::MAX) - 1u;
+    GBufferPsoDesc.RTVFormats[0] = m_GBuffer->GetBufferTextureFormat(EGBufferLayer::DIFFUSE_ALBEDO);
+    GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(EGBufferLayer::LIGHT_ACCUM);
+    GBufferPsoDesc.RTVFormats[2] = m_GBuffer->GetBufferTextureFormat(EGBufferLayer::NORMAL);
+    GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(EGBufferLayer::SPECULAR);
+    GBufferPsoDesc.DSVFormat = DepthStencilFormat; // corresponds to default format
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&GBufferPsoDesc, IID_PPV_ARGS(&m_pipelineStates["geometry_deferred"])));
+    
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC lightingPsoDesc = opaquePsoDesc;
+    lightingPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders["deferredLightVS"]->GetBufferPointer()),
+            m_shaders["deferredLightVS"]->GetBufferSize()
+        });
+    lightingPsoDesc.PS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders["deferredLightPS"]->GetBufferPointer()),
+            m_shaders["deferredLightPS"]->GetBufferSize()
+        });
+
+    lightingPsoDesc.NumRenderTargets = 1u;
+    lightingPsoDesc.RTVFormats[0] = BackBufferFormat;
+    lightingPsoDesc.DSVFormat = DepthStencilFormat;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightingPsoDesc, IID_PPV_ARGS(&m_pipelineStates["lighting_deferred"])));
+
+#pragma endregion DeferredShading
 }
 
 VOID Engine::LoadTextures()
@@ -278,7 +333,7 @@ VOID Engine::CreateGeometry()
     // the same mesh for all planets
     MeshData sphere = Shapes::CreateSphere(1.0f, 16u, 16u);
 
-    MeshData grid = Shapes::CreateGrid(100.0f, 100.0f, 60u, 60u);
+    MeshData grid = Shapes::CreateGrid(100.0f, 100.0f, 2u, 2u);
 
     // Create shared vertex/index buffer for all geometry.
     UINT sunVertexOffset = 0u;
@@ -299,30 +354,36 @@ VOID Engine::CreateGeometry()
     sunSubmesh.IndexCount = (UINT)sphere.indices.size();
     sunSubmesh.StartIndexLocation = sunIndexOffset;
     sunSubmesh.BaseVertexLocation = sunVertexOffset;
+    sunSubmesh.Bounds = sphere.Bounds;
 
     SubmeshGeometry mercurySubmesh;
     mercurySubmesh.IndexCount = (UINT)sphere.indices.size();
     mercurySubmesh.StartIndexLocation = mercuryIndexOffset;
     mercurySubmesh.BaseVertexLocation = mercuryVertexOffset;
+    mercurySubmesh.Bounds = sphere.Bounds;
 
     SubmeshGeometry venusSubmesh;
     venusSubmesh.IndexCount = (UINT)sphere.indices.size();
     venusSubmesh.StartIndexLocation = venusIndexOffset;
     venusSubmesh.BaseVertexLocation = venusVertexOffset;
+    venusSubmesh.Bounds = sphere.Bounds;
 
     SubmeshGeometry earthSubmesh;
     earthSubmesh.IndexCount = (UINT)sphere.indices.size();
     earthSubmesh.StartIndexLocation = earthIndexOffset;
     earthSubmesh.BaseVertexLocation = earthVertexOffset;
+    earthSubmesh.Bounds = sphere.Bounds;
 
     SubmeshGeometry marsSubmesh;
     marsSubmesh.IndexCount = (UINT)sphere.indices.size();
     marsSubmesh.StartIndexLocation = marsIndexOffset;
     marsSubmesh.BaseVertexLocation = marsVertexOffset;
+    marsSubmesh.Bounds = sphere.Bounds;;
 
     SubmeshGeometry planeSubmesh;
     planeSubmesh.IndexCount = (UINT)grid.indices.size();
     planeSubmesh.StartIndexLocation = planeIndexOffset;
+    planeSubmesh.BaseVertexLocation = planeVertexOffset;
     planeSubmesh.BaseVertexLocation = planeVertexOffset;
 
     auto totalVertexCount = 
@@ -434,7 +495,7 @@ VOID Engine::CreateGeometryMaterials()
     // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
     auto flame0 = std::make_unique<Material>();
     flame0->Name = "flame0";
-    flame0->MatCBIndex = 0;
+    flame0->MatBufferIndex = 0;
     flame0->DiffuseSrvHeapIndex = 0;
     //flame0->DiffuseAlbedo = XMFLOAT4(Colors::Gold);
     flame0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
@@ -443,7 +504,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto sand0 = std::make_unique<Material>();
     sand0->Name = "sand0";
-    sand0->MatCBIndex = 1;
+    sand0->MatBufferIndex = 1;
     sand0->DiffuseSrvHeapIndex = 1;
     //sand0->DiffuseAlbedo = XMFLOAT4(Colors::Brown);
     sand0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
@@ -452,7 +513,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto stone0 = std::make_unique<Material>();
     stone0->Name = "stone0";
-    stone0->MatCBIndex = 2;
+    stone0->MatBufferIndex = 2;
     stone0->DiffuseSrvHeapIndex = 2;
     //stone0->DiffuseAlbedo = XMFLOAT4(Colors::Orchid);
     stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
@@ -461,7 +522,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto ground0 = std::make_unique<Material>();
     ground0->Name = "ground0";
-    ground0->MatCBIndex = 3;
+    ground0->MatBufferIndex = 3;
     ground0->DiffuseSrvHeapIndex = 3;
     //ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
     ground0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
@@ -470,7 +531,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto wood0 = std::make_unique<Material>();
     wood0->Name = "wood0";
-    wood0->MatCBIndex = 4;
+    wood0->MatBufferIndex = 4;
     wood0->DiffuseSrvHeapIndex = 4;
     wood0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     wood0->Roughness = 0.5f;
@@ -478,7 +539,7 @@ VOID Engine::CreateGeometryMaterials()
     
     auto iron0 = std::make_unique<Material>();
     iron0->Name = "iron0";
-    iron0->MatCBIndex = 5;
+    iron0->MatBufferIndex = 5;
     iron0->DiffuseSrvHeapIndex = 5;
     iron0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     iron0->Roughness = 0.1f;
@@ -503,6 +564,7 @@ VOID Engine::CreateRenderItems()
     sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs["sun"].IndexCount;
     sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs["sun"].StartIndexLocation;
     sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs["sun"].BaseVertexLocation;
+    sunRenderItem->Bounds = sunRenderItem->Geo->DrawArgs["sun"].Bounds;
 
     auto mercuryRenderItem = std::make_unique<RenderItem>();
     mercuryRenderItem->World = XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(2.0f, 0.0f, 0.0f);
@@ -512,6 +574,7 @@ VOID Engine::CreateRenderItems()
     mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs["mercury"].IndexCount;
     mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].StartIndexLocation;
     mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].BaseVertexLocation;
+    mercuryRenderItem->Bounds = mercuryRenderItem->Geo->DrawArgs["mercury"].Bounds;
 
     auto venusRenderItem = std::make_unique<RenderItem>();
     venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
@@ -522,6 +585,7 @@ VOID Engine::CreateRenderItems()
     venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs["venus"].IndexCount;
     venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs["venus"].StartIndexLocation;
     venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs["venus"].BaseVertexLocation;
+    venusRenderItem->Bounds = venusRenderItem->Geo->DrawArgs["venus"].Bounds;
 
     auto earthRenderItem = std::make_unique<RenderItem>();
     earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
@@ -532,6 +596,7 @@ VOID Engine::CreateRenderItems()
     earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs["earth"].IndexCount;
     earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs["earth"].StartIndexLocation;
     earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs["earth"].BaseVertexLocation;
+    earthRenderItem->Bounds = earthRenderItem->Geo->DrawArgs["earth"].Bounds;
 
     auto marsRenderItem = std::make_unique<RenderItem>();
     marsRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(5.0f, 0.0f, 5.0f);
@@ -542,6 +607,7 @@ VOID Engine::CreateRenderItems()
     marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs["mars"].IndexCount;
     marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs["mars"].StartIndexLocation;
     marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs["mars"].BaseVertexLocation;
+    marsRenderItem->Bounds = marsRenderItem->Geo->DrawArgs["mars"].Bounds;
 
     auto planeRenderItem = std::make_unique<RenderItem>();
     planeRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, -1.5f, 0.0f);
@@ -600,8 +666,8 @@ VOID Engine::CreateDescriptorHeaps()
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-                                            // textures + csm
-    srvHeapDesc.NumDescriptors = (UINT)m_textures.size() + 1u;
+                                            // textures + csm + GBuffer
+    srvHeapDesc.NumDescriptors = (UINT)m_textures.size() + 1u + 5u;
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     srvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
@@ -642,15 +708,42 @@ VOID Engine::CreateDescriptorHeaps()
     srvDesc.Texture2DArray.ResourceMinLODClamp = 0.0f;
     m_device->CreateShaderResourceView(nullptr, &srvDesc, handle);
 
-    auto srvCpuStart = m_srvHeap->GetCPUDescriptorHandleForHeapStart();
+    handle.Offset(1, m_cbvSrvUavDescriptorSize);
+
     auto srvGpuStart = m_srvHeap->GetGPUDescriptorHandleForHeapStart();
+    auto srvCpuStart = m_srvHeap->GetCPUDescriptorHandleForHeapStart();
     auto dsvCpuStart = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+    auto rtvCpuStart = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
 
     m_cascadeShadowSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_cascadeShadowMapHeapIndex, m_cbvSrvUavDescriptorSize);
     m_cascadeShadowMap->CreateDescriptors(
         CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_cascadeShadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
         CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_cascadeShadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
         CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, m_dsvDescriptorSize));
+
+    // to offset from csm handle to next free
+    auto GBufferHeapIndex = ++m_cascadeShadowMapHeapIndex;
+    m_GBufferTexturesSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize);
+
+    for (auto i = 0u; i < EGBufferLayer::MAX; ++i)
+    {
+        srvDesc.Format = (i == EGBufferLayer::DEPTH) ? DXGI_FORMAT_R24_UNORM_X8_TYPELESS : m_GBuffer->GetBufferTextureFormat(i);
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        m_device->CreateShaderResourceView(nullptr, &srvDesc, handle);
+        
+        auto cpuDsvRtvHandle = (i == EGBufferLayer::DEPTH) ? CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 2, m_dsvDescriptorSize)
+            : CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvCpuStart, 2 + i, m_rtvDescriptorSize);
+
+        m_GBuffer->SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize),
+            CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize),
+            cpuDsvRtvHandle, i);
+        
+        handle.Offset(1, m_cbvSrvUavDescriptorSize);
+        ++GBufferHeapIndex;
+    }
+
+    m_GBuffer->CreateDescriptors();
 }
 
 VOID Engine::Reset()
@@ -659,23 +752,28 @@ VOID Engine::Reset()
 
     // Init/Reinit camera
     m_camera->Reset(75.0f, m_aspectRatio, 1.0f, 250.0f);
+
+    // need tests
+    //m_cascadeShadowMap->OnResize(m_width, m_height);
+    //m_GBuffer->OnResize(m_width, m_height);
 }
 
 VOID Engine::CreateRtvAndDsvDescriptorHeaps()
 {
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    rtvHeapDesc.NumDescriptors = SwapChainFrameCount;
+    // swap chain frames + GBuffer rtvs
+    rtvHeapDesc.NumDescriptors = SwapChainFrameCount + EGBufferLayer::MAX - 1u;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     rtvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
     m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    // 1 dsv + 1 cascade shadow map
+    // 1 dsv + 1 cascade shadow map + 1 gbuffer depth
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
     dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-    dsvHeapDesc.NumDescriptors = 2u;
+    dsvHeapDesc.NumDescriptors = 3u;
     dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     dsvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
@@ -820,7 +918,7 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
         {
             XMStoreFloat4x4(&m_perObjectCBData.World, XMMatrixTranspose(ri->World));
             XMStoreFloat4x4(&m_perObjectCBData.TexTransform, XMMatrixTranspose(ri->TexTransform));
-            m_perObjectCBData.MaterialIndex = ri->Mat->MatCBIndex;
+            m_perObjectCBData.MaterialIndex = ri->Mat->MatBufferIndex;
 
             objectCB->CopyData(ri->ObjCBIndex, m_perObjectCBData); // In this case ri->ObjCBIndex would be equal to index 'i' of traditional for loop
             ri->NumFramesDirty--;
@@ -882,7 +980,7 @@ void Engine::UpdateMaterialBuffer(const ScaldTimer& st)
             XMStoreFloat4x4(&m_perMaterialSBData.MatTransform, XMMatrixTranspose(mat->MatTransform));
             m_perMaterialSBData.DiffusseMapIndex = mat->DiffuseSrvHeapIndex;
 
-            currMaterialDataSB->CopyData(mat->MatCBIndex, m_perMaterialSBData);
+            currMaterialDataSB->CopyData(mat->MatBufferIndex, m_perMaterialSBData);
 
             mat->NumFramesDirty--;
         }
@@ -948,6 +1046,8 @@ VOID Engine::PopulateCommandList()
 
     RenderDepthOnlyPass();
 
+    RenderGeometryPass();
+
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     // Indicate that the back buffer will be used as a render target.
     m_commandList->ResourceBarrier(1u, &transition);
@@ -980,6 +1080,9 @@ VOID Engine::PopulateCommandList()
     // The root signature knows how many descriptors are expected in the table.
     m_commandList->SetGraphicsRootDescriptorTable(4u, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 
+    // Bind GBuffer textures
+    m_commandList->SetGraphicsRootDescriptorTable(5u, m_GBufferTexturesSrv);
+
 #pragma endregion BypassResources
 
     m_commandList->SetPipelineState(m_pipelineStates["opaque"].Get());
@@ -988,6 +1091,8 @@ VOID Engine::PopulateCommandList()
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1u, &transition);
+//
+//    RenderLightingPass();
 
     ThrowIfFailed(m_commandList->Close());
 }
@@ -1015,6 +1120,79 @@ void Engine::RenderDepthOnlyPass()
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
     m_commandList->ResourceBarrier(1u, &transition);
+}
+
+void Engine::RenderGeometryPass()
+{
+    // The viewport needs to be reset whenever the command list is reset.
+    m_commandList->RSSetViewports(1u, &m_viewport);
+    m_commandList->RSSetScissorRects(1u, &m_scissorRect);
+
+    // barrier
+    for (unsigned i = 0; i < EGBufferLayer::MAX - 1u; i++)
+    {
+        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(i), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        m_commandList->ResourceBarrier(1u, &transition);
+    }
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    m_commandList->ResourceBarrier(1u, &transition);
+
+#pragma region BypassResources
+    auto currFramePassCB = m_currFrameResource->PassCB->Get();
+    m_commandList->SetGraphicsRootConstantBufferView(1u, currFramePassCB->GetGPUVirtualAddress());
+
+    auto matBuffer = m_currFrameResource->MaterialSB->Get();
+    m_commandList->SetGraphicsRootShaderResourceView(2u, matBuffer->GetGPUVirtualAddress());
+
+    // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
+    // The root signature knows how many descriptors are expected in the table.
+    m_commandList->SetGraphicsRootDescriptorTable(4u, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+#pragma endregion BypassResources
+    
+    D3D12_CPU_DESCRIPTOR_HANDLE* rtvs[] = {
+        &m_GBuffer->GetRtv(EGBufferLayer::DIFFUSE_ALBEDO),
+        &m_GBuffer->GetRtv(EGBufferLayer::LIGHT_ACCUM),
+        &m_GBuffer->GetRtv(EGBufferLayer::NORMAL),
+        &m_GBuffer->GetRtv(EGBufferLayer::SPECULAR),
+    };
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_GBuffer->GetDsv(EGBufferLayer::DEPTH));
+
+    m_commandList->OMSetRenderTargets(ARRAYSIZE(rtvs), rtvs[0], TRUE, &dsvHandle);
+
+    const float clearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(EGBufferLayer::DIFFUSE_ALBEDO), clearColor, 0u, nullptr);
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(EGBufferLayer::LIGHT_ACCUM), clearColor, 0u, nullptr);
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(EGBufferLayer::NORMAL), clearColor, 0u, nullptr);
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
+    m_commandList->ClearDepthStencilView(m_GBuffer->GetDsv(EGBufferLayer::DEPTH), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
+
+    m_commandList->SetPipelineState(m_pipelineStates.at("geometry_deferred").Get());
+    DrawRenderItems(m_commandList.Get(), m_renderItems);
+
+    for (unsigned i = 0; i < EGBufferLayer::MAX - 1u; i++)
+    {
+        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
+        m_commandList->ResourceBarrier(1u, &transition);
+    }
+
+    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+    m_commandList->ResourceBarrier(1u, &transition);
+}
+
+void Engine::RenderLightingPass()
+{
+    DeferredDirectionalLightPass();
+    DeferredPointLightPass();
+}
+
+void Engine::DeferredDirectionalLightPass()
+{
+
+}
+
+void Engine::DeferredPointLightPass()
+{
+
 }
 
 void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)

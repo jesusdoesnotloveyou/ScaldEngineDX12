@@ -19,6 +19,8 @@ struct MeshData
 {
     std::vector<SVertex> vertices;
     std::vector<uint16_t> indices;
+    
+    BoundingBox Bounds;
 };
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,

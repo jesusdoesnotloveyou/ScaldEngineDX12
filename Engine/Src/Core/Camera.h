@@ -14,6 +14,7 @@ public:
 	XMMATRIX GetViewMatrix() const;
 	XMMATRIX GetPerspectiveProjectionMatrix() const;
 	XMMATRIX GetOrthoProjectionMatrix() const;
+	FORCEINLINE const BoundingFrustum& GetCameraFrustum() const { return m_frustum; }
 
 	FORCEINLINE float GetNearZ() const { return m_nearZ; }
 	FORCEINLINE float GetFarZ() const { return m_farZ; }
@@ -54,6 +55,8 @@ private:
 	float m_farWindowHeight;
 
 	bool m_isDirty = false;
+
+	BoundingFrustum m_frustum;
 
 	XMMATRIX m_view = XMMatrixIdentity();
 	XMMATRIX m_persProj = XMMatrixIdentity();

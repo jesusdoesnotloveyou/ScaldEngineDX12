@@ -43,6 +43,8 @@ void Camera::Reset(float fovAngleYDegrees, float aspectRatio, float nearZ, float
 
 	m_persProj = XMMatrixPerspectiveFovLH(m_fovYRad, m_aspectRatio, m_nearZ, m_farZ);
 	m_orthProj = XMMatrixOrthographicLH(GetNearWindowWidth(), GetNearWindowHeight(), nearZ, farZ);
+
+	BoundingFrustum::CreateFromMatrix(m_frustum, m_persProj);
 }
 
 XMMATRIX Camera::GetViewMatrix() const
