@@ -29,6 +29,48 @@ void GBuffer::OnResize(UINT newWidth, UINT newHeight)
     }
 }
 
+ID3D12Resource* GBuffer::Get(unsigned layer)
+{
+    return m_buffer[layer].m_resource.Get();
+}
+
+FGBufferTexture* GBuffer::GetBufferTexture(unsigned layer)
+{
+    return &m_buffer[layer];
+}
+
+DXGI_FORMAT GBuffer::GetBufferTextureFormat(unsigned layer)
+{
+    return m_bufferFormats[layer];
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetSrv(unsigned layer) const
+{
+    return m_buffer[layer].m_hGpuSrv;
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetRtv(unsigned layer) const
+{
+    assert(layer != EGBufferLayer::DEPTH);
+    return m_buffer[layer].m_hCpuRtvDsv;
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetDsv(unsigned layer) const
+{
+    assert(layer == EGBufferLayer::DEPTH);
+    return m_buffer[layer].m_hCpuRtvDsv;
+}
+
+void GBuffer::SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
+    CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
+    CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtvDsv,
+    unsigned layer)
+{
+    m_buffer[layer].m_hCpuSrv = hCpuSrv;
+    m_buffer[layer].m_hGpuSrv = hGpuSrv;
+    m_buffer[layer].m_hCpuRtvDsv = hCpuRtvDsv;
+}
+
 void GBuffer::CreateDescriptors()
 {
     // Create SRV to resource so we can sample the gbuffer texture in a shader program.
@@ -98,6 +140,11 @@ void GBuffer::CreateResources()
         texDesc.Flags = isDsv ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
         
         optClear.Format = m_bufferFormats[i];
+        optClear.Color[0] = m_optimizedClearColor[0];
+        optClear.Color[1] = m_optimizedClearColor[1];
+        optClear.Color[2] = m_optimizedClearColor[2];
+        optClear.Color[3] = m_optimizedClearColor[3];
+
         if (isDsv)
         {
             optClear.DepthStencil.Depth = 1.0f;
@@ -108,7 +155,7 @@ void GBuffer::CreateResources()
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
             D3D12_HEAP_FLAG_NONE,
             &texDesc,
-            D3D12_RESOURCE_STATE_COMMON,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
             &optClear,
             IID_PPV_ARGS(&m_buffer[i].m_resource)));
     }
