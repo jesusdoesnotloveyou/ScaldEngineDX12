@@ -69,6 +69,19 @@ struct RenderItem
 class Engine : public D3D12Sample
 {
 public:
+    enum ERootParameter : UINT
+    {
+        PerObjectDataCB = 0,
+        PerPassDataCB,
+        MaterialDataSB,
+        CascadedShadowMaps,
+        Textures,
+        GBufferTextures,
+
+        NumRootParameters = 6u
+    };
+
+public:
     Engine(UINT width, UINT height, std::wstring name, std::wstring className);
     virtual ~Engine() override;
 

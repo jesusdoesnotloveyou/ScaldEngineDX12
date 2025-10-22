@@ -70,18 +70,18 @@ VOID Engine::CreateRootSignature()
     cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
 
     CD3DX12_DESCRIPTOR_RANGE gBufferTable;
-    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)EGBufferLayer::MAX, 1u, 1u);
+    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, 1u, 1u);
 
     // Root parameter can be a table, root descriptor or root constants.
-    CD3DX12_ROOT_PARAMETER slotRootParameter[6];
+    CD3DX12_ROOT_PARAMETER slotRootParameter[ERootParameter::NumRootParameters];
     
     // Perfomance TIP: Order from most frequent to least frequent.
-    slotRootParameter[0].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */);  // a root descriptor for objects' CBVs.
-    slotRootParameter[1].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);                                            // a root descriptor for Pass CBV.
-    slotRootParameter[2].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
-    slotRootParameter[3].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                              // a descriptor table for shadow maps array.
-    slotRootParameter[4].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                      // a descriptor table for textures
-    slotRootParameter[5].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                    // a descriptor table for GBuffer
+    slotRootParameter[ERootParameter::PerObjectDataCB].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */); // a root descriptor for objects' CBVs.
+    slotRootParameter[ERootParameter::PerPassDataCB].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);                                             // a root descriptor for Pass CBV.
+    slotRootParameter[ERootParameter::MaterialDataSB].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                          // a descriptor table for shadow maps array.
+    slotRootParameter[ERootParameter::Textures].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                            // a descriptor table for textures
+    slotRootParameter[ERootParameter::GBufferTextures].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                 // a descriptor table for GBuffer
 
     auto staticSamplers = GetStaticSamplers();
 
@@ -127,8 +127,13 @@ VOID Engine::CreateShaders()
 #pragma region DeferredShading
     m_shaders["GBufferVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
     m_shaders["GBufferPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
+
     m_shaders["deferredDirLightVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightVS.hlsl", nullptr, "main", "vs_5_1");
     m_shaders["deferredDirLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightPS.hlsl", nullptr, "main", "ps_5_1");
+
+    m_shaders["lightVolumesVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/LightVolumesVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders["deferredPointLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredPointLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders["deferredSpotLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredSpotLightPS.hlsl", nullptr, "main", "ps_5_1");
 #pragma endregion DeferredShading
 
     m_inputLayout =
@@ -145,7 +150,6 @@ VOID Engine::CreatePSO()
     // Describe and create the graphics pipeline state object (PSO).
     D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc = {};
     ZeroMemory(&opaquePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-
     opaquePsoDesc.pRootSignature = m_rootSignature.Get();
     opaquePsoDesc.VS = D3D12_SHADER_BYTECODE(
         { 
@@ -157,7 +161,6 @@ VOID Engine::CreatePSO()
             reinterpret_cast<BYTE*>(m_shaders["opaquePS"]->GetBufferPointer()),
             m_shaders["opaquePS"]->GetBufferSize()
         });
-
     opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     opaquePsoDesc.SampleMask = UINT_MAX;
     opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -208,7 +211,6 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = {};
     ZeroMemory(&cascadeShadowPsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
     cascadeShadowPsoDesc.pRootSignature = m_rootSignature.Get();
-
     cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at("shadowVS")->GetBufferPointer()),
@@ -219,7 +221,6 @@ VOID Engine::CreatePSO()
             reinterpret_cast<BYTE*>(m_shaders.at("shadowGS")->GetBufferPointer()),
                 m_shaders.at("shadowGS")->GetBufferSize()
         });
-
     cascadeShadowPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     cascadeShadowPsoDesc.SampleMask = UINT_MAX;
     cascadeShadowPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -250,31 +251,50 @@ VOID Engine::CreatePSO()
             reinterpret_cast<BYTE*>(m_shaders.at("GBufferPS")->GetBufferPointer()),
             m_shaders.at("GBufferPS")->GetBufferSize()
         });
-
-    GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(EGBufferLayer::MAX) - 1u;
-    GBufferPsoDesc.RTVFormats[0] = m_GBuffer->GetBufferTextureFormat(EGBufferLayer::DIFFUSE_ALBEDO);
-    GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(EGBufferLayer::LIGHT_ACCUM);
-    GBufferPsoDesc.RTVFormats[2] = m_GBuffer->GetBufferTextureFormat(EGBufferLayer::NORMAL);
-    GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(EGBufferLayer::SPECULAR);
+    GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(GBuffer::EGBufferLayer::MAX) - 1u;
+    GBufferPsoDesc.RTVFormats[0] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO);
+    GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::LIGHT_ACCUM);
+    GBufferPsoDesc.RTVFormats[2] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::NORMAL);
+    GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::SPECULAR);
     GBufferPsoDesc.DSVFormat = DepthStencilFormat; // corresponds to default format
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&GBufferPsoDesc, IID_PPV_ARGS(&m_pipelineStates["geometry_deferred"])));
 
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC lightingPsoDesc = opaquePsoDesc;
-    lightingPsoDesc.VS = D3D12_SHADER_BYTECODE(
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC dirLightPsoDesc = opaquePsoDesc;
+    dirLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at("deferredDirLightVS")->GetBufferPointer()),
             m_shaders.at("deferredDirLightVS")->GetBufferSize()
         });
-    lightingPsoDesc.PS = D3D12_SHADER_BYTECODE(
+    dirLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at("deferredDirLightPS")->GetBufferPointer()),
             m_shaders.at("deferredDirLightPS")->GetBufferSize()
         });
+    dirLightPsoDesc.NumRenderTargets = 1u;
+    dirLightPsoDesc.RTVFormats[0] = BackBufferFormat;
+    dirLightPsoDesc.DSVFormat = DepthStencilFormat;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&dirLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates["dir_light_deferred"])));
 
-    lightingPsoDesc.NumRenderTargets = 1u;
-    lightingPsoDesc.RTVFormats[0] = BackBufferFormat;
-    lightingPsoDesc.DSVFormat = DepthStencilFormat;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightingPsoDesc, IID_PPV_ARGS(&m_pipelineStates["lighting_deferred"])));
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightPsoDesc = dirLightPsoDesc;
+    pointLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at("lightVolumesVS")->GetBufferPointer()),
+            m_shaders.at("lightVolumesVS")->GetBufferSize()
+        });
+    pointLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at("deferredPointLightPS")->GetBufferPointer()),
+            m_shaders.at("deferredPointLightPS")->GetBufferSize()
+        });
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates["point_light_deferred"])));
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC spotLightPsoDesc = pointLightPsoDesc;
+    spotLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at("deferredSpotLightPS")->GetBufferPointer()),
+            m_shaders.at("deferredSpotLightPS")->GetBufferSize()
+        });
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&spotLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates["spot_light_deferred"])));
 
 #pragma endregion DeferredShading
 }
@@ -695,14 +715,14 @@ VOID Engine::CreateDescriptorHeaps()
     auto GBufferHeapIndex = ++m_cascadeShadowMapHeapIndex;
     m_GBufferTexturesSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize);
 
-    for (auto i = 0u; i < EGBufferLayer::MAX; ++i)
+    for (auto i = 0u; i < GBuffer::EGBufferLayer::MAX; ++i)
     {
-        srvDesc.Format = (i == EGBufferLayer::DEPTH) ? DXGI_FORMAT_R24_UNORM_X8_TYPELESS : m_GBuffer->GetBufferTextureFormat(i);
+        srvDesc.Format = (i == GBuffer::EGBufferLayer::DEPTH) ? DXGI_FORMAT_R24_UNORM_X8_TYPELESS : m_GBuffer->GetBufferTextureFormat(i);
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
         m_device->CreateShaderResourceView(nullptr, &srvDesc, handle);
         
-        auto cpuDsvRtvHandle = (i == EGBufferLayer::DEPTH) ? CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 2, m_dsvDescriptorSize)
+        auto cpuDsvRtvHandle = (i == GBuffer::EGBufferLayer::DEPTH) ? CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 2, m_dsvDescriptorSize)
             : CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvCpuStart, 2 + i, m_rtvDescriptorSize);
 
         m_GBuffer->SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize),
@@ -733,7 +753,7 @@ VOID Engine::CreateRtvAndDsvDescriptorHeaps()
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     // swap chain frames + GBuffer rtvs
-    rtvHeapDesc.NumDescriptors = SwapChainFrameCount + EGBufferLayer::MAX - 1u;
+    rtvHeapDesc.NumDescriptors = SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     rtvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
@@ -886,7 +906,11 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
         // Looks like it just forces the code to update the object's constant buffer regardless of whether it has been modified or not.
         if (ri->NumFramesDirty > 0)
         {
-            XMStoreFloat4x4(&m_perObjectCBData.World, XMMatrixTranspose(ri->World));
+            XMMATRIX transposeWorld = XMMatrixTranspose(ri->World);
+            XMVECTOR det = XMMatrixDeterminant(transposeWorld);
+
+            XMStoreFloat4x4(&m_perObjectCBData.World, transposeWorld);
+            XMStoreFloat4x4(&m_perObjectCBData.InvTransposeWorld, XMMatrixTranspose(XMMatrixInverse(&det, transposeWorld)));
             XMStoreFloat4x4(&m_perObjectCBData.TexTransform, XMMatrixTranspose(ri->TexTransform));
             m_perObjectCBData.MaterialIndex = ri->Mat->MatBufferIndex;
 
@@ -1037,21 +1061,21 @@ VOID Engine::PopulateCommandList()
     
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(1u, currFramePassCB->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress());
 
     // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
     auto matBuffer = m_currFrameResource->MaterialSB->Get();
-    m_commandList->SetGraphicsRootShaderResourceView(2u, matBuffer->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
 
     // Set shaadow map texture for main pass
-    m_commandList->SetGraphicsRootDescriptorTable(3u, m_cascadeShadowSrv);
+    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
 
     // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
     // The root signature knows how many descriptors are expected in the table.
-    m_commandList->SetGraphicsRootDescriptorTable(4u, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 
     // Bind GBuffer textures
-    m_commandList->SetGraphicsRootDescriptorTable(5u, m_GBufferTexturesSrv);
+    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
 
 #pragma endregion BypassResources
 
@@ -1081,7 +1105,7 @@ void Engine::RenderDepthOnlyPass()
     m_commandList->ResourceBarrier(1u, &transition);
 
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(1u, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); //cause shadow pass data lies in the second element
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); //cause shadow pass data lies in the second element
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_cascadeShadowMap->GetDsv());
     m_commandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
@@ -1101,53 +1125,53 @@ void Engine::RenderGeometryPass()
     m_commandList->RSSetScissorRects(1u, &m_scissorRect);
 
     // barrier
-    for (unsigned i = 0; i < EGBufferLayer::MAX - 1u; i++)
+    for (unsigned i = 0; i < GBuffer::EGBufferLayer::MAX - 1u; i++)
     {
         auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(i), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
         m_commandList->ResourceBarrier(1u, &transition);
     }
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     m_commandList->ResourceBarrier(1u, &transition);
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(1u, currFramePassCB->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress());
 
     auto matBuffer = m_currFrameResource->MaterialSB->Get();
-    m_commandList->SetGraphicsRootShaderResourceView(2u, matBuffer->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
 
     // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
     // The root signature knows how many descriptors are expected in the table.
-    m_commandList->SetGraphicsRootDescriptorTable(4u, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 #pragma endregion BypassResources
     
     D3D12_CPU_DESCRIPTOR_HANDLE* rtvs[] = {
-        &m_GBuffer->GetRtv(EGBufferLayer::DIFFUSE_ALBEDO),
-        &m_GBuffer->GetRtv(EGBufferLayer::LIGHT_ACCUM),
-        &m_GBuffer->GetRtv(EGBufferLayer::NORMAL),
-        &m_GBuffer->GetRtv(EGBufferLayer::SPECULAR),
+        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO),
+        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::LIGHT_ACCUM),
+        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL),
+        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR),
     };
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_GBuffer->GetDsv(EGBufferLayer::DEPTH));
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH));
 
     m_commandList->OMSetRenderTargets(ARRAYSIZE(rtvs), rtvs[0], TRUE, &dsvHandle);
 
     const float clearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(EGBufferLayer::DIFFUSE_ALBEDO), clearColor, 0u, nullptr);
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(EGBufferLayer::LIGHT_ACCUM), clearColor, 0u, nullptr);
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(EGBufferLayer::NORMAL), clearColor, 0u, nullptr);
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
-    m_commandList->ClearDepthStencilView(m_GBuffer->GetDsv(EGBufferLayer::DEPTH), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO), clearColor, 0u, nullptr);
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::LIGHT_ACCUM), clearColor, 0u, nullptr);
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL), clearColor, 0u, nullptr);
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
+    m_commandList->ClearDepthStencilView(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
 
     m_commandList->SetPipelineState(m_pipelineStates.at("geometry_deferred").Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
-    for (unsigned i = 0; i < EGBufferLayer::MAX - 1u; i++)
+    for (unsigned i = 0; i < GBuffer::EGBufferLayer::MAX - 1u; i++)
     {
         auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
         m_commandList->ResourceBarrier(1u, &transition);
     }
 
-    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
     m_commandList->ResourceBarrier(1u, &transition);
 }
 
@@ -1186,14 +1210,11 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std
         cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
         cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 
-        //CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-        //texHandle.Offset(ri->Mat->DiffuseSrvHeapIndex, m_cbvSrvUavDescriptorSize);
-
         D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = currFrameObjCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
 
-        // set only objects' cbv per item
-        cmdList->SetGraphicsRootConstantBufferView(0u, objCBAddress);
-        //cmdList->SetGraphicsRootDescriptorTable(3u, texHandle);
+        // now we set only objects' cbv per item, material data is set per pass
+        // we get material data by index from structured buffer
+        cmdList->SetGraphicsRootConstantBufferView(ERootParameter::PerObjectDataCB, objCBAddress);
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
