@@ -302,6 +302,11 @@ VOID Engine::CreatePSO()
 #pragma endregion DeferredShading
 }
 
+VOID Engine::LoadScene()
+{
+    m_scene = std::make_shared<Scald::Scene>();
+}
+
 VOID Engine::LoadTextures()
 {
     auto brickTex = std::make_unique<Texture>("brickTex", L"./Assets/Textures/bricks.dds", m_device.Get(), m_commandList.Get());
