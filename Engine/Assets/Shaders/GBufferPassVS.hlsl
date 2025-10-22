@@ -24,7 +24,7 @@ VSOutput main(VSInput input)
     float4 oPosW = mul(float4(input.iPosL, 1.0f), gWorld);
     output.oPosH = mul(oPosW, gViewProj);
     output.oPosW = oPosW.xyz;
-    output.oNormalW = mul(input.inNormalL, (float3x3) gWorld);
+    output.oNormalW = mul(input.inNormalL, (float3x3) gInvTransposeWorld);
     
     float4 texCoord = mul(float4(input.inTexC, 0.0f, 1.0f), gTexTransform);
     output.oTexC = mul(texCoord, matData.MatTransform).xy;

@@ -69,6 +69,19 @@ struct RenderItem
 class Engine : public D3D12Sample
 {
 public:
+    enum ERootParameter : UINT
+    {
+        PerObjectDataCB = 0,
+        PerPassDataCB,
+        MaterialDataSB,
+        CascadedShadowMaps,
+        Textures,
+        GBufferTextures,
+
+        NumRootParameters = 6u
+    };
+
+public:
     Engine(UINT width, UINT height, std::wstring name, std::wstring className);
     virtual ~Engine() override;
 
@@ -92,10 +105,13 @@ private:
     void UpdateShadowPassCB(const ScaldTimer& st);
     
     void RenderDepthOnlyPass();
+#pragma region DeferredShading
     void RenderGeometryPass();
     void RenderLightingPass();
+    void RenderTransparencyPass();
     void DeferredDirectionalLightPass();
     void DeferredPointLightPass();
+#pragma endregion DeferredShading
 
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
 

@@ -9,6 +9,14 @@
 
 using namespace DirectX;
 
+enum class EPassType : uint8_t
+{
+	DepthShadow = 0,
+	DeferredGeometry,
+	DeferredColor,
+	NumPasses = 3
+};
+
 struct Vertex
 {
 	XMFLOAT3 position;
@@ -77,6 +85,7 @@ struct Light
 struct ObjectConstants
 {
 	XMFLOAT4X4 World;
+	XMFLOAT4X4 InvTransposeWorld;
 	XMFLOAT4X4 TexTransform;
 	UINT MaterialIndex = 0u;
 	UINT objPad0 = 0u;

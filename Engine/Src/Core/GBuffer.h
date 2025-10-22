@@ -2,17 +2,6 @@
 
 #include "Common/DXHelper.h"
 
-enum EGBufferLayer : UINT
-{
-	DIFFUSE_ALBEDO = 0u,
-	LIGHT_ACCUM,
-	NORMAL,
-	SPECULAR,
-	DEPTH,
-
-	MAX = 5
-};
-
 struct FGBufferTexture
 {
 	ComPtr<ID3D12Resource> m_resource = nullptr;
@@ -25,6 +14,17 @@ struct FGBufferTexture
 
 class GBuffer final
 {
+public:
+	enum EGBufferLayer : UINT
+	{
+		DIFFUSE_ALBEDO = 0u,
+		LIGHT_ACCUM,
+		NORMAL,
+		SPECULAR,
+		DEPTH,
+
+		MAX = 5
+	};
 public:
 	GBuffer(ID3D12Device* device, UINT width, UINT height);
 	GBuffer(const GBuffer& buffer) = delete;

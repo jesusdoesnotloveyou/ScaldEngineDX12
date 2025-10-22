@@ -87,6 +87,14 @@ struct MeshGeometry
 
 struct Texture
 {
+	Texture() {}
+
+	Texture(const char* name, const wchar_t* fileName, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
+		: Name(std::string(name))
+		, Filename(std::wstring(fileName))
+	{
+		ThrowIfFailed(CreateDDSTextureFromFile12(device, cmdList, Filename.c_str(), Resource, UploadHeap));
+	}
 	// Unique material name for lookup.
 	std::string Name;
 
