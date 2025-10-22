@@ -25,9 +25,10 @@ struct CascadesShadows
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
+    float4x4 gInvTransposeWorld;
     float4x4 gTexTransform;
     uint gMaterialIndex;
-    uint gObjPad0;
+    uint gNormalMapIndex; // todo
     uint gObjPad1;
     uint gObjPad2;
 };

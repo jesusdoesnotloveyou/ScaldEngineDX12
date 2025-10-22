@@ -9,10 +9,10 @@ struct VSInput
 
 struct VSOutput
 {
-    float4 oPosH       : SV_POSITION;
-    float3 oPosW       : POSITION0;
-    float3 oNormalW    : NORMAL;
-    float2 oTexC       : TEXCOORD0;
+    float4 oPosH    : SV_POSITION;
+    float3 oPosW    : POSITION0;
+    float3 oNormalW : NORMAL;
+    float2 oTexC    : TEXCOORD0;
 };
 
 VSOutput main(VSInput input)
@@ -25,7 +25,7 @@ VSOutput main(VSInput input)
     
     output.oPosW = oPosW.xyz;
     output.oPosH = mul(oPosW, gViewProj);
-    output.oNormalW = mul(input.inNormalL, (float3x3) gWorld);
+    output.oNormalW = mul(input.inNormalL, (float3x3) gInvTransposeWorld);
 
     float4 texCoord = mul(float4(input.inTexC, 0.0f, 1.0f), gTexTransform);
     output.oTexC = mul(texCoord, matData.MatTransform).xy;
