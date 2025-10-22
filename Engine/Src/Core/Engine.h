@@ -4,6 +4,7 @@
 #include "FrameResource.h"
 #include "Camera.h"
 #include "CascadeShadowMap.h"
+#include "GBuffer.h"
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Objects/SObject.h"
 
@@ -70,6 +71,19 @@ struct RenderItem
 class Engine : public D3D12Sample
 {
 public:
+    enum ERootParameter : UINT
+    {
+        PerObjectDataCB = 0,
+        PerPassDataCB,
+        MaterialDataSB,
+        CascadedShadowMaps,
+        Textures,
+        GBufferTextures,
+
+        NumRootParameters = 6u
+    };
+
+public:
     Engine(UINT width, UINT height, std::wstring name, std::wstring className);
     virtual ~Engine() override;
 
@@ -93,6 +107,14 @@ private:
     void UpdateShadowPassCB(const ScaldTimer& st);
     
     void RenderDepthOnlyPass();
+#pragma region DeferredShading
+    void RenderGeometryPass();
+    void RenderLightingPass();
+    void RenderTransparencyPass();
+    void DeferredDirectionalLightPass();
+    void DeferredPointLightPass();
+#pragma endregion DeferredShading
+
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
 
 private:
@@ -118,6 +140,8 @@ private:
     ObjectConstants m_perObjectCBData;
     PassConstants m_mainPassCBData;
     PassConstants m_shadowPassCBData;
+    //PassConstants m_lightingPassCBData;
+    //PassConstants m_geometryPassCBData;
     MaterialData m_perMaterialSBData;
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
@@ -131,7 +155,11 @@ private:
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
     std::shared_ptr<Scald::Scene> m_scene;
 
+#pragma region DeferredRendering
+    std::unique_ptr<GBuffer> m_GBuffer;
+
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_GBufferTexturesSrv;
     float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 private:

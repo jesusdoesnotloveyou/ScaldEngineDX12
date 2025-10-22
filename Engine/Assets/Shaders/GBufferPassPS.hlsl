@@ -10,10 +10,10 @@ struct PSInput
 
 struct GBuffer
 {
-    float4 LightAccumulation : SV_Target0;
-    float4 DiffuseAlbedo     : SV_Target1;
-    float4 Specular          : SV_Target2;
-    float4 Normal            : SV_Target3; // could be used only 2 components instead of 4
+    float4 DiffuseAlbedo     : SV_Target0;
+    float4 LightAccumulation : SV_Target1;
+    float4 Normal            : SV_Target2; // could be used only 2 components instead of 4
+    float4 Specular          : SV_Target3;
 };
 
 [earlydepthstencil]
