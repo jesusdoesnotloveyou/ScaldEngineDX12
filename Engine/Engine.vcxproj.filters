@@ -48,8 +48,8 @@
     <FxCompile Include="Assets\Shaders\ShadowVertexShader.hlsl" />
     <FxCompile Include="Assets\Shaders\GBufferPassPS.hlsl" />
     <FxCompile Include="Assets\Shaders\GBufferPassVS.hlsl" />
-    <FxCompile Include="Assets\Shaders\DeferredLightPS.hlsl" />
-    <FxCompile Include="Assets\Shaders\DeferredLightVS.hlsl" />
+    <FxCompile Include="Assets\Shaders\DeferredDirectionalLightPS.hlsl" />
+    <FxCompile Include="Assets\Shaders\DeferredDirectionalLightVS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\LightUtil.hlsl" />
