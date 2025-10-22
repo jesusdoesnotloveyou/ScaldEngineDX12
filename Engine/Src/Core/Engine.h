@@ -92,10 +92,13 @@ private:
     void UpdateShadowPassCB(const ScaldTimer& st);
     
     void RenderDepthOnlyPass();
+#pragma region DeferredShading
     void RenderGeometryPass();
     void RenderLightingPass();
+    void RenderTransparencyPass();
     void DeferredDirectionalLightPass();
     void DeferredPointLightPass();
+#pragma endregion DeferredShading
 
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
 

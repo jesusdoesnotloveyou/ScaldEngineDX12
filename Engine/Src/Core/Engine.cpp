@@ -120,14 +120,15 @@ VOID Engine::CreateShaders()
 
     m_shaders["defaultVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
     m_shaders["opaquePS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
+
     m_shaders["shadowGS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
     m_shaders["shadowVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
 
 #pragma region DeferredShading
-    m_shaders["gBufferVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["gBufferPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
-    m_shaders["deferredLightVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredLightVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["deferredLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders["GBufferVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders["GBufferPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders["deferredDirLightVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders["deferredDirLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightPS.hlsl", nullptr, "main", "ps_5_1");
 #pragma endregion DeferredShading
 
     m_inputLayout =
@@ -140,6 +141,7 @@ VOID Engine::CreateShaders()
 
 VOID Engine::CreatePSO()
 {
+#pragma region DefaultOpaqueAndWireframe
     // Describe and create the graphics pipeline state object (PSO).
     D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc = {};
     ZeroMemory(&opaquePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -174,7 +176,9 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframe = opaquePsoDesc;
     opaqueWireframe.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaqueWireframe, IID_PPV_ARGS(&m_pipelineStates["opaque_wireframe"])));
+#pragma endregion DefaultOpaqueAndWireframe
 
+#pragma region Transparency
     D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = opaquePsoDesc;
     
     // C = C(src) * F(src) + C(dst) * F(dst)
@@ -198,57 +202,53 @@ VOID Engine::CreatePSO()
     // since we can see through transparent objects, we have to see their back faces
     transparentPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&m_pipelineStates["transparency"])));
+#pragma endregion Transparency
 
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = {};
-    ZeroMemory(&shadowPsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-    shadowPsoDesc.pRootSignature = m_rootSignature.Get();
-    shadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()),
-            m_shaders["defaultVS"]->GetBufferSize()
-        });
-    shadowPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
-    shadowPsoDesc.SampleMask = UINT_MAX;
-    shadowPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    shadowPsoDesc.RasterizerState.DepthBias = 10000;
-    shadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
-    shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
-    shadowPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    shadowPsoDesc.InputLayout = { m_inputLayout.data(), (UINT)m_inputLayout.size() };
-    shadowPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    shadowPsoDesc.NumRenderTargets = 0u;
-    shadowPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
-    shadowPsoDesc.DSVFormat = DepthStencilFormat;
-    shadowPsoDesc.SampleDesc.Count = 1u;
-    shadowPsoDesc.SampleDesc.Quality = 0u;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&shadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates["shadow_opaque"])));
+#pragma region CascadeShadowsDepthPass
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = {};
+    ZeroMemory(&cascadeShadowPsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+    cascadeShadowPsoDesc.pRootSignature = m_rootSignature.Get();
 
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = shadowPsoDesc;
     cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["shadowVS"]->GetBufferPointer()),
-                m_shaders["shadowVS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("shadowVS")->GetBufferPointer()),
+                m_shaders.at("shadowVS")->GetBufferSize()
         });
     cascadeShadowPsoDesc.GS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["shadowGS"]->GetBufferPointer()),
-                m_shaders["shadowGS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("shadowGS")->GetBufferPointer()),
+                m_shaders.at("shadowGS")->GetBufferSize()
         });
 
+    cascadeShadowPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
+    cascadeShadowPsoDesc.SampleMask = UINT_MAX;
+    cascadeShadowPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    cascadeShadowPsoDesc.RasterizerState.DepthBias = 10000;
+    cascadeShadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
+    cascadeShadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
+    cascadeShadowPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    cascadeShadowPsoDesc.InputLayout = { m_inputLayout.data(), (UINT)m_inputLayout.size() };
+    cascadeShadowPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    cascadeShadowPsoDesc.NumRenderTargets = 0u;
+    cascadeShadowPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+    cascadeShadowPsoDesc.DSVFormat = DepthStencilFormat;
+    cascadeShadowPsoDesc.SampleDesc.Count = 1u;
+    cascadeShadowPsoDesc.SampleDesc.Quality = 0u;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&cascadeShadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates["cascades_opaque"])));
+#pragma endregion CascadeShadowsDepthPass
 
 #pragma region DeferredShading
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC GBufferPsoDesc = opaquePsoDesc;
     GBufferPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["gBufferVS"]->GetBufferPointer()),
-            m_shaders["gBufferVS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("GBufferVS")->GetBufferPointer()),
+            m_shaders.at("GBufferVS")->GetBufferSize()
         });
     GBufferPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["gBufferPS"]->GetBufferPointer()),
-            m_shaders["gBufferPS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("GBufferPS")->GetBufferPointer()),
+            m_shaders.at("GBufferPS")->GetBufferSize()
         });
 
     GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(EGBufferLayer::MAX) - 1u;
@@ -258,18 +258,17 @@ VOID Engine::CreatePSO()
     GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(EGBufferLayer::SPECULAR);
     GBufferPsoDesc.DSVFormat = DepthStencilFormat; // corresponds to default format
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&GBufferPsoDesc, IID_PPV_ARGS(&m_pipelineStates["geometry_deferred"])));
-    
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC lightingPsoDesc = opaquePsoDesc;
     lightingPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["deferredLightVS"]->GetBufferPointer()),
-            m_shaders["deferredLightVS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("deferredDirLightVS")->GetBufferPointer()),
+            m_shaders.at("deferredDirLightVS")->GetBufferSize()
         });
     lightingPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["deferredLightPS"]->GetBufferPointer()),
-            m_shaders["deferredLightPS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at("deferredDirLightPS")->GetBufferPointer()),
+            m_shaders.at("deferredDirLightPS")->GetBufferSize()
         });
 
     lightingPsoDesc.NumRenderTargets = 1u;
@@ -282,41 +281,12 @@ VOID Engine::CreatePSO()
 
 VOID Engine::LoadTextures()
 {
-    auto brickTex = std::make_unique<Texture>();
-    brickTex->Name = "brickTex";
-    brickTex->Filename = L"./Assets/Textures/bricks.dds";
-    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
-        brickTex->Filename.c_str(), brickTex->Resource, brickTex->UploadHeap));
-
-    auto grassTex = std::make_unique<Texture>();
-    grassTex->Name = "grassTex";
-    grassTex->Filename = L"./Assets/Textures/grass.dds";
-    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
-        grassTex->Filename.c_str(), grassTex->Resource, grassTex->UploadHeap));
-
-    auto iceTex = std::make_unique<Texture>();
-    iceTex->Name = "iceTex";
-    iceTex->Filename = L"./Assets/Textures/ice.dds";
-    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
-        iceTex->Filename.c_str(), iceTex->Resource, iceTex->UploadHeap));
-
-    auto stoneTex = std::make_unique<Texture>();
-    stoneTex->Name = "stoneTex";
-    stoneTex->Filename = L"./Assets/Textures/stone.dds";
-    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
-        stoneTex->Filename.c_str(), stoneTex->Resource, stoneTex->UploadHeap));
-
-    auto tileTex = std::make_unique<Texture>();
-    tileTex->Name = "tileTex";
-    tileTex->Filename = L"./Assets/Textures/tile.dds";
-    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
-        tileTex->Filename.c_str(), tileTex->Resource, tileTex->UploadHeap));
-
-    auto planksTex = std::make_unique<Texture>();
-    planksTex->Name = "planksTex";
-    planksTex->Filename = L"./Assets/Textures/planks.dds";
-    ThrowIfFailed(CreateDDSTextureFromFile12(m_device.Get(), m_commandList.Get(),
-        planksTex->Filename.c_str(), planksTex->Resource, planksTex->UploadHeap));
+    auto brickTex = std::make_unique<Texture>("brickTex", L"./Assets/Textures/bricks.dds", m_device.Get(), m_commandList.Get());
+    auto grassTex = std::make_unique<Texture>("grassTex", L"./Assets/Textures/grass.dds", m_device.Get(), m_commandList.Get());
+    auto iceTex = std::make_unique<Texture>("iceTex", L"./Assets/Textures/ice.dds", m_device.Get(), m_commandList.Get());
+    auto stoneTex = std::make_unique<Texture>("stoneTex", L"./Assets/Textures/stone.dds", m_device.Get(), m_commandList.Get());
+    auto tileTex = std::make_unique<Texture>("tileTex", L"./Assets/Textures/tile.dds", m_device.Get(), m_commandList.Get());
+    auto planksTex = std::make_unique<Texture>("planksTex", L"./Assets/Textures/planks.dds", m_device.Get(), m_commandList.Get());
 
     m_textures[brickTex->Name] = std::move(brickTex);
     m_textures[grassTex->Name] = std::move(grassTex);
@@ -1030,11 +1000,11 @@ VOID Engine::PopulateCommandList()
     // that command list can then be reset at any time and must be before re-recording.
     if (m_isWireframe)
     {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates["opaque_wireframe"].Get()));
+        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at("opaque_wireframe").Get()));
     }
     else
     {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates["opaque"].Get()));
+        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at("opaque").Get()));
     }
 
     // Set necessary state.
@@ -1085,14 +1055,16 @@ VOID Engine::PopulateCommandList()
 
 #pragma endregion BypassResources
 
-    m_commandList->SetPipelineState(m_pipelineStates["opaque"].Get());
+    m_commandList->SetPipelineState(m_isWireframe ? m_pipelineStates.at("opaque_wireframe").Get() : m_pipelineStates.at("opaque").Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1u, &transition);
-//
-//    RenderLightingPass();
+    
+    RenderLightingPass();
+
+    //RenderTransparencyPass();
 
     ThrowIfFailed(m_commandList->Close());
 }
@@ -1112,10 +1084,10 @@ void Engine::RenderDepthOnlyPass()
     m_commandList->SetGraphicsRootConstantBufferView(1u, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); //cause shadow pass data lies in the second element
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_cascadeShadowMap->GetDsv());
-    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
     m_commandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
+    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
 
-    m_commandList->SetPipelineState(m_pipelineStates["cascades_opaque"].Get());
+    m_commandList->SetPipelineState(m_pipelineStates.at("cascades_opaque").Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -1185,9 +1157,16 @@ void Engine::RenderLightingPass()
     DeferredPointLightPass();
 }
 
+void Engine::RenderTransparencyPass()
+{
+    // forward-like
+}
+
 void Engine::DeferredDirectionalLightPass()
 {
-
+    // The viewport needs to be reset whenever the command list is reset.
+    m_commandList->RSSetViewports(1u, &m_viewport);
+    m_commandList->RSSetScissorRects(1u, &m_scissorRect);
 }
 
 void Engine::DeferredPointLightPass()
