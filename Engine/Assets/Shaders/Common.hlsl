@@ -42,6 +42,8 @@ cbuffer cbPerPass : register(b1)
     CascadesShadows gCascadeData;
     float3 gEyePos;
     float gPassPad0;
+    float2 gRTSize;
+    float2 gInvRTSize;
     float gNearZ;
     float gFarZ;
     float gDeltaTime;

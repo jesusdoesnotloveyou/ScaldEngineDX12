@@ -107,6 +107,9 @@ struct PassConstants
 	XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
 	float pad1 = 0.0f;
 	
+	XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
+	XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
+
 	float NearZ = 0.0f;
 	float FarZ = 0.0f;
 	float DeltaTime = 0.0f;
