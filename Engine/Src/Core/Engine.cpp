@@ -637,8 +637,7 @@ VOID Engine::CreateFrameResources()
 {
     for (int i = 0; i < gNumFrameResources; i++)
     {
-                                                                                 // shadow pass + main      
-        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), 2u, (UINT)m_renderItems.size(), (UINT)m_materials.size()));
+        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), static_cast<UINT>(EPassType::NumPasses), (UINT)m_renderItems.size(), (UINT)m_materials.size()));
     }
 }
 
@@ -797,7 +796,8 @@ void Engine::OnUpdate(const ScaldTimer& st)
     
     UpdateShadowTransform(st);
     UpdateShadowPassCB(st); // pass
-
+    
+    UpdateGeometryPassCB(st); // pass
     UpdateMainPassCB(st); // pass
 }
 
@@ -931,47 +931,6 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
     }
 }
 
-void Engine::UpdateMainPassCB(const ScaldTimer& st)
-{
-    XMMATRIX view = m_camera->GetViewMatrix();
-    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
-    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
-
-    XMStoreFloat4x4(&m_mainPassCBData.View, XMMatrixTranspose(view));
-    XMStoreFloat4x4(&m_mainPassCBData.Proj, XMMatrixTranspose(proj));
-    XMStoreFloat4x4(&m_mainPassCBData.ViewProj, XMMatrixTranspose(viewProj));
-    XMStoreFloat4x4(&m_mainPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
-
-    m_mainPassCBData.EyePosW = m_camera->GetPosition3f();
-    m_mainPassCBData.RenderTargetSize = XMFLOAT2((float)m_width, (float)m_height);
-    m_mainPassCBData.RenderTargetSize = XMFLOAT2(1.0f / m_width, 1.0f / m_height);
-    m_mainPassCBData.NearZ = m_camera->GetNearZ();
-    m_mainPassCBData.FarZ = m_camera->GetFarZ();
-    m_mainPassCBData.DeltaTime = st.DeltaTime();
-    m_mainPassCBData.TotalTime = st.TotalTime();
-
-    // Invert sign because other way light would be pointing up
-    XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
-
-    m_mainPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
-
-#pragma region DirLights
-    XMStoreFloat3(&m_mainPassCBData.Lights[0].Direction, lightDir);
-    m_mainPassCBData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
-#pragma endregion DirLights
-
-#pragma region PointLights
-    m_mainPassCBData.Lights[1].Position = {0.0f, 0.0f, 2.0f};
-    m_mainPassCBData.Lights[1].FallOfStart = 5.0f;
-    m_mainPassCBData.Lights[1].FallOfEnd = 10.0f;
-    m_mainPassCBData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
-#pragma endregion PointLights
-
-    auto currPassCB = m_currFrameResource->PassCB.get();
-    currPassCB->CopyData(/*main pass data in 0 element*/0, m_mainPassCBData);
-}
-
 void Engine::UpdateMaterialBuffer(const ScaldTimer& st)
 {
     auto currMaterialDataSB = m_currFrameResource->MaterialSB.get();
@@ -1020,9 +979,74 @@ void Engine::UpdateShadowPassCB(const ScaldTimer& st)
     XMStoreFloat4x4(&m_shadowPassCBData.Proj, XMMatrixTranspose(proj));
     XMStoreFloat4x4(&m_shadowPassCBData.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&m_shadowPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
-    
+
     auto currPassCB = m_currFrameResource->PassCB.get();
-    currPassCB->CopyData(/*shadow pass data in 1 element*/1, m_shadowPassCBData);
+    currPassCB->CopyData(static_cast<int>(EPassType::DepthShadow), m_shadowPassCBData);
+}
+
+void Engine::UpdateGeometryPassCB(const ScaldTimer& st)
+{
+    XMMATRIX view = m_camera->GetViewMatrix();
+    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
+    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+    XMStoreFloat4x4(&m_geometryPassCBData.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&m_geometryPassCBData.Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&m_geometryPassCBData.ViewProj, XMMatrixTranspose(viewProj));
+    XMStoreFloat4x4(&m_geometryPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
+
+    m_geometryPassCBData.EyePosW = m_camera->GetPosition3f();
+    m_geometryPassCBData.RenderTargetSize = XMFLOAT2((float)m_width, (float)m_height);
+    m_geometryPassCBData.InvRenderTargetSize = XMFLOAT2(1.0f / m_width, 1.0f / m_height);
+    m_geometryPassCBData.NearZ = m_camera->GetNearZ();
+    m_geometryPassCBData.FarZ = m_camera->GetFarZ();
+    m_geometryPassCBData.DeltaTime = st.DeltaTime();
+    m_geometryPassCBData.TotalTime = st.TotalTime();
+
+    m_geometryPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
+
+    auto currPassCB = m_currFrameResource->PassCB.get();
+    currPassCB->CopyData(static_cast<int>(EPassType::DeferredGeometry), m_geometryPassCBData);
+}
+
+void Engine::UpdateMainPassCB(const ScaldTimer& st)
+{
+    XMMATRIX view = m_camera->GetViewMatrix();
+    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
+    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+    XMStoreFloat4x4(&m_mainPassCBData.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&m_mainPassCBData.Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&m_mainPassCBData.ViewProj, XMMatrixTranspose(viewProj));
+    XMStoreFloat4x4(&m_mainPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
+
+    m_mainPassCBData.EyePosW = m_camera->GetPosition3f();
+    m_mainPassCBData.RenderTargetSize = XMFLOAT2((float)m_width, (float)m_height);
+    m_mainPassCBData.InvRenderTargetSize = XMFLOAT2(1.0f / m_width, 1.0f / m_height);
+    m_mainPassCBData.NearZ = m_camera->GetNearZ();
+    m_mainPassCBData.FarZ = m_camera->GetFarZ();
+    m_mainPassCBData.DeltaTime = st.DeltaTime();
+    m_mainPassCBData.TotalTime = st.TotalTime();
+
+    // Invert sign because other way light would be pointing up
+    XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
+
+#pragma region DirLights
+    XMStoreFloat3(&m_mainPassCBData.Lights[0].Direction, lightDir);
+    m_mainPassCBData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+#pragma endregion DirLights
+
+#pragma region PointLights
+    m_mainPassCBData.Lights[1].Position = { 0.0f, 0.0f, 2.0f };
+    m_mainPassCBData.Lights[1].FallOfStart = 5.0f;
+    m_mainPassCBData.Lights[1].FallOfEnd = 10.0f;
+    m_mainPassCBData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
+#pragma endregion PointLights
+
+    auto currPassCB = m_currFrameResource->PassCB.get();
+    currPassCB->CopyData(static_cast<int>(EPassType::DeferredLighting), m_mainPassCBData);
 }
 
 VOID Engine::PopulateCommandList()
@@ -1064,8 +1088,6 @@ VOID Engine::PopulateCommandList()
 
 void Engine::RenderDepthOnlyPass()
 {
-    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-
     m_commandList->RSSetViewports(1u, &m_cascadeShadowMap->GetViewport());
     m_commandList->RSSetScissorRects(1u, &m_cascadeShadowMap->GetScissorRect());
 
@@ -1074,7 +1096,7 @@ void Engine::RenderDepthOnlyPass()
     m_commandList->ResourceBarrier(1u, &transition);
 
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); //cause shadow pass data lies in the second element
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress()); //cause shadow pass data lies in the first element
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_cascadeShadowMap->GetDsv());
     m_commandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
@@ -1089,6 +1111,7 @@ void Engine::RenderDepthOnlyPass()
 
 void Engine::RenderGeometryPass()
 {
+    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
     // The viewport needs to be reset whenever the command list is reset.
     m_commandList->RSSetViewports(1u, &m_viewport);
     m_commandList->RSSetScissorRects(1u, &m_scissorRect);
@@ -1104,7 +1127,7 @@ void Engine::RenderGeometryPass()
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); // second element contains data for geometry pass
 
     auto matBuffer = m_currFrameResource->MaterialSB->Get();
     m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
@@ -1157,6 +1180,8 @@ void Engine::RenderTransparencyPass()
 
 void Engine::DeferredDirectionalLightPass()
 {
+    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     // Indicate that the back buffer will be used as a render target.
     m_commandList->ResourceBarrier(1u, &transition);
@@ -1175,7 +1200,7 @@ void Engine::DeferredDirectionalLightPass()
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
 
     // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
     auto matBuffer = m_currFrameResource->MaterialSB->Get();

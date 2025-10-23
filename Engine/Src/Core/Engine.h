@@ -132,10 +132,11 @@ public:
 private:
     void OnKeyboardInput(const ScaldTimer& st);
     void UpdateObjectsCB(const ScaldTimer& st);
-    void UpdateMainPassCB(const ScaldTimer& st);
     void UpdateMaterialBuffer(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
     void UpdateShadowPassCB(const ScaldTimer& st);
+    void UpdateGeometryPassCB(const ScaldTimer& st);
+    void UpdateMainPassCB(const ScaldTimer& st);
     
     void RenderDepthOnlyPass();
 #pragma region DeferredShading
@@ -170,8 +171,9 @@ private:
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
 
     ObjectConstants m_perObjectCBData;
-    PassConstants m_mainPassCBData;
     PassConstants m_shadowPassCBData;
+    PassConstants m_geometryPassCBData;
+    PassConstants m_mainPassCBData; // deferred color/light pass
     //PassConstants m_lightingPassCBData;
     //PassConstants m_geometryPassCBData;
     MaterialData m_perMaterialSBData;

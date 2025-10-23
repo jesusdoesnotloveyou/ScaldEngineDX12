@@ -13,7 +13,7 @@ enum class EPassType : uint8_t
 {
 	DepthShadow = 0,
 	DeferredGeometry,
-	DeferredColor,
+	DeferredLighting,
 	NumPasses = 3
 };
 
