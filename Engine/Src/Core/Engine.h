@@ -81,6 +81,21 @@ public:
         NumRootParameters = 6u
     };
 
+    enum EPsoType : UINT
+    {
+        Opaque = 0,
+        WireframeOpaque,
+        Transparency,
+        CascadedShadowsOpaque,
+
+        DeferredGeometry,
+        DeferredDirectional,
+        DeferredPoint,
+        DeferredSpot,
+        
+        NumPipelineStates = 8u
+    };
+
 public:
     Engine(UINT width, UINT height, std::wstring name, std::wstring className);
     virtual ~Engine() override;
@@ -114,6 +129,7 @@ private:
 #pragma endregion DeferredShading
 
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
+    void DrawQuad(ID3D12GraphicsCommandList* cmdList);
 
 private:
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
@@ -133,7 +149,7 @@ private:
     std::unordered_map<std::string, ComPtr<ID3DBlob>> m_shaders;
     std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
-    std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> m_pipelineStates;
+    std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
 
     ObjectConstants m_perObjectCBData;
     PassConstants m_mainPassCBData;
@@ -150,6 +166,8 @@ private:
 
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
+
+    std::unique_ptr<MeshGeometry> m_fullQuad;
 
 #pragma region DeferredRendering
     std::unique_ptr<GBuffer> m_GBuffer;
