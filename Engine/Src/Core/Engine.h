@@ -96,6 +96,24 @@ public:
         NumPipelineStates = 8u
     };
 
+    enum EShaderType : UINT
+    {
+        DefaultVS = 0,
+        DefaultOpaquePS,
+        CascadedShadowsVS,
+        CascadedShadowsGS,
+
+        DeferredGeometryVS,
+        DeferredGeometryPS,
+        DeferredDirVS,
+        DeferredDirPS,
+        DeferredLightVolumesVS,
+        DeferredPointPS,
+        DeferredSpotPS,
+
+        NumShaders = 11U
+    };
+
 public:
     Engine(UINT width, UINT height, std::wstring name, std::wstring className);
     virtual ~Engine() override;
@@ -146,7 +164,7 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
    
-    std::unordered_map<std::string, ComPtr<ID3DBlob>> m_shaders;
+    std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
     std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
@@ -159,7 +177,7 @@ private:
     MaterialData m_perMaterialSBData;
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
-    std::unordered_map < std::string, std::unique_ptr<Material>> m_materials;
+    std::unordered_map<std::string, std::unique_ptr<Material>> m_materials;
     std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::vector<RenderItem*> m_opaqueItems;

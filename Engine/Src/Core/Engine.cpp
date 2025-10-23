@@ -118,22 +118,22 @@ VOID Engine::CreateShaders()
         NULL, NULL
     };
 
-    m_shaders["defaultVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["opaquePS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
+    m_shaders[EShaderType::DefaultVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DefaultOpaquePS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
 
-    m_shaders["shadowGS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
-    m_shaders["shadowVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::CascadedShadowsVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::CascadedShadowsGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
 
 #pragma region DeferredShading
-    m_shaders["GBufferVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["GBufferPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredGeometryVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredGeometryPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
 
-    m_shaders["deferredDirLightVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["deferredDirLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredDirVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredDirPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightPS.hlsl", nullptr, "main", "ps_5_1");
 
-    m_shaders["lightVolumesVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/LightVolumesVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["deferredPointLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredPointLightPS.hlsl", nullptr, "main", "ps_5_1");
-    m_shaders["deferredSpotLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredSpotLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredLightVolumesVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/LightVolumesVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredPointPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredPointLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredSpotPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredSpotLightPS.hlsl", nullptr, "main", "ps_5_1");
 #pragma endregion DeferredShading
 
     m_inputLayout =
@@ -153,13 +153,13 @@ VOID Engine::CreatePSO()
     opaquePsoDesc.pRootSignature = m_rootSignature.Get();
     opaquePsoDesc.VS = D3D12_SHADER_BYTECODE(
         { 
-            reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()), 
-            m_shaders["defaultVS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DefaultVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DefaultVS)->GetBufferSize()
         });
     opaquePsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["opaquePS"]->GetBufferPointer()),
-            m_shaders["opaquePS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DefaultOpaquePS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DefaultOpaquePS)->GetBufferSize()
         });
     opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     opaquePsoDesc.SampleMask = UINT_MAX;
@@ -213,13 +213,13 @@ VOID Engine::CreatePSO()
     cascadeShadowPsoDesc.pRootSignature = m_rootSignature.Get();
     cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("shadowVS")->GetBufferPointer()),
-                m_shaders.at("shadowVS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferPointer()),
+                m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferSize()
         });
     cascadeShadowPsoDesc.GS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("shadowGS")->GetBufferPointer()),
-                m_shaders.at("shadowGS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferPointer()),
+                m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferSize()
         });
     cascadeShadowPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     cascadeShadowPsoDesc.SampleMask = UINT_MAX;
@@ -243,13 +243,13 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC GBufferPsoDesc = opaquePsoDesc;
     GBufferPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("GBufferVS")->GetBufferPointer()),
-            m_shaders.at("GBufferVS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredGeometryVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredGeometryVS)->GetBufferSize()
         });
     GBufferPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("GBufferPS")->GetBufferPointer()),
-            m_shaders.at("GBufferPS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredGeometryPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredGeometryPS)->GetBufferSize()
         });
     GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(GBuffer::EGBufferLayer::MAX) - 1u;
     GBufferPsoDesc.RTVFormats[0] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO);
@@ -262,13 +262,13 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC dirLightPsoDesc = opaquePsoDesc;
     dirLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("deferredDirLightVS")->GetBufferPointer()),
-            m_shaders.at("deferredDirLightVS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredDirVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredDirVS)->GetBufferSize()
         });
     dirLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("deferredDirLightPS")->GetBufferPointer()),
-            m_shaders.at("deferredDirLightPS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredDirPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredDirPS)->GetBufferSize()
         });
     dirLightPsoDesc.NumRenderTargets = 1u;
     dirLightPsoDesc.RTVFormats[0] = BackBufferFormat;
@@ -278,21 +278,21 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightPsoDesc = dirLightPsoDesc;
     pointLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("lightVolumesVS")->GetBufferPointer()),
-            m_shaders.at("lightVolumesVS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferSize()
         });
     pointLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("deferredPointLightPS")->GetBufferPointer()),
-            m_shaders.at("deferredPointLightPS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredPointPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredPointPS)->GetBufferSize()
         });
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPoint])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC spotLightPsoDesc = pointLightPsoDesc;
     spotLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("deferredSpotLightPS")->GetBufferPointer()),
-            m_shaders.at("deferredSpotLightPS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferSize()
         });
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&spotLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredSpot])));
 
