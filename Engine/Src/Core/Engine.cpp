@@ -118,22 +118,22 @@ VOID Engine::CreateShaders()
         NULL, NULL
     };
 
-    m_shaders["defaultVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["opaquePS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
+    m_shaders[EShaderType::DefaultVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DefaultOpaquePS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
 
-    m_shaders["shadowGS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
-    m_shaders["shadowVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::CascadedShadowsVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::CascadedShadowsGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
 
 #pragma region DeferredShading
-    m_shaders["GBufferVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["GBufferPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredGeometryVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredGeometryPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
 
-    m_shaders["deferredDirLightVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["deferredDirLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredDirVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredDirPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightPS.hlsl", nullptr, "main", "ps_5_1");
 
-    m_shaders["lightVolumesVS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/LightVolumesVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders["deferredPointLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredPointLightPS.hlsl", nullptr, "main", "ps_5_1");
-    m_shaders["deferredSpotLightPS"] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredSpotLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredLightVolumesVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/LightVolumesVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredPointPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredPointLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredSpotPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredSpotLightPS.hlsl", nullptr, "main", "ps_5_1");
 #pragma endregion DeferredShading
 
     m_inputLayout =
@@ -153,13 +153,13 @@ VOID Engine::CreatePSO()
     opaquePsoDesc.pRootSignature = m_rootSignature.Get();
     opaquePsoDesc.VS = D3D12_SHADER_BYTECODE(
         { 
-            reinterpret_cast<BYTE*>(m_shaders["defaultVS"]->GetBufferPointer()), 
-            m_shaders["defaultVS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DefaultVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DefaultVS)->GetBufferSize()
         });
     opaquePsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders["opaquePS"]->GetBufferPointer()),
-            m_shaders["opaquePS"]->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DefaultOpaquePS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DefaultOpaquePS)->GetBufferSize()
         });
     opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     opaquePsoDesc.SampleMask = UINT_MAX;
@@ -174,11 +174,11 @@ VOID Engine::CreatePSO()
     // This should match the setting of the render target we are using (check swapChainDesc)
     opaquePsoDesc.SampleDesc.Count = 1u;
     opaquePsoDesc.SampleDesc.Quality = 0u;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&m_pipelineStates["opaque"])));
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Opaque])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframe = opaquePsoDesc;
     opaqueWireframe.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaqueWireframe, IID_PPV_ARGS(&m_pipelineStates["opaque_wireframe"])));
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaqueWireframe, IID_PPV_ARGS(&m_pipelineStates[EPsoType::WireframeOpaque])));
 #pragma endregion DefaultOpaqueAndWireframe
 
 #pragma region Transparency
@@ -204,7 +204,7 @@ VOID Engine::CreatePSO()
     transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
     // since we can see through transparent objects, we have to see their back faces
     transparentPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&m_pipelineStates["transparency"])));
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Transparency])));
 #pragma endregion Transparency
 
 #pragma region CascadeShadowsDepthPass
@@ -213,13 +213,13 @@ VOID Engine::CreatePSO()
     cascadeShadowPsoDesc.pRootSignature = m_rootSignature.Get();
     cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("shadowVS")->GetBufferPointer()),
-                m_shaders.at("shadowVS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferPointer()),
+                m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferSize()
         });
     cascadeShadowPsoDesc.GS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("shadowGS")->GetBufferPointer()),
-                m_shaders.at("shadowGS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferPointer()),
+                m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferSize()
         });
     cascadeShadowPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     cascadeShadowPsoDesc.SampleMask = UINT_MAX;
@@ -235,7 +235,7 @@ VOID Engine::CreatePSO()
     cascadeShadowPsoDesc.DSVFormat = DepthStencilFormat;
     cascadeShadowPsoDesc.SampleDesc.Count = 1u;
     cascadeShadowPsoDesc.SampleDesc.Quality = 0u;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&cascadeShadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates["cascades_opaque"])));
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&cascadeShadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::CascadedShadowsOpaque])));
 #pragma endregion CascadeShadowsDepthPass
 
 #pragma region DeferredShading
@@ -243,13 +243,13 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC GBufferPsoDesc = opaquePsoDesc;
     GBufferPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("GBufferVS")->GetBufferPointer()),
-            m_shaders.at("GBufferVS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredGeometryVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredGeometryVS)->GetBufferSize()
         });
     GBufferPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("GBufferPS")->GetBufferPointer()),
-            m_shaders.at("GBufferPS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredGeometryPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredGeometryPS)->GetBufferSize()
         });
     GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(GBuffer::EGBufferLayer::MAX) - 1u;
     GBufferPsoDesc.RTVFormats[0] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO);
@@ -257,44 +257,44 @@ VOID Engine::CreatePSO()
     GBufferPsoDesc.RTVFormats[2] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::NORMAL);
     GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::SPECULAR);
     GBufferPsoDesc.DSVFormat = DepthStencilFormat; // corresponds to default format
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&GBufferPsoDesc, IID_PPV_ARGS(&m_pipelineStates["geometry_deferred"])));
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&GBufferPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredGeometry])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC dirLightPsoDesc = opaquePsoDesc;
     dirLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("deferredDirLightVS")->GetBufferPointer()),
-            m_shaders.at("deferredDirLightVS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredDirVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredDirVS)->GetBufferSize()
         });
     dirLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("deferredDirLightPS")->GetBufferPointer()),
-            m_shaders.at("deferredDirLightPS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredDirPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredDirPS)->GetBufferSize()
         });
     dirLightPsoDesc.NumRenderTargets = 1u;
     dirLightPsoDesc.RTVFormats[0] = BackBufferFormat;
     dirLightPsoDesc.DSVFormat = DepthStencilFormat;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&dirLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates["dir_light_deferred"])));
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&dirLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredDirectional])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightPsoDesc = dirLightPsoDesc;
     pointLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("lightVolumesVS")->GetBufferPointer()),
-            m_shaders.at("lightVolumesVS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferSize()
         });
     pointLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("deferredPointLightPS")->GetBufferPointer()),
-            m_shaders.at("deferredPointLightPS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredPointPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredPointPS)->GetBufferSize()
         });
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates["point_light_deferred"])));
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPoint])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC spotLightPsoDesc = pointLightPsoDesc;
     spotLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at("deferredSpotLightPS")->GetBufferPointer()),
-            m_shaders.at("deferredSpotLightPS")->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferSize()
         });
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&spotLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates["spot_light_deferred"])));
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&spotLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredSpot])));
 
 #pragma endregion DeferredShading
 }
@@ -476,8 +476,19 @@ VOID Engine::CreateGeometry()
     geometry->DrawArgs["earth"] = earthSubmesh;
     geometry->DrawArgs["mars"] = marsSubmesh;
     geometry->DrawArgs["plane"] = planeSubmesh;
-
     m_geometries[geometry->Name] = std::move(geometry);
+
+
+    m_fullQuad = std::make_unique<MeshGeometry>();
+    std::vector<Vertex> fullQuadVertices(4, Vertex{});
+    const UINT64 vbQuadByteSize = fullQuadVertices.size() * sizeof(Vertex);
+    ThrowIfFailed(D3DCreateBlob(vbQuadByteSize, &m_fullQuad->VertexBufferCPU));
+    CopyMemory(m_fullQuad->VertexBufferCPU->GetBufferPointer(), fullQuadVertices.data(), vbQuadByteSize);
+    // Create GPU resource
+    m_fullQuad->VertexBufferGPU = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), fullQuadVertices.data(), vbQuadByteSize, m_fullQuad->VertexBufferUploader);
+    // Initialize the vertex buffer view.
+    m_fullQuad->VertexBufferByteSize = (UINT)vbQuadByteSize;
+    m_fullQuad->VertexByteStride = sizeof(Vertex);
 }
 
 VOID Engine::CreateGeometryMaterials()
@@ -626,8 +637,7 @@ VOID Engine::CreateFrameResources()
 {
     for (int i = 0; i < gNumFrameResources; i++)
     {
-                                                                                 // shadow pass + main      
-        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), 2u, (UINT)m_renderItems.size(), (UINT)m_materials.size()));
+        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), static_cast<UINT>(EPassType::NumPasses), (UINT)m_renderItems.size(), (UINT)m_materials.size()));
     }
 }
 
@@ -786,7 +796,8 @@ void Engine::OnUpdate(const ScaldTimer& st)
     
     UpdateShadowTransform(st);
     UpdateShadowPassCB(st); // pass
-
+    
+    UpdateGeometryPassCB(st); // pass
     UpdateMainPassCB(st); // pass
 }
 
@@ -920,45 +931,6 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
     }
 }
 
-void Engine::UpdateMainPassCB(const ScaldTimer& st)
-{
-    XMMATRIX view = m_camera->GetViewMatrix();
-    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
-    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
-
-    XMStoreFloat4x4(&m_mainPassCBData.View, XMMatrixTranspose(view));
-    XMStoreFloat4x4(&m_mainPassCBData.Proj, XMMatrixTranspose(proj));
-    XMStoreFloat4x4(&m_mainPassCBData.ViewProj, XMMatrixTranspose(viewProj));
-    XMStoreFloat4x4(&m_mainPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
-
-    m_mainPassCBData.EyePosW = m_camera->GetPosition3f();
-    m_mainPassCBData.NearZ = m_camera->GetNearZ();
-    m_mainPassCBData.FarZ = m_camera->GetFarZ();
-    m_mainPassCBData.DeltaTime = st.DeltaTime();
-    m_mainPassCBData.TotalTime = st.TotalTime();
-
-    // Invert sign because other way light would be pointing up
-    XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
-
-    m_mainPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
-
-#pragma region DirLights
-    XMStoreFloat3(&m_mainPassCBData.Lights[0].Direction, lightDir);
-    m_mainPassCBData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
-#pragma endregion DirLights
-
-#pragma region PointLights
-    m_mainPassCBData.Lights[1].Position = {0.0f, 0.0f, 2.0f};
-    m_mainPassCBData.Lights[1].FallOfStart = 5.0f;
-    m_mainPassCBData.Lights[1].FallOfEnd = 10.0f;
-    m_mainPassCBData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
-#pragma endregion PointLights
-
-    auto currPassCB = m_currFrameResource->PassCB.get();
-    currPassCB->CopyData(/*main pass data in 0 element*/0, m_mainPassCBData);
-}
-
 void Engine::UpdateMaterialBuffer(const ScaldTimer& st)
 {
     auto currMaterialDataSB = m_currFrameResource->MaterialSB.get();
@@ -1007,9 +979,74 @@ void Engine::UpdateShadowPassCB(const ScaldTimer& st)
     XMStoreFloat4x4(&m_shadowPassCBData.Proj, XMMatrixTranspose(proj));
     XMStoreFloat4x4(&m_shadowPassCBData.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&m_shadowPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
-    
+
     auto currPassCB = m_currFrameResource->PassCB.get();
-    currPassCB->CopyData(/*shadow pass data in 1 element*/1, m_shadowPassCBData);
+    currPassCB->CopyData(static_cast<int>(EPassType::DepthShadow), m_shadowPassCBData);
+}
+
+void Engine::UpdateGeometryPassCB(const ScaldTimer& st)
+{
+    XMMATRIX view = m_camera->GetViewMatrix();
+    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
+    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+    XMStoreFloat4x4(&m_geometryPassCBData.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&m_geometryPassCBData.Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&m_geometryPassCBData.ViewProj, XMMatrixTranspose(viewProj));
+    XMStoreFloat4x4(&m_geometryPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
+
+    m_geometryPassCBData.EyePosW = m_camera->GetPosition3f();
+    m_geometryPassCBData.RenderTargetSize = XMFLOAT2((float)m_width, (float)m_height);
+    m_geometryPassCBData.InvRenderTargetSize = XMFLOAT2(1.0f / m_width, 1.0f / m_height);
+    m_geometryPassCBData.NearZ = m_camera->GetNearZ();
+    m_geometryPassCBData.FarZ = m_camera->GetFarZ();
+    m_geometryPassCBData.DeltaTime = st.DeltaTime();
+    m_geometryPassCBData.TotalTime = st.TotalTime();
+
+    m_geometryPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
+
+    auto currPassCB = m_currFrameResource->PassCB.get();
+    currPassCB->CopyData(static_cast<int>(EPassType::DeferredGeometry), m_geometryPassCBData);
+}
+
+void Engine::UpdateMainPassCB(const ScaldTimer& st)
+{
+    XMMATRIX view = m_camera->GetViewMatrix();
+    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
+    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+    XMStoreFloat4x4(&m_mainPassCBData.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&m_mainPassCBData.Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&m_mainPassCBData.ViewProj, XMMatrixTranspose(viewProj));
+    XMStoreFloat4x4(&m_mainPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
+
+    m_mainPassCBData.EyePosW = m_camera->GetPosition3f();
+    m_mainPassCBData.RenderTargetSize = XMFLOAT2((float)m_width, (float)m_height);
+    m_mainPassCBData.InvRenderTargetSize = XMFLOAT2(1.0f / m_width, 1.0f / m_height);
+    m_mainPassCBData.NearZ = m_camera->GetNearZ();
+    m_mainPassCBData.FarZ = m_camera->GetFarZ();
+    m_mainPassCBData.DeltaTime = st.DeltaTime();
+    m_mainPassCBData.TotalTime = st.TotalTime();
+
+    // Invert sign because other way light would be pointing up
+    XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
+
+#pragma region DirLights
+    XMStoreFloat3(&m_mainPassCBData.Lights[0].Direction, lightDir);
+    m_mainPassCBData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+#pragma endregion DirLights
+
+#pragma region PointLights
+    m_mainPassCBData.Lights[1].Position = { 0.0f, 0.0f, 2.0f };
+    m_mainPassCBData.Lights[1].FallOfStart = 5.0f;
+    m_mainPassCBData.Lights[1].FallOfEnd = 10.0f;
+    m_mainPassCBData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
+#pragma endregion PointLights
+
+    auto currPassCB = m_currFrameResource->PassCB.get();
+    currPassCB->CopyData(static_cast<int>(EPassType::DeferredLighting), m_mainPassCBData);
 }
 
 VOID Engine::PopulateCommandList()
@@ -1024,11 +1061,11 @@ VOID Engine::PopulateCommandList()
     // that command list can then be reset at any time and must be before re-recording.
     if (m_isWireframe)
     {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at("opaque_wireframe").Get()));
+        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at(EPsoType::WireframeOpaque).Get()));
     }
     else
     {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at("opaque").Get()));
+        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at(EPsoType::Opaque).Get()));
     }
 
     // Set necessary state.
@@ -1041,50 +1078,6 @@ VOID Engine::PopulateCommandList()
     RenderDepthOnlyPass();
 
     RenderGeometryPass();
-
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(1u, &transition);
-
-    // The viewport needs to be reset whenever the command list is reset.
-    m_commandList->RSSetViewports(1u, &m_viewport);
-    m_commandList->RSSetScissorRects(1u, &m_scissorRect);
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-
-    // Record commands.
-    const float* clearColor = &m_mainPassCBData.FogColor.x;
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
-    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
-    m_commandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
-    
-#pragma region BypassResources
-    auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress());
-
-    // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
-    auto matBuffer = m_currFrameResource->MaterialSB->Get();
-    m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
-
-    // Set shaadow map texture for main pass
-    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
-
-    // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
-    // The root signature knows how many descriptors are expected in the table.
-    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-
-    // Bind GBuffer textures
-    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
-
-#pragma endregion BypassResources
-
-    m_commandList->SetPipelineState(m_isWireframe ? m_pipelineStates.at("opaque_wireframe").Get() : m_pipelineStates.at("opaque").Get());
-    DrawRenderItems(m_commandList.Get(), m_renderItems);
-
-    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1u, &transition);
     
     RenderLightingPass();
 
@@ -1095,8 +1088,6 @@ VOID Engine::PopulateCommandList()
 
 void Engine::RenderDepthOnlyPass()
 {
-    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-
     m_commandList->RSSetViewports(1u, &m_cascadeShadowMap->GetViewport());
     m_commandList->RSSetScissorRects(1u, &m_cascadeShadowMap->GetScissorRect());
 
@@ -1105,13 +1096,13 @@ void Engine::RenderDepthOnlyPass()
     m_commandList->ResourceBarrier(1u, &transition);
 
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); //cause shadow pass data lies in the second element
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress()); //cause shadow pass data lies in the first element
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_cascadeShadowMap->GetDsv());
     m_commandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
     m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
 
-    m_commandList->SetPipelineState(m_pipelineStates.at("cascades_opaque").Get());
+    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::CascadedShadowsOpaque).Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -1120,6 +1111,7 @@ void Engine::RenderDepthOnlyPass()
 
 void Engine::RenderGeometryPass()
 {
+    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
     // The viewport needs to be reset whenever the command list is reset.
     m_commandList->RSSetViewports(1u, &m_viewport);
     m_commandList->RSSetScissorRects(1u, &m_scissorRect);
@@ -1135,7 +1127,7 @@ void Engine::RenderGeometryPass()
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); // second element contains data for geometry pass
 
     auto matBuffer = m_currFrameResource->MaterialSB->Get();
     m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
@@ -1162,7 +1154,7 @@ void Engine::RenderGeometryPass()
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
     m_commandList->ClearDepthStencilView(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
 
-    m_commandList->SetPipelineState(m_pipelineStates.at("geometry_deferred").Get());
+    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredGeometry).Get());
     DrawRenderItems(m_commandList.Get(), m_renderItems);
 
     for (unsigned i = 0; i < GBuffer::EGBufferLayer::MAX - 1u; i++)
@@ -1178,7 +1170,7 @@ void Engine::RenderGeometryPass()
 void Engine::RenderLightingPass()
 {
     DeferredDirectionalLightPass();
-    DeferredPointLightPass();
+    //DeferredPointLightPass();
 }
 
 void Engine::RenderTransparencyPass()
@@ -1188,14 +1180,55 @@ void Engine::RenderTransparencyPass()
 
 void Engine::DeferredDirectionalLightPass()
 {
+    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    // Indicate that the back buffer will be used as a render target.
+    m_commandList->ResourceBarrier(1u, &transition);
+
     // The viewport needs to be reset whenever the command list is reset.
     m_commandList->RSSetViewports(1u, &m_viewport);
     m_commandList->RSSetScissorRects(1u, &m_scissorRect);
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+    const float* clearColor = &m_mainPassCBData.FogColor.x;
+    m_commandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
+    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
+    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
+
+#pragma region BypassResources
+    auto currFramePassCB = m_currFrameResource->PassCB->Get();
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
+
+    // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
+    auto matBuffer = m_currFrameResource->MaterialSB->Get();
+    m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
+
+    // Set shaadow map texture for main pass
+    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
+
+    // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
+    // The root signature knows how many descriptors are expected in the table.
+    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+
+    // Bind GBuffer textures
+    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
+
+#pragma endregion BypassResources
+
+    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredDirectional).Get());
+    DrawQuad(m_commandList.Get());
+
+    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    // Indicate that the back buffer will now be used to present.
+    m_commandList->ResourceBarrier(1u, &transition);
 }
 
 void Engine::DeferredPointLightPass()
 {
-
+    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPoint).Get());
 }
 
 void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
@@ -1218,6 +1251,16 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
+}
+
+void Engine::DrawQuad(ID3D12GraphicsCommandList* cmdList)
+{
+    auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();
+
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    cmdList->IASetVertexBuffers(0u, 1u, &m_fullQuad->VertexBufferView());
+
+    cmdList->DrawInstanced(4u, 1u, 0u, 0u);
 }
 
 VOID Engine::MoveToNextFrame()

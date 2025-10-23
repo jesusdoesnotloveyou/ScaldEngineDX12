@@ -81,6 +81,39 @@ public:
         NumRootParameters = 6u
     };
 
+    enum EPsoType : UINT
+    {
+        Opaque = 0,
+        WireframeOpaque,
+        Transparency,
+        CascadedShadowsOpaque,
+
+        DeferredGeometry,
+        DeferredDirectional,
+        DeferredPoint,
+        DeferredSpot,
+        
+        NumPipelineStates = 8u
+    };
+
+    enum EShaderType : UINT
+    {
+        DefaultVS = 0,
+        DefaultOpaquePS,
+        CascadedShadowsVS,
+        CascadedShadowsGS,
+
+        DeferredGeometryVS,
+        DeferredGeometryPS,
+        DeferredDirVS,
+        DeferredDirPS,
+        DeferredLightVolumesVS,
+        DeferredPointPS,
+        DeferredSpotPS,
+
+        NumShaders = 11U
+    };
+
 public:
     Engine(UINT width, UINT height, std::wstring name, std::wstring className);
     virtual ~Engine() override;
@@ -99,10 +132,11 @@ public:
 private:
     void OnKeyboardInput(const ScaldTimer& st);
     void UpdateObjectsCB(const ScaldTimer& st);
-    void UpdateMainPassCB(const ScaldTimer& st);
     void UpdateMaterialBuffer(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
     void UpdateShadowPassCB(const ScaldTimer& st);
+    void UpdateGeometryPassCB(const ScaldTimer& st);
+    void UpdateMainPassCB(const ScaldTimer& st);
     
     void RenderDepthOnlyPass();
 #pragma region DeferredShading
@@ -114,6 +148,7 @@ private:
 #pragma endregion DeferredShading
 
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
+    void DrawQuad(ID3D12GraphicsCommandList* cmdList);
 
 private:
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
@@ -130,26 +165,29 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
    
-    std::unordered_map<std::string, ComPtr<ID3DBlob>> m_shaders;
+    std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
     std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
-    std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> m_pipelineStates;
+    std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
 
     ObjectConstants m_perObjectCBData;
-    PassConstants m_mainPassCBData;
     PassConstants m_shadowPassCBData;
+    PassConstants m_geometryPassCBData;
+    PassConstants m_mainPassCBData; // deferred color/light pass
     //PassConstants m_lightingPassCBData;
     //PassConstants m_geometryPassCBData;
     MaterialData m_perMaterialSBData;
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
-    std::unordered_map < std::string, std::unique_ptr<Material>> m_materials;
+    std::unordered_map<std::string, std::unique_ptr<Material>> m_materials;
     std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
+
+    std::unique_ptr<MeshGeometry> m_fullQuad;
 
 #pragma region DeferredRendering
     std::unique_ptr<GBuffer> m_GBuffer;
