@@ -93,6 +93,17 @@ struct ObjectConstants
 	UINT objPad2 = 0u;
 };
 
+struct InstanceData
+{
+	XMFLOAT4X4 World;
+	XMFLOAT4X4 InvTransposeWorld;
+	XMFLOAT4X4 TexTransform;
+	UINT MaterialIndex = 0u;
+	UINT objPad0 = 0u;
+	UINT objPad1 = 0u;
+	UINT objPad2 = 0u;
+};
+
 #define MaxLights 16
 
 struct PassConstants
