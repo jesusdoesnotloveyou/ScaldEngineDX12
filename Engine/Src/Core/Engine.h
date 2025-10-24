@@ -48,6 +48,9 @@ struct RenderItem
     // could be used for texture tiling
     XMMATRIX TexTransform = XMMatrixIdentity();
 
+    BoundingBox Bounds;
+    std::vector<InstanceData> Instances; // for spot and point lights for now
+    
     int NumFramesDirty = gNumFrameResources;
 
     // Index into GPU constant buffer corresponding to the ObjectCB for this render item.
@@ -59,11 +62,10 @@ struct RenderItem
     D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopologyType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
     // DrawIndexedInstanced parameters.
-    UINT IndexCount = 0;
-    UINT StartIndexLocation = 0;
+    UINT InstanceCount = 0u;            // for spot and point lights for now
+    UINT IndexCount = 0u;
+    UINT StartIndexLocation = 0u;
     int BaseVertexLocation = 0;
-
-    BoundingBox Bounds;
 };
 
 class Engine : public D3D12Sample
@@ -213,6 +215,7 @@ private:
     VOID CreateGeometryMaterials();
     // Shapes could constist of some items to render
     VOID CreateRenderItems();
+    VOID CreatePointLights();
     VOID CreateFrameResources();
     // Heaps are created if there are root descriptor tables in root signature 
     VOID CreateDescriptorHeaps();

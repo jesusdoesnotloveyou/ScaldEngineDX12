@@ -253,7 +253,7 @@ VOID Engine::CreatePSO()
         });
     GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(GBuffer::EGBufferLayer::MAX) - 1u;
     GBufferPsoDesc.RTVFormats[0] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO);
-    GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::LIGHT_ACCUM);
+    GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION);
     GBufferPsoDesc.RTVFormats[2] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::NORMAL);
     GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::SPECULAR);
     GBufferPsoDesc.DSVFormat = DepthStencilFormat; // corresponds to default format
@@ -633,6 +633,12 @@ VOID Engine::CreateRenderItems()
     }
 }
 
+VOID Engine::CreatePointLights()
+{
+    auto pointLightVolume = std::make_unique<RenderItem>();
+    pointLightVolume->World = XMMatrixIdentity();
+}
+
 VOID Engine::CreateFrameResources()
 {
     for (int i = 0; i < gNumFrameResources; i++)
@@ -1004,8 +1010,6 @@ void Engine::UpdateGeometryPassCB(const ScaldTimer& st)
     m_geometryPassCBData.DeltaTime = st.DeltaTime();
     m_geometryPassCBData.TotalTime = st.TotalTime();
 
-    m_geometryPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
-
     auto currPassCB = m_currFrameResource->PassCB.get();
     currPassCB->CopyData(static_cast<int>(EPassType::DeferredGeometry), m_geometryPassCBData);
 }
@@ -1029,6 +1033,8 @@ void Engine::UpdateMainPassCB(const ScaldTimer& st)
     m_mainPassCBData.FarZ = m_camera->GetFarZ();
     m_mainPassCBData.DeltaTime = st.DeltaTime();
     m_mainPassCBData.TotalTime = st.TotalTime();
+
+    m_geometryPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
 
     // Invert sign because other way light would be pointing up
     XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
@@ -1139,7 +1145,7 @@ void Engine::RenderGeometryPass()
     
     D3D12_CPU_DESCRIPTOR_HANDLE* rtvs[] = {
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO),
-        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::LIGHT_ACCUM),
+        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR),
     };
@@ -1147,9 +1153,9 @@ void Engine::RenderGeometryPass()
 
     m_commandList->OMSetRenderTargets(ARRAYSIZE(rtvs), rtvs[0], TRUE, &dsvHandle);
 
-    const float clearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    const float clearColor[4] = { 0.7f, 0.7f, 0.7f, 1.0f };
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO), clearColor, 0u, nullptr);
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::LIGHT_ACCUM), clearColor, 0u, nullptr);
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION), clearColor, 0u, nullptr);
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL), clearColor, 0u, nullptr);
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
     m_commandList->ClearDepthStencilView(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
@@ -1171,11 +1177,6 @@ void Engine::RenderLightingPass()
 {
     DeferredDirectionalLightPass();
     //DeferredPointLightPass();
-}
-
-void Engine::RenderTransparencyPass()
-{
-    // forward-like
 }
 
 void Engine::DeferredDirectionalLightPass()
@@ -1229,6 +1230,11 @@ void Engine::DeferredDirectionalLightPass()
 void Engine::DeferredPointLightPass()
 {
     m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPoint).Get());
+}
+
+void Engine::RenderTransparencyPass()
+{
+    // forward-like
 }
 
 void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
