@@ -8,8 +8,6 @@ struct FGBufferTexture
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuRtvDsv = {};
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuSrv = {};
 	CD3DX12_GPU_DESCRIPTOR_HANDLE m_hGpuSrv = {};
-
-	bool m_isDSV = false;
 };
 
 class GBuffer final
@@ -21,7 +19,7 @@ public:
 		LIGHT_ACCUM,
 		NORMAL,
 		SPECULAR,
-		DEPTH,
+		DEPTH,	// must be the last texture
 
 		MAX = 5
 	};
