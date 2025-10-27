@@ -18,6 +18,19 @@ using Microsoft::WRL::ComPtr;
 
 struct Material
 {
+    Material(const char* name)
+        : Name(std::string(name))
+    {
+    }
+
+    Material(const char* name, int materialBufferIndex, int diffuseSrvHeapIndex)
+        : Name(std::string(name))
+        , MatBufferIndex(materialBufferIndex)
+        , DiffuseSrvHeapIndex(diffuseSrvHeapIndex)
+    {
+
+    }
+
     std::string Name;
 
     // Index into constant/structured buffer corresponding to this material (to map with render item).
@@ -36,7 +49,7 @@ struct Material
     float Roughness = 0.25f;
 
     // could be used for material animation (water for instance)
-    XMMATRIX MatTransform;
+    XMMATRIX MatTransform = XMMatrixIdentity();
 };
 
 // F. Luna stuff: lightweight structure that stores parameters to draw a shape.
@@ -76,11 +89,13 @@ public:
         PerObjectDataCB = 0,
         PerPassDataCB,
         MaterialDataSB,
+        PointLightsDataSB,
+        SpotLightsDataSB,
         CascadedShadowMaps,
         Textures,
         GBufferTextures,
 
-        NumRootParameters = 6u
+        NumRootParameters = 8u
     };
 
     enum EPsoType : UINT
@@ -151,6 +166,7 @@ private:
 #pragma endregion DeferredShading
 
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
+    void DrawInstancedRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
     void DrawQuad(ID3D12GraphicsCommandList* cmdList);
 
 private:

@@ -80,6 +80,8 @@ VOID Engine::CreateRootSignature()
     slotRootParameter[ERootParameter::PerObjectDataCB].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */); // a root descriptor for objects' CBVs.
     slotRootParameter[ERootParameter::PerPassDataCB].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);                                             // a root descriptor for Pass CBV.
     slotRootParameter[ERootParameter::MaterialDataSB].InitAsShaderResourceView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::PointLightsDataSB].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::SpotLightsDataSB].InitAsShaderResourceView(1u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
     slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                          // a descriptor table for shadow maps array.
     slotRootParameter[ERootParameter::Textures].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                            // a descriptor table for textures
     slotRootParameter[ERootParameter::GBufferTextures].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                 // a descriptor table for GBuffer
@@ -277,7 +279,14 @@ VOID Engine::CreatePSO()
     dirLightPsoDesc.DSVFormat = DepthStencilFormat;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&dirLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredDirectional])));
 
+    // Still needs to be configured
+    // Hack with DSS and RS
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightPsoDesc = dirLightPsoDesc;
+    pointLightPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+    pointLightPsoDesc.DepthStencilState.DepthEnable = FALSE;
+    pointLightPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    pointLightPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    pointLightPsoDesc.DepthStencilState.StencilEnable = FALSE;
     pointLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferPointer()),
@@ -466,55 +475,41 @@ VOID Engine::CreateGeometry()
 
 VOID Engine::CreateGeometryMaterials()
 {
+    // Should probably be global scene variables
+    int MaterialBufferIndex = 0;
+    int DiffuseSrvHeapIndex = 0;
+
     // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
-    auto flame0 = std::make_unique<Material>();
-    flame0->Name = "flame0";
-    flame0->MatBufferIndex = 0;
-    flame0->DiffuseSrvHeapIndex = 0;
+    auto flame0 = std::make_unique<Material>("flame0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //flame0->DiffuseAlbedo = XMFLOAT4(Colors::Gold);
     flame0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
     flame0->Roughness = 0.2f;
     flame0->MatTransform = XMMatrixIdentity();
 
-    auto sand0 = std::make_unique<Material>();
-    sand0->Name = "sand0";
-    sand0->MatBufferIndex = 1;
-    sand0->DiffuseSrvHeapIndex = 1;
+    auto sand0 = std::make_unique<Material>("sand0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //sand0->DiffuseAlbedo = XMFLOAT4(Colors::Brown);
     sand0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
     sand0->Roughness = 0.1f;
     sand0->MatTransform = XMMatrixIdentity();
 
-    auto stone0 = std::make_unique<Material>();
-    stone0->Name = "stone0";
-    stone0->MatBufferIndex = 2;
-    stone0->DiffuseSrvHeapIndex = 2;
+    auto stone0 = std::make_unique<Material>("stone0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //stone0->DiffuseAlbedo = XMFLOAT4(Colors::Orchid);
     stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     stone0->Roughness = 0.3f;
     stone0->MatTransform = XMMatrixIdentity();
 
-    auto ground0 = std::make_unique<Material>();
-    ground0->Name = "ground0";
-    ground0->MatBufferIndex = 3;
-    ground0->DiffuseSrvHeapIndex = 3;
+    auto ground0 = std::make_unique<Material>("ground0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
     ground0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     ground0->Roughness = 0.3f;
     ground0->MatTransform = XMMatrixIdentity();
 
-    auto wood0 = std::make_unique<Material>();
-    wood0->Name = "wood0";
-    wood0->MatBufferIndex = 4;
-    wood0->DiffuseSrvHeapIndex = 4;
+    auto wood0 = std::make_unique<Material>("wood0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     wood0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     wood0->Roughness = 0.5f;
     wood0->MatTransform = XMMatrixIdentity();
-    
-    auto iron0 = std::make_unique<Material>();
-    iron0->Name = "iron0";
-    iron0->MatBufferIndex = 5;
-    iron0->DiffuseSrvHeapIndex = 5;
+
+    auto iron0 = std::make_unique<Material>("iron0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     iron0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     iron0->Roughness = 0.1f;
     iron0->MatTransform = XMMatrixIdentity();
@@ -608,7 +603,7 @@ VOID Engine::CreateRenderItems()
 
 VOID Engine::CreatePointLights()
 {
-    MeshData geosphere = Shapes::CreateGeosphere(1.0f, 4u);
+    MeshData geosphere = Shapes::CreateGeosphere(1.0f, 3u);
 
     auto pointLightMesh = std::make_unique<MeshGeometry>("pointLightMesh");
     pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), geosphere.vertices, geosphere.indices);
@@ -617,16 +612,15 @@ VOID Engine::CreatePointLights()
     const int n = 5;
 
     auto pointLight = std::make_unique<RenderItem>();
-    pointLight->Instances.resize(n * n * n);
+    pointLight->Instances.resize(n * n);
     pointLight->World = XMMatrixIdentity();
     pointLight->Geo = m_geometries.at("pointLightMesh").get();
     pointLight->StartIndexLocation = 0u;
     pointLight->BaseVertexLocation = 0;
     pointLight->IndexCount = (UINT)geosphere.indices.size();
 
-    float width = 200.0f;
-    float height = 200.0f;
-    float depth = 200.0f;
+    float width = 50.0f;
+    float depth = 50.0f;
 
     float x = -0.5f * width;
     float z = -0.5f * depth;
@@ -653,7 +647,10 @@ VOID Engine::CreateFrameResources()
 {
     for (int i = 0; i < gNumFrameResources; i++)
     {
-        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), static_cast<UINT>(EPassType::NumPasses), (UINT)m_renderItems.size(), (UINT)m_materials.size(), MaxPointLights));
+        m_frameResources.push_back(std::make_unique<FrameResource>(
+            m_device.Get(), 
+            static_cast<UINT>(EPassType::NumPasses), 
+            (UINT)m_renderItems.size(), (UINT)m_materials.size(), MaxPointLights));
     }
 }
 
@@ -836,8 +833,7 @@ void Engine::OnRender(const ScaldTimer& st)
 
 void Engine::OnDestroy()
 {
-    // Ensure that the GPU is no longer referencing resources that are about to be
-    // cleaned up by the destructor.
+    // Ensure that the GPU is no longer referencing resources that are about to be cleaned up by the destructor.
     WaitForGPU();
 
     CloseHandle(m_fenceEvent);
@@ -985,11 +981,12 @@ void Engine::UpdateLightsBuffer(const ScaldTimer& st)
 
         for (UINT i = 0; i < (UINT)instances.size(); ++i)
         {
-            XMStoreFloat4x4(&m_perInstanceSBData.World, XMLoadFloat4x4(&instances[i].World));
+            XMStoreFloat4x4(&m_perInstanceSBData.World, XMMatrixTranspose(XMLoadFloat4x4(&instances[i].World)));
             // copy all instances to structured buffer
             currPointLightSB->CopyData(pointLightIndex++, m_perInstanceSBData);
         }
-            
+        e->InstanceCount = pointLightIndex;
+
         //e->NumFramesDirty--;
         //}
     }
@@ -1072,20 +1069,12 @@ void Engine::UpdateMainPassCB(const ScaldTimer& st)
 
     m_mainPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
 
+#pragma region DirLight
     // Invert sign because other way light would be pointing up
     XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
-
-#pragma region DirLight
     XMStoreFloat3(&m_mainPassCBData.DirLight.Direction, lightDir);
     m_mainPassCBData.DirLight.Strength = { 1.0f, 1.0f, 0.9f };
 #pragma endregion DirLight
-
-/*#pragma region PointLights
-    m_mainPassCBData.Lights[1].Position = { 0.0f, 0.0f, 2.0f };
-    m_mainPassCBData.Lights[1].FallOfStart = 5.0f;
-    m_mainPassCBData.Lights[1].FallOfEnd = 10.0f;
-    m_mainPassCBData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
-#pragma endregion PointLights*/
 
     auto currPassCB = m_currFrameResource->PassCB.get();
     currPassCB->CopyData(static_cast<int>(EPassType::DeferredLighting), m_mainPassCBData);
@@ -1118,11 +1107,8 @@ VOID Engine::PopulateCommandList()
     m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
     RenderDepthOnlyPass();
-
     RenderGeometryPass();
-    
     RenderLightingPass();
-
     //RenderTransparencyPass();
 
     ThrowIfFailed(m_commandList->Close());
@@ -1171,6 +1157,7 @@ void Engine::RenderGeometryPass()
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
     m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); // second element contains data for geometry pass
 
+    // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
     auto matBuffer = m_currFrameResource->MaterialSB->Get();
     m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
 
@@ -1213,6 +1200,7 @@ void Engine::RenderLightingPass()
 {
     DeferredDirectionalLightPass();
     DeferredPointLightPass();
+    //DeferredSpotLightPass();
 }
 
 void Engine::DeferredDirectionalLightPass()
@@ -1239,33 +1227,33 @@ void Engine::DeferredDirectionalLightPass()
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
     m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
 
-    // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
-    auto matBuffer = m_currFrameResource->MaterialSB->Get();
-    m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
-
     // Set shaadow map texture for main pass
     m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
 
-    // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
-    // The root signature knows how many descriptors are expected in the table.
-    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-
     // Bind GBuffer textures
     m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
-
 #pragma endregion BypassResources
 
     m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredDirectional).Get());
     DrawQuad(m_commandList.Get());
-
-    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1u, &transition);
 }
 
 void Engine::DeferredPointLightPass()
 {
+    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
+    auto currFramePassCB = m_currFrameResource->PassCB->Get();
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
+
+    // Bind GBuffer textures
+    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
+
     m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPoint).Get());
+    DrawInstancedRenderItems(m_commandList.Get(), m_pointLights);
+
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    // Indicate that the back buffer will now be used to present.
+    m_commandList->ResourceBarrier(1u, &transition);
 }
 
 void Engine::RenderTransparencyPass()
@@ -1292,6 +1280,26 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std
         cmdList->SetGraphicsRootConstantBufferView(ERootParameter::PerObjectDataCB, objCBAddress);
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
+    }
+}
+
+void Engine::DrawInstancedRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
+{
+    for (auto& ri : renderItems)
+    {
+        cmdList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
+        cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
+        cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+
+        // Set the instance buffer to use for this render-item.  For structured buffers, we can bypass 
+        // the heap and set as a root descriptor.
+        auto instanceBuffer = m_currFrameResource->PointLightSB->Get();
+
+        // now we set only objects' cbv per item, material data is set per pass
+        // we get material data by index from structured buffer
+        cmdList->SetGraphicsRootShaderResourceView(ERootParameter::PointLightsDataSB, instanceBuffer->GetGPUVirtualAddress());
+
+        cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
 }
 
