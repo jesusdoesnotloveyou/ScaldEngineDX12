@@ -16,11 +16,13 @@ struct VSOutput
     float2 oTexC    : TEXCOORD;
 };
 
-VSOutput main(VSInput input)
+VSOutput main(VSInput input, uint instanceID : SV_InstanceID)
 {
     VSOutput output = (VSOutput) 0;
     
-    float4 posW = mul(float4(input.iPosL, 1.0f), gWorld);
+    InstanceData instData = gPointLights[instanceID];
+    
+    float4 posW = mul(float4(input.iPosL, 1.0f), instData.gWorld);
     output.oPosH = mul(posW, gViewProj);
     return output;
 }
