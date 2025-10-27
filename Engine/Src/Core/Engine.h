@@ -135,6 +135,7 @@ private:
     void OnKeyboardInput(const ScaldTimer& st);
     void UpdateObjectsCB(const ScaldTimer& st);
     void UpdateMaterialBuffer(const ScaldTimer& st);
+    void UpdateLightsBuffer(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
     void UpdateShadowPassCB(const ScaldTimer& st);
     void UpdateGeometryPassCB(const ScaldTimer& st);
@@ -175,15 +176,17 @@ private:
     ObjectConstants m_perObjectCBData;
     PassConstants m_shadowPassCBData;
     PassConstants m_geometryPassCBData;
-    PassConstants m_mainPassCBData; // deferred color/light pass
+    PassConstants m_mainPassCBData; // deferred color(light) pass
     //PassConstants m_lightingPassCBData;
-    //PassConstants m_geometryPassCBData;
     MaterialData m_perMaterialSBData;
+    InstanceData m_perInstanceSBData;
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
     std::unordered_map<std::string, std::unique_ptr<Material>> m_materials;
     std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
+
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
+    std::vector<std::unique_ptr<RenderItem>> m_pointLights;
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;

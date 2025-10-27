@@ -47,6 +47,7 @@ VOID Engine::LoadAssets()
     CreateGeometry();
     CreateGeometryMaterials();
     CreateRenderItems();
+    CreatePointLights();
     CreateFrameResources();
     CreateDescriptorHeaps();
     CreateRootSignature();
@@ -63,14 +64,14 @@ VOID Engine::LoadAssets()
 
 VOID Engine::CreateRootSignature()
 {
-    CD3DX12_DESCRIPTOR_RANGE texTable;
-    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /* number of textures 2D */(UINT)m_textures.size(), 1u, 0u);
-
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
     cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
+    
+    CD3DX12_DESCRIPTOR_RANGE texTable;
+    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /* number of textures2D */(UINT)m_textures.size(), 2u, 0u);
 
     CD3DX12_DESCRIPTOR_RANGE gBufferTable;
-    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, 1u, 1u);
+    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, 2u, 1u);
 
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[ERootParameter::NumRootParameters];
@@ -78,7 +79,7 @@ VOID Engine::CreateRootSignature()
     // Perfomance TIP: Order from most frequent to least frequent.
     slotRootParameter[ERootParameter::PerObjectDataCB].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */); // a root descriptor for objects' CBVs.
     slotRootParameter[ERootParameter::PerPassDataCB].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);                                             // a root descriptor for Pass CBV.
-    slotRootParameter[ERootParameter::MaterialDataSB].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::MaterialDataSB].InitAsShaderResourceView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
     slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                          // a descriptor table for shadow maps array.
     slotRootParameter[ERootParameter::Textures].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                            // a descriptor table for textures
     slotRootParameter[ERootParameter::GBufferTextures].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                 // a descriptor table for GBuffer
@@ -140,7 +141,8 @@ VOID Engine::CreateShaders()
     {
         { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
         { "NORMAL", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-        { "TEXCOORD", 0u, DXGI_FORMAT_R32G32_FLOAT, 0u, 24u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+        { "TANGENT", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 24u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+        { "TEXCOORD", 0u, DXGI_FORMAT_R32G32_FLOAT, 0u, 36u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
     };
 }
 
@@ -393,49 +395,49 @@ VOID Engine::CreateGeometry()
         + grid.indices.size()
         ;
 
-    std::vector<Vertex> vertices(totalVertexCount);
+    std::vector<SVertex> vertices(totalVertexCount);
 
     int k = 0;
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < grid.vertices.size(); ++i, ++k)
     {
         vertices[k].position = grid.vertices[i].position;
         vertices[k].normal = grid.vertices[i].normal;
-        vertices[k].texC = grid.vertices[i].texCoord;
+        vertices[k].texCoord = grid.vertices[i].texCoord;
     }
 
     std::vector<uint16_t> indices;
@@ -446,29 +448,8 @@ VOID Engine::CreateGeometry()
     indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
     indices.insert(indices.end(), grid.indices.begin(), grid.indices.end());
 
-    const UINT64 vbByteSize = vertices.size() * sizeof(Vertex);
-    const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
-
-    auto geometry = std::make_unique<MeshGeometry>();
-    geometry->Name = "solarSystem";
-    
-    // Create system buffer for copy vertices data
-    ThrowIfFailed(D3DCreateBlob(vbByteSize, &geometry->VertexBufferCPU));
-    CopyMemory(geometry->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-    // Create GPU resource
-    geometry->VertexBufferGPU = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), vertices.data(), vbByteSize, geometry->VertexBufferUploader);
-    // Initialize the vertex buffer view.
-    geometry->VertexBufferByteSize = (UINT)vbByteSize;
-    geometry->VertexByteStride = sizeof(Vertex);
-
-    // Create system buffer for copy indices data
-    ThrowIfFailed(D3DCreateBlob(ibByteSize, &geometry->IndexBufferCPU));
-    CopyMemory(geometry->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-    // Create GPU resource
-    geometry->IndexBufferGPU = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), indices.data(), ibByteSize, geometry->IndexBufferUploader);
-    // Initialize the index buffer view.
-    geometry->IndexBufferByteSize = ibByteSize;
-    geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
+    auto geometry = std::make_unique<MeshGeometry>("solarSystem");
+    geometry->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), vertices, indices);
 
     geometry->DrawArgs["sun"] = sunSubmesh;
     geometry->DrawArgs["mercury"] = mercurySubmesh;
@@ -478,17 +459,9 @@ VOID Engine::CreateGeometry()
     geometry->DrawArgs["plane"] = planeSubmesh;
     m_geometries[geometry->Name] = std::move(geometry);
 
-
-    m_fullQuad = std::make_unique<MeshGeometry>();
-    std::vector<Vertex> fullQuadVertices(4, Vertex{});
-    const UINT64 vbQuadByteSize = fullQuadVertices.size() * sizeof(Vertex);
-    ThrowIfFailed(D3DCreateBlob(vbQuadByteSize, &m_fullQuad->VertexBufferCPU));
-    CopyMemory(m_fullQuad->VertexBufferCPU->GetBufferPointer(), fullQuadVertices.data(), vbQuadByteSize);
-    // Create GPU resource
-    m_fullQuad->VertexBufferGPU = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), fullQuadVertices.data(), vbQuadByteSize, m_fullQuad->VertexBufferUploader);
-    // Initialize the vertex buffer view.
-    m_fullQuad->VertexBufferByteSize = (UINT)vbQuadByteSize;
-    m_fullQuad->VertexByteStride = sizeof(Vertex);
+    m_fullQuad = std::make_unique<MeshGeometry>("fullQuad");
+    std::vector<SVertex> fullQuadVertices(4, SVertex{});
+    m_fullQuad->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), fullQuadVertices);
 }
 
 VOID Engine::CreateGeometryMaterials()
@@ -635,15 +608,52 @@ VOID Engine::CreateRenderItems()
 
 VOID Engine::CreatePointLights()
 {
-    auto pointLightVolume = std::make_unique<RenderItem>();
-    pointLightVolume->World = XMMatrixIdentity();
+    MeshData geosphere = Shapes::CreateGeosphere(1.0f, 4u);
+
+    auto pointLightMesh = std::make_unique<MeshGeometry>("pointLightMesh");
+    pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), geosphere.vertices, geosphere.indices);
+    m_geometries[pointLightMesh->Name] = std::move(pointLightMesh);
+
+    const int n = 5;
+
+    auto pointLight = std::make_unique<RenderItem>();
+    pointLight->Instances.resize(n * n * n);
+    pointLight->World = XMMatrixIdentity();
+    pointLight->Geo = m_geometries.at("pointLightMesh").get();
+    pointLight->StartIndexLocation = 0u;
+    pointLight->BaseVertexLocation = 0;
+    pointLight->IndexCount = (UINT)geosphere.indices.size();
+
+    float width = 200.0f;
+    float height = 200.0f;
+    float depth = 200.0f;
+
+    float x = -0.5f * width;
+    float z = -0.5f * depth;
+    float dx = width / (n - 1);
+    float dz = depth / (n - 1);
+
+    for (int k = 0; k < n; ++k)
+    {
+        for (int j = 0; j < n; ++j)
+        {
+            int index = k*n + j;
+            pointLight->Instances[index].World = XMFLOAT4X4(
+                1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                x + j * dx, 0.0f, z + k * dz, 1.0f);
+        }
+    }
+
+    m_pointLights.push_back(std::move(pointLight));
 }
 
 VOID Engine::CreateFrameResources()
 {
     for (int i = 0; i < gNumFrameResources; i++)
     {
-        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), static_cast<UINT>(EPassType::NumPasses), (UINT)m_renderItems.size(), (UINT)m_materials.size()));
+        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), static_cast<UINT>(EPassType::NumPasses), (UINT)m_renderItems.size(), (UINT)m_materials.size(), MaxPointLights));
     }
 }
 
@@ -799,6 +809,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
 
     UpdateObjectsCB(st);
     UpdateMaterialBuffer(st);
+    UpdateLightsBuffer(st);
     
     UpdateShadowTransform(st);
     UpdateShadowPassCB(st); // pass
@@ -959,6 +970,31 @@ void Engine::UpdateMaterialBuffer(const ScaldTimer& st)
     }
 }
 
+void Engine::UpdateLightsBuffer(const ScaldTimer& st)
+{
+    auto currPointLightSB = m_currFrameResource->PointLightSB.get();
+
+    for (auto& e : m_pointLights)
+    {
+        // we have many instances, not the one objects, so think about it (we can't update all instances, if only one point light gets dirty)
+        //if (e->NumFramesDirty > 0)
+        //{
+        
+        int pointLightIndex = 0;
+        const auto& instances = e->Instances;
+
+        for (UINT i = 0; i < (UINT)instances.size(); ++i)
+        {
+            XMStoreFloat4x4(&m_perInstanceSBData.World, XMLoadFloat4x4(&instances[i].World));
+            // copy all instances to structured buffer
+            currPointLightSB->CopyData(pointLightIndex++, m_perInstanceSBData);
+        }
+            
+        //e->NumFramesDirty--;
+        //}
+    }
+}
+
 void Engine::UpdateShadowTransform(const ScaldTimer& st)
 {
     std::vector<std::pair<XMMATRIX, XMMATRIX>> lightSpaceMatrices;
@@ -1034,22 +1070,22 @@ void Engine::UpdateMainPassCB(const ScaldTimer& st)
     m_mainPassCBData.DeltaTime = st.DeltaTime();
     m_mainPassCBData.TotalTime = st.TotalTime();
 
-    m_geometryPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
+    m_mainPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
 
     // Invert sign because other way light would be pointing up
     XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
 
-#pragma region DirLights
-    XMStoreFloat3(&m_mainPassCBData.Lights[0].Direction, lightDir);
-    m_mainPassCBData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
-#pragma endregion DirLights
+#pragma region DirLight
+    XMStoreFloat3(&m_mainPassCBData.DirLight.Direction, lightDir);
+    m_mainPassCBData.DirLight.Strength = { 1.0f, 1.0f, 0.9f };
+#pragma endregion DirLight
 
-#pragma region PointLights
+/*#pragma region PointLights
     m_mainPassCBData.Lights[1].Position = { 0.0f, 0.0f, 2.0f };
     m_mainPassCBData.Lights[1].FallOfStart = 5.0f;
     m_mainPassCBData.Lights[1].FallOfEnd = 10.0f;
     m_mainPassCBData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
-#pragma endregion PointLights
+#pragma endregion PointLights*/
 
     auto currPassCB = m_currFrameResource->PassCB.get();
     currPassCB->CopyData(static_cast<int>(EPassType::DeferredLighting), m_mainPassCBData);
@@ -1176,7 +1212,7 @@ void Engine::RenderGeometryPass()
 void Engine::RenderLightingPass()
 {
     DeferredDirectionalLightPass();
-    //DeferredPointLightPass();
+    DeferredPointLightPass();
 }
 
 void Engine::DeferredDirectionalLightPass()
@@ -1341,7 +1377,7 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers()
 
 std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, const float farZ)
 {
-    const auto directionalLight = m_mainPassCBData.Lights[0];
+    const auto directionalLight = m_mainPassCBData.DirLight;
 
     const XMFLOAT3 lightDir = directionalLight.Direction;
 
