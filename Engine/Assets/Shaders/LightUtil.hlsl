@@ -55,12 +55,12 @@ float3 BlinnPhong(float3 lightStrength, float3 lightDir, float3 N, float3 viewDi
     return (mat.DiffuseAlbedo.rgb + specAlbedo) * lightStrength;
 }
 
-float3 CalcDirLight(Light L, float3 N, float3 viewDir, Material mat)
+float3 CalcDirLight(Light L, float3 N, float3 viewDir, Material mat, float shadowFactor)
 {
     float3 lightDirection = normalize(-L.Direction);
     float NdotL = max(dot(lightDirection, N), 0.0f);
     float3 lightStrength = NdotL * L.Strength;
-    return BlinnPhong(lightStrength, lightDirection, N, viewDir, mat);
+    return BlinnPhong(lightStrength, lightDirection, N, viewDir, mat) * shadowFactor;
 }
 
 float CalcAttenuation(float distance, float falloffStart, float falloffEnd)
@@ -105,7 +105,7 @@ float4 ComputeLight(Light gLights[MaxLights], float3 N, float3 posW, float3 view
     for (int i = 0; i < NUM_DIR_LIGHTS; i++)
     {
         // stuff with shadows supposed to work with only one directional light
-        dirLight += shadowFactor * CalcDirLight(gLights[i], N, viewDir, mat);
+        dirLight += CalcDirLight(gLights[i], N, viewDir, mat, shadowFactor);
     }
     litColor += dirLight;
 #endif

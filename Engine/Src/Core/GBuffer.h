@@ -8,8 +8,6 @@ struct FGBufferTexture
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuRtvDsv = {};
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuSrv = {};
 	CD3DX12_GPU_DESCRIPTOR_HANDLE m_hGpuSrv = {};
-
-	bool m_isDSV = false;
 };
 
 class GBuffer final
@@ -18,10 +16,10 @@ public:
 	enum EGBufferLayer : UINT
 	{
 		DIFFUSE_ALBEDO = 0u,
-		LIGHT_ACCUM,
+		AMBIENT_OCCLUSION,
 		NORMAL,
 		SPECULAR,
-		DEPTH,
+		DEPTH,	// must be the last texture
 
 		MAX = 5
 	};
@@ -64,11 +62,11 @@ private:
 	static constexpr DXGI_FORMAT m_bufferFormats[EGBufferLayer::MAX] = // order of DXGI_FORMAT should corresponds to EGBufferLayer 
 	{
 		DXGI_FORMAT_R8G8B8A8_UNORM,			//DIFFUSE_ALBEDO
-		DXGI_FORMAT_R8G8B8A8_UNORM,			//LIGHT_ACCUM
+		DXGI_FORMAT_R8G8B8A8_UNORM,			//AMBIENT_OCCLUSION
 		DXGI_FORMAT_R32G32B32A32_FLOAT,		//NORMAL
 		DXGI_FORMAT_R8G8B8A8_UNORM,			//SPECULAR
-		DXGI_FORMAT_D24_UNORM_S8_UINT		//DEPTH. format for dsv
+		DXGI_FORMAT_D24_UNORM_S8_UINT		//DEPTH. Format for DSV (SRV demands R24...)
 	};
 
-	static constexpr FLOAT m_optimizedClearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	static constexpr FLOAT m_optimizedClearColor[4] = { 0.7f, 0.7f, 0.7f, 1.0f };
 };

@@ -47,6 +47,7 @@ VOID Engine::LoadAssets()
     CreateGeometry();
     CreateGeometryMaterials();
     CreateRenderItems();
+    CreatePointLights();
     CreateFrameResources();
     CreateDescriptorHeaps();
     CreateRootSignature();
@@ -63,14 +64,14 @@ VOID Engine::LoadAssets()
 
 VOID Engine::CreateRootSignature()
 {
-    CD3DX12_DESCRIPTOR_RANGE texTable;
-    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /* number of textures 2D */(UINT)m_textures.size(), 1u, 0u);
-
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
     cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
+    
+    CD3DX12_DESCRIPTOR_RANGE texTable;
+    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /* number of textures2D */(UINT)m_textures.size(), 2u, 0u);
 
     CD3DX12_DESCRIPTOR_RANGE gBufferTable;
-    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, 1u, 1u);
+    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, 2u, 1u);
 
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[ERootParameter::NumRootParameters];
@@ -78,7 +79,9 @@ VOID Engine::CreateRootSignature()
     // Perfomance TIP: Order from most frequent to least frequent.
     slotRootParameter[ERootParameter::PerObjectDataCB].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */); // a root descriptor for objects' CBVs.
     slotRootParameter[ERootParameter::PerPassDataCB].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);                                             // a root descriptor for Pass CBV.
-    slotRootParameter[ERootParameter::MaterialDataSB].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::MaterialDataSB].InitAsShaderResourceView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::PointLightsDataSB].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::SpotLightsDataSB].InitAsShaderResourceView(1u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
     slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                          // a descriptor table for shadow maps array.
     slotRootParameter[ERootParameter::Textures].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                            // a descriptor table for textures
     slotRootParameter[ERootParameter::GBufferTextures].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                 // a descriptor table for GBuffer
@@ -140,7 +143,8 @@ VOID Engine::CreateShaders()
     {
         { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
         { "NORMAL", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-        { "TEXCOORD", 0u, DXGI_FORMAT_R32G32_FLOAT, 0u, 24u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+        { "TANGENT", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 24u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+        { "TEXCOORD", 0u, DXGI_FORMAT_R32G32_FLOAT, 0u, 36u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
     };
 }
 
@@ -253,7 +257,7 @@ VOID Engine::CreatePSO()
         });
     GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(GBuffer::EGBufferLayer::MAX) - 1u;
     GBufferPsoDesc.RTVFormats[0] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO);
-    GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::LIGHT_ACCUM);
+    GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION);
     GBufferPsoDesc.RTVFormats[2] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::NORMAL);
     GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::SPECULAR);
     GBufferPsoDesc.DSVFormat = DepthStencilFormat; // corresponds to default format
@@ -275,7 +279,14 @@ VOID Engine::CreatePSO()
     dirLightPsoDesc.DSVFormat = DepthStencilFormat;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&dirLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredDirectional])));
 
+    // Still needs to be configured
+    // Hack with DSS and RS
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightPsoDesc = dirLightPsoDesc;
+    pointLightPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+    pointLightPsoDesc.DepthStencilState.DepthEnable = FALSE;
+    pointLightPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    pointLightPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    pointLightPsoDesc.DepthStencilState.StencilEnable = FALSE;
     pointLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferPointer()),
@@ -393,49 +404,49 @@ VOID Engine::CreateGeometry()
         + grid.indices.size()
         ;
 
-    std::vector<Vertex> vertices(totalVertexCount);
+    std::vector<SVertex> vertices(totalVertexCount);
 
     int k = 0;
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
     {
         vertices[k].position = sphere.vertices[i].position;
         vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texC = sphere.vertices[i].texCoord;
+        vertices[k].texCoord = sphere.vertices[i].texCoord;
     }
 
     for (size_t i = 0; i < grid.vertices.size(); ++i, ++k)
     {
         vertices[k].position = grid.vertices[i].position;
         vertices[k].normal = grid.vertices[i].normal;
-        vertices[k].texC = grid.vertices[i].texCoord;
+        vertices[k].texCoord = grid.vertices[i].texCoord;
     }
 
     std::vector<uint16_t> indices;
@@ -446,29 +457,8 @@ VOID Engine::CreateGeometry()
     indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
     indices.insert(indices.end(), grid.indices.begin(), grid.indices.end());
 
-    const UINT64 vbByteSize = vertices.size() * sizeof(Vertex);
-    const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
-
-    auto geometry = std::make_unique<MeshGeometry>();
-    geometry->Name = "solarSystem";
-    
-    // Create system buffer for copy vertices data
-    ThrowIfFailed(D3DCreateBlob(vbByteSize, &geometry->VertexBufferCPU));
-    CopyMemory(geometry->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-    // Create GPU resource
-    geometry->VertexBufferGPU = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), vertices.data(), vbByteSize, geometry->VertexBufferUploader);
-    // Initialize the vertex buffer view.
-    geometry->VertexBufferByteSize = (UINT)vbByteSize;
-    geometry->VertexByteStride = sizeof(Vertex);
-
-    // Create system buffer for copy indices data
-    ThrowIfFailed(D3DCreateBlob(ibByteSize, &geometry->IndexBufferCPU));
-    CopyMemory(geometry->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-    // Create GPU resource
-    geometry->IndexBufferGPU = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), indices.data(), ibByteSize, geometry->IndexBufferUploader);
-    // Initialize the index buffer view.
-    geometry->IndexBufferByteSize = ibByteSize;
-    geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
+    auto geometry = std::make_unique<MeshGeometry>("solarSystem");
+    geometry->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), vertices, indices);
 
     geometry->DrawArgs["sun"] = sunSubmesh;
     geometry->DrawArgs["mercury"] = mercurySubmesh;
@@ -478,70 +468,48 @@ VOID Engine::CreateGeometry()
     geometry->DrawArgs["plane"] = planeSubmesh;
     m_geometries[geometry->Name] = std::move(geometry);
 
-
-    m_fullQuad = std::make_unique<MeshGeometry>();
-    std::vector<Vertex> fullQuadVertices(4, Vertex{});
-    const UINT64 vbQuadByteSize = fullQuadVertices.size() * sizeof(Vertex);
-    ThrowIfFailed(D3DCreateBlob(vbQuadByteSize, &m_fullQuad->VertexBufferCPU));
-    CopyMemory(m_fullQuad->VertexBufferCPU->GetBufferPointer(), fullQuadVertices.data(), vbQuadByteSize);
-    // Create GPU resource
-    m_fullQuad->VertexBufferGPU = ScaldUtil::CreateDefaultBuffer(m_device.Get(), m_commandList.Get(), fullQuadVertices.data(), vbQuadByteSize, m_fullQuad->VertexBufferUploader);
-    // Initialize the vertex buffer view.
-    m_fullQuad->VertexBufferByteSize = (UINT)vbQuadByteSize;
-    m_fullQuad->VertexByteStride = sizeof(Vertex);
+    m_fullQuad = std::make_unique<MeshGeometry>("fullQuad");
+    std::vector<SVertex> fullQuadVertices(4, SVertex{});
+    m_fullQuad->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), fullQuadVertices);
 }
 
 VOID Engine::CreateGeometryMaterials()
 {
+    // Should probably be global scene variables
+    int MaterialBufferIndex = 0;
+    int DiffuseSrvHeapIndex = 0;
+
     // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
-    auto flame0 = std::make_unique<Material>();
-    flame0->Name = "flame0";
-    flame0->MatBufferIndex = 0;
-    flame0->DiffuseSrvHeapIndex = 0;
+    auto flame0 = std::make_unique<Material>("flame0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //flame0->DiffuseAlbedo = XMFLOAT4(Colors::Gold);
     flame0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
     flame0->Roughness = 0.2f;
     flame0->MatTransform = XMMatrixIdentity();
 
-    auto sand0 = std::make_unique<Material>();
-    sand0->Name = "sand0";
-    sand0->MatBufferIndex = 1;
-    sand0->DiffuseSrvHeapIndex = 1;
+    auto sand0 = std::make_unique<Material>("sand0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //sand0->DiffuseAlbedo = XMFLOAT4(Colors::Brown);
     sand0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
     sand0->Roughness = 0.1f;
     sand0->MatTransform = XMMatrixIdentity();
 
-    auto stone0 = std::make_unique<Material>();
-    stone0->Name = "stone0";
-    stone0->MatBufferIndex = 2;
-    stone0->DiffuseSrvHeapIndex = 2;
+    auto stone0 = std::make_unique<Material>("stone0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //stone0->DiffuseAlbedo = XMFLOAT4(Colors::Orchid);
     stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     stone0->Roughness = 0.3f;
     stone0->MatTransform = XMMatrixIdentity();
 
-    auto ground0 = std::make_unique<Material>();
-    ground0->Name = "ground0";
-    ground0->MatBufferIndex = 3;
-    ground0->DiffuseSrvHeapIndex = 3;
+    auto ground0 = std::make_unique<Material>("ground0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
     ground0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     ground0->Roughness = 0.3f;
     ground0->MatTransform = XMMatrixIdentity();
 
-    auto wood0 = std::make_unique<Material>();
-    wood0->Name = "wood0";
-    wood0->MatBufferIndex = 4;
-    wood0->DiffuseSrvHeapIndex = 4;
+    auto wood0 = std::make_unique<Material>("wood0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     wood0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     wood0->Roughness = 0.5f;
     wood0->MatTransform = XMMatrixIdentity();
-    
-    auto iron0 = std::make_unique<Material>();
-    iron0->Name = "iron0";
-    iron0->MatBufferIndex = 5;
-    iron0->DiffuseSrvHeapIndex = 5;
+
+    auto iron0 = std::make_unique<Material>("iron0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     iron0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
     iron0->Roughness = 0.1f;
     iron0->MatTransform = XMMatrixIdentity();
@@ -633,11 +601,56 @@ VOID Engine::CreateRenderItems()
     }
 }
 
+VOID Engine::CreatePointLights()
+{
+    MeshData geosphere = Shapes::CreateGeosphere(1.0f, 3u);
+
+    auto pointLightMesh = std::make_unique<MeshGeometry>("pointLightMesh");
+    pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), geosphere.vertices, geosphere.indices);
+    m_geometries[pointLightMesh->Name] = std::move(pointLightMesh);
+
+    const int n = 5;
+
+    auto pointLight = std::make_unique<RenderItem>();
+    pointLight->Instances.resize(n * n);
+    pointLight->World = XMMatrixIdentity();
+    pointLight->Geo = m_geometries.at("pointLightMesh").get();
+    pointLight->StartIndexLocation = 0u;
+    pointLight->BaseVertexLocation = 0;
+    pointLight->IndexCount = (UINT)geosphere.indices.size();
+
+    float width = 50.0f;
+    float depth = 50.0f;
+
+    float x = -0.5f * width;
+    float z = -0.5f * depth;
+    float dx = width / (n - 1);
+    float dz = depth / (n - 1);
+
+    for (int k = 0; k < n; ++k)
+    {
+        for (int j = 0; j < n; ++j)
+        {
+            int index = k*n + j;
+            pointLight->Instances[index].World = XMFLOAT4X4(
+                1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                x + j * dx, 0.0f, z + k * dz, 1.0f);
+        }
+    }
+
+    m_pointLights.push_back(std::move(pointLight));
+}
+
 VOID Engine::CreateFrameResources()
 {
     for (int i = 0; i < gNumFrameResources; i++)
     {
-        m_frameResources.push_back(std::make_unique<FrameResource>(m_device.Get(), static_cast<UINT>(EPassType::NumPasses), (UINT)m_renderItems.size(), (UINT)m_materials.size()));
+        m_frameResources.push_back(std::make_unique<FrameResource>(
+            m_device.Get(), 
+            static_cast<UINT>(EPassType::NumPasses), 
+            (UINT)m_renderItems.size(), (UINT)m_materials.size(), MaxPointLights));
     }
 }
 
@@ -793,6 +806,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
 
     UpdateObjectsCB(st);
     UpdateMaterialBuffer(st);
+    UpdateLightsBuffer(st);
     
     UpdateShadowTransform(st);
     UpdateShadowPassCB(st); // pass
@@ -819,8 +833,7 @@ void Engine::OnRender(const ScaldTimer& st)
 
 void Engine::OnDestroy()
 {
-    // Ensure that the GPU is no longer referencing resources that are about to be
-    // cleaned up by the destructor.
+    // Ensure that the GPU is no longer referencing resources that are about to be cleaned up by the destructor.
     WaitForGPU();
 
     CloseHandle(m_fenceEvent);
@@ -953,6 +966,32 @@ void Engine::UpdateMaterialBuffer(const ScaldTimer& st)
     }
 }
 
+void Engine::UpdateLightsBuffer(const ScaldTimer& st)
+{
+    auto currPointLightSB = m_currFrameResource->PointLightSB.get();
+
+    for (auto& e : m_pointLights)
+    {
+        // we have many instances, not the one objects, so think about it (we can't update all instances, if only one point light gets dirty)
+        //if (e->NumFramesDirty > 0)
+        //{
+        
+        int pointLightIndex = 0;
+        const auto& instances = e->Instances;
+
+        for (UINT i = 0; i < (UINT)instances.size(); ++i)
+        {
+            XMStoreFloat4x4(&m_perInstanceSBData.World, XMMatrixTranspose(XMLoadFloat4x4(&instances[i].World)));
+            // copy all instances to structured buffer
+            currPointLightSB->CopyData(pointLightIndex++, m_perInstanceSBData);
+        }
+        e->InstanceCount = pointLightIndex;
+
+        //e->NumFramesDirty--;
+        //}
+    }
+}
+
 void Engine::UpdateShadowTransform(const ScaldTimer& st)
 {
     std::vector<std::pair<XMMATRIX, XMMATRIX>> lightSpaceMatrices;
@@ -1004,8 +1043,6 @@ void Engine::UpdateGeometryPassCB(const ScaldTimer& st)
     m_geometryPassCBData.DeltaTime = st.DeltaTime();
     m_geometryPassCBData.TotalTime = st.TotalTime();
 
-    m_geometryPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
-
     auto currPassCB = m_currFrameResource->PassCB.get();
     currPassCB->CopyData(static_cast<int>(EPassType::DeferredGeometry), m_geometryPassCBData);
 }
@@ -1030,20 +1067,14 @@ void Engine::UpdateMainPassCB(const ScaldTimer& st)
     m_mainPassCBData.DeltaTime = st.DeltaTime();
     m_mainPassCBData.TotalTime = st.TotalTime();
 
+    m_mainPassCBData.Ambient = { 0.25f, 0.25f, 0.35f, 1.0f };
+
+#pragma region DirLight
     // Invert sign because other way light would be pointing up
     XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
-
-#pragma region DirLights
-    XMStoreFloat3(&m_mainPassCBData.Lights[0].Direction, lightDir);
-    m_mainPassCBData.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
-#pragma endregion DirLights
-
-#pragma region PointLights
-    m_mainPassCBData.Lights[1].Position = { 0.0f, 0.0f, 2.0f };
-    m_mainPassCBData.Lights[1].FallOfStart = 5.0f;
-    m_mainPassCBData.Lights[1].FallOfEnd = 10.0f;
-    m_mainPassCBData.Lights[1].Strength = { 0.9f, 0.5f, 0.9f };
-#pragma endregion PointLights
+    XMStoreFloat3(&m_mainPassCBData.DirLight.Direction, lightDir);
+    m_mainPassCBData.DirLight.Strength = { 1.0f, 1.0f, 0.9f };
+#pragma endregion DirLight
 
     auto currPassCB = m_currFrameResource->PassCB.get();
     currPassCB->CopyData(static_cast<int>(EPassType::DeferredLighting), m_mainPassCBData);
@@ -1076,11 +1107,8 @@ VOID Engine::PopulateCommandList()
     m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
     RenderDepthOnlyPass();
-
     RenderGeometryPass();
-    
     RenderLightingPass();
-
     //RenderTransparencyPass();
 
     ThrowIfFailed(m_commandList->Close());
@@ -1129,6 +1157,7 @@ void Engine::RenderGeometryPass()
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
     m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); // second element contains data for geometry pass
 
+    // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
     auto matBuffer = m_currFrameResource->MaterialSB->Get();
     m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
 
@@ -1139,7 +1168,7 @@ void Engine::RenderGeometryPass()
     
     D3D12_CPU_DESCRIPTOR_HANDLE* rtvs[] = {
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO),
-        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::LIGHT_ACCUM),
+        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR),
     };
@@ -1147,9 +1176,9 @@ void Engine::RenderGeometryPass()
 
     m_commandList->OMSetRenderTargets(ARRAYSIZE(rtvs), rtvs[0], TRUE, &dsvHandle);
 
-    const float clearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    const float clearColor[4] = { 0.7f, 0.7f, 0.7f, 1.0f };
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO), clearColor, 0u, nullptr);
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::LIGHT_ACCUM), clearColor, 0u, nullptr);
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION), clearColor, 0u, nullptr);
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL), clearColor, 0u, nullptr);
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
     m_commandList->ClearDepthStencilView(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
@@ -1170,12 +1199,8 @@ void Engine::RenderGeometryPass()
 void Engine::RenderLightingPass()
 {
     DeferredDirectionalLightPass();
-    //DeferredPointLightPass();
-}
-
-void Engine::RenderTransparencyPass()
-{
-    // forward-like
+    DeferredPointLightPass();
+    //DeferredSpotLightPass();
 }
 
 void Engine::DeferredDirectionalLightPass()
@@ -1202,33 +1227,38 @@ void Engine::DeferredDirectionalLightPass()
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
     m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
 
-    // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
-    auto matBuffer = m_currFrameResource->MaterialSB->Get();
-    m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
-
     // Set shaadow map texture for main pass
     m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
 
-    // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
-    // The root signature knows how many descriptors are expected in the table.
-    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-
     // Bind GBuffer textures
     m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
-
 #pragma endregion BypassResources
 
     m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredDirectional).Get());
     DrawQuad(m_commandList.Get());
-
-    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1u, &transition);
 }
 
 void Engine::DeferredPointLightPass()
 {
+    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
+    auto currFramePassCB = m_currFrameResource->PassCB->Get();
+    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
+
+    // Bind GBuffer textures
+    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
+
     m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPoint).Get());
+    DrawInstancedRenderItems(m_commandList.Get(), m_pointLights);
+
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    // Indicate that the back buffer will now be used to present.
+    m_commandList->ResourceBarrier(1u, &transition);
+}
+
+void Engine::RenderTransparencyPass()
+{
+    // forward-like
 }
 
 void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
@@ -1250,6 +1280,26 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std
         cmdList->SetGraphicsRootConstantBufferView(ERootParameter::PerObjectDataCB, objCBAddress);
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
+    }
+}
+
+void Engine::DrawInstancedRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
+{
+    for (auto& ri : renderItems)
+    {
+        cmdList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
+        cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
+        cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+
+        // Set the instance buffer to use for this render-item.  For structured buffers, we can bypass 
+        // the heap and set as a root descriptor.
+        auto instanceBuffer = m_currFrameResource->PointLightSB->Get();
+
+        // now we set only objects' cbv per item, material data is set per pass
+        // we get material data by index from structured buffer
+        cmdList->SetGraphicsRootShaderResourceView(ERootParameter::PointLightsDataSB, instanceBuffer->GetGPUVirtualAddress());
+
+        cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
 }
 
@@ -1335,7 +1385,7 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers()
 
 std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, const float farZ)
 {
-    const auto directionalLight = m_mainPassCBData.Lights[0];
+    const auto directionalLight = m_mainPassCBData.DirLight;
 
     const XMFLOAT3 lightDir = directionalLight.Direction;
 

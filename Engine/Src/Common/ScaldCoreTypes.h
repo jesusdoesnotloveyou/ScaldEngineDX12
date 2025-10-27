@@ -11,17 +11,12 @@ using namespace DirectX;
 
 enum class EPassType : uint8_t
 {
+	// ComputePass
+	// ZPrePass
 	DepthShadow = 0,
 	DeferredGeometry,
 	DeferredLighting,
 	NumPasses = 3
-};
-
-struct Vertex
-{
-	XMFLOAT3 position;
-	XMFLOAT3 normal;
-	XMFLOAT2 texC;
 };
 
 struct SVertex
@@ -56,6 +51,10 @@ struct SVertex
 
 #define MaxCascades 4
 
+#define MaxDirLights 1u
+#define MaxPointLights 128u
+#define MaxSpotLights 128u
+
 struct CascadesShadows
 {
 	CascadesShadows()
@@ -71,7 +70,7 @@ struct CascadesShadows
 	float Distances[MaxCascades];
 };
 
-struct Light
+struct LightData
 {
 	XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
 	float FallOfStart = 1.0f;					// spot/point
@@ -81,8 +80,25 @@ struct Light
 	float SpotPower = 64.0f;					// spot only
 };
 
+struct LightInstanceData
+{
+	XMFLOAT4X4 World;
+	LightData Light;
+};
+
 // Constant buffers
 struct ObjectConstants
+{
+	XMFLOAT4X4 World;
+	XMFLOAT4X4 InvTransposeWorld;
+	XMFLOAT4X4 TexTransform;
+	UINT MaterialIndex = 0u;
+	UINT objPad0 = 0u;
+	UINT objPad1 = 0u;
+	UINT objPad2 = 0u;
+};
+
+struct InstanceData
 {
 	XMFLOAT4X4 World;
 	XMFLOAT4X4 InvTransposeWorld;
@@ -120,13 +136,11 @@ struct PassConstants
 	XMFLOAT4 FogColor = { 0.7f, 0.7f, 0.7f, 1.0f };
 	float FogStart = 8.0f;
 	float FogRange = 18.0f;
-	XMFLOAT2 pad2 = { 0.0f, 0.0f };
 
-	// Indices [0, NUM_DIR_LIGHTS) are directional lights;
-	// indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
-	// indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
-	// are spot lights for a maximum of MaxLights per object.
-	Light Lights[MaxLights];
+	uint32_t NumDirLights = 0u;
+	uint32_t NumPointLights = 0u;
+
+	LightData DirLight;
 };
 
 // Structured buffers
