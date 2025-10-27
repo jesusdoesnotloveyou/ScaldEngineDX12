@@ -45,24 +45,14 @@ float GetShadowFactor(float3 posW, uint layer)
     return percentLit / 9.0f;
 }
 
-float3 ComputeWorldPos(float3 texcoord)
-{
-    float depth = gGBuffer[4].Load(int3(texcoord)).r;
-
-    float2 uv = texcoord.xy / gRTSize;
-    float4 ndc = float4(uv.x * 2.0f - 1.0f, 1.0f - 2.0f * uv.y, depth, 1.0f);
-    float4 worldPos = mul(ndc, gInvViewProj);
-    worldPos.xyz /= worldPos.w;
-    return worldPos.xyz;
-}
-
 float4 main(PSInput input) : SV_TARGET
 {
     float2 texCoord = input.iPosH.xy;
-    float4 diffuseAlbedo = gGBuffer[0].Load(input.iPosH.xyz);
-    float4 ambientOcclusion = gGBuffer[1].Load(input.iPosH.xyz);
-    float4 normalTex = gGBuffer[2].Load(input.iPosH.xyz);
-    float4 specularTex = gGBuffer[3].Load(input.iPosH.xyz);
+    
+    float4 diffuseAlbedo = gGBuffer[G_DIFF_ALBEDO].Load(input.iPosH.xyz);
+    float4 ambientOcclusion = gGBuffer[G_AMB_OCCL].Load(input.iPosH.xyz);
+    float4 normalTex = gGBuffer[G_NORMAL].Load(input.iPosH.xyz);
+    float4 specularTex = gGBuffer[G_SPECULAR].Load(input.iPosH.xyz);
     float3 posW = ComputeWorldPos(float3(texCoord, 0.0f));
     
     float3 fresnelR0 = specularTex.xyz;
@@ -80,7 +70,8 @@ float4 main(PSInput input) : SV_TARGET
     float distToEye = length(toEye);
     float3 viewDir = toEye / distToEye;
     
-    float4 litColor = gAmbient;
+    float4 ambient = gAmbient * diffuseAlbedo;
+    float4 litColor = ambient;
     
     float viewDepth = mul(float4(posW, 1.0f), gView).z;
     
@@ -109,7 +100,7 @@ float4 main(PSInput input) : SV_TARGET
 #endif
     
     float shadowFactor = GetShadowFactor(posW, layer);
-    float3 dirLight = CalcDirLight(gLights[0], N, viewDir, mat, shadowFactor);
+    float3 dirLight = CalcDirLight(gDirLight, N, viewDir, mat, shadowFactor);
     litColor += float4(dirLight, 0.0f);
     
     // linear fog
