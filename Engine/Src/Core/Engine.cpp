@@ -287,18 +287,21 @@ VOID Engine::CreatePSO()
     D3D12_RENDER_TARGET_BLEND_DESC RTBlendDesc = {};
     ZeroMemory(&RTBlendDesc, sizeof(D3D12_RENDER_TARGET_BLEND_DESC));
     RTBlendDesc.BlendEnable = TRUE;
+    RTBlendDesc.LogicOpEnable = FALSE;
     RTBlendDesc.SrcBlend = D3D12_BLEND_ONE;
     RTBlendDesc.DestBlend = D3D12_BLEND_ONE;
     RTBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
     RTBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
     RTBlendDesc.DestBlendAlpha = D3D12_BLEND_ONE;
     RTBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    RTBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
     RTBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
     pointLightIntersectsFarPlanePsoDesc.BlendState.AlphaToCoverageEnable = FALSE;
     pointLightIntersectsFarPlanePsoDesc.BlendState.IndependentBlendEnable = FALSE;
     pointLightIntersectsFarPlanePsoDesc.BlendState.RenderTarget[0] = RTBlendDesc;
-    pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+
+    pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
     pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthEnable = FALSE;
     pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -318,7 +321,7 @@ VOID Engine::CreatePSO()
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightIntersectsFarPlanePsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPointIntersectsFarPlane])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightWithinFrustumPsoDesc = pointLightIntersectsFarPlanePsoDesc;
-    pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+    pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT; // ???
     pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightWithinFrustumPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPointWithinFrustum])));
 
@@ -1284,6 +1287,7 @@ void Engine::DeferredPointLightPass()
     // Bind GBuffer textures
     m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
 
+    // !!! HACK (TO DRAW EVEN IF FRUSTUM INTERSECTS LIGHT VOLUME)
     m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPointIntersectsFarPlane).Get());
     DrawInstancedRenderItems(m_commandList.Get(), m_pointLights);
 
