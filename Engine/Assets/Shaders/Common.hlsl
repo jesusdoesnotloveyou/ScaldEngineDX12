@@ -52,12 +52,7 @@ cbuffer cbPerObject : register(b0)
 struct InstanceData
 {
     float4x4 gWorld;
-    float4x4 gInvTransposeWorld;
-    float4x4 gTexTransform;
-    uint gMaterialIndex;
-    uint gNormalMapIndex;
-    uint objPad1;
-    uint objPad2;
+    Light gLight;
 };
 
 cbuffer cbPerPass : register(b1)
