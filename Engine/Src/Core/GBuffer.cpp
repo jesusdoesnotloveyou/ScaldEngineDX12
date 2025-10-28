@@ -129,10 +129,11 @@ void GBuffer::CreateResources()
         texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
         
         optClear.Format = texDesc.Format;
-        optClear.Color[0] = m_optimizedClearColor[0];
-        optClear.Color[1] = m_optimizedClearColor[1];
-        optClear.Color[2] = m_optimizedClearColor[2];
-        optClear.Color[3] = m_optimizedClearColor[3];
+        
+        if (i == EGBufferLayer::DIFFUSE_ALBEDO)
+            memcpy(&optClear.Color[0], &Colors::LightSteelBlue, sizeof(optClear.Color));
+        else 
+            memcpy(&optClear.Color[0], &m_optimizedClearColor[0], sizeof(optClear.Color));
     
         ThrowIfFailed(m_device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
