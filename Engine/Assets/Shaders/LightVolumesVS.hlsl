@@ -14,6 +14,8 @@ struct VSOutput
     float3 oPosW    : POSITION;
     float3 oNormalW : NORMAL;
     float2 oTexC    : TEXCOORD;
+    
+    nointerpolation uint oInstanceID : InstanceID;
 };
 
 VSOutput main(VSInput input, uint instanceID : SV_InstanceID)
@@ -24,5 +26,6 @@ VSOutput main(VSInput input, uint instanceID : SV_InstanceID)
     
     float4 posW = mul(float4(input.iPosL, 1.0f), instData.gWorld);
     output.oPosH = mul(posW, gViewProj);
+    output.oInstanceID = instanceID;
     return output;
 }

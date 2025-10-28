@@ -279,27 +279,55 @@ VOID Engine::CreatePSO()
     dirLightPsoDesc.DSVFormat = DepthStencilFormat;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&dirLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredDirectional])));
 
+#pragma region DeferredPointLight
     // Still needs to be configured
     // Hack with DSS and RS
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightPsoDesc = dirLightPsoDesc;
-    pointLightPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-    pointLightPsoDesc.DepthStencilState.DepthEnable = FALSE;
-    pointLightPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-    pointLightPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-    pointLightPsoDesc.DepthStencilState.StencilEnable = FALSE;
-    pointLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightIntersectsFarPlanePsoDesc = dirLightPsoDesc;
+    
+    D3D12_RENDER_TARGET_BLEND_DESC RTBlendDesc = {};
+    ZeroMemory(&RTBlendDesc, sizeof(D3D12_RENDER_TARGET_BLEND_DESC));
+    RTBlendDesc.BlendEnable = TRUE;
+    RTBlendDesc.LogicOpEnable = FALSE;
+    RTBlendDesc.SrcBlend = D3D12_BLEND_ONE;
+    RTBlendDesc.DestBlend = D3D12_BLEND_ONE;
+    RTBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+    RTBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+    RTBlendDesc.DestBlendAlpha = D3D12_BLEND_ONE;
+    RTBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    RTBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+    RTBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+    pointLightIntersectsFarPlanePsoDesc.BlendState.AlphaToCoverageEnable = FALSE;
+    pointLightIntersectsFarPlanePsoDesc.BlendState.IndependentBlendEnable = FALSE;
+    pointLightIntersectsFarPlanePsoDesc.BlendState.RenderTarget[0] = RTBlendDesc;
+
+    pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthEnable = FALSE;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.StencilEnable = FALSE;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.StencilReadMask = 0xFF;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.StencilWriteMask = 0xFF;
+    pointLightIntersectsFarPlanePsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferPointer()),
             m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferSize()
         });
-    pointLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
+    pointLightIntersectsFarPlanePsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredPointPS)->GetBufferPointer()),
             m_shaders.at(EShaderType::DeferredPointPS)->GetBufferSize()
         });
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPoint])));
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightIntersectsFarPlanePsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPointIntersectsFarPlane])));
 
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC spotLightPsoDesc = pointLightPsoDesc;
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightWithinFrustumPsoDesc = pointLightIntersectsFarPlanePsoDesc;
+    pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT; // ???
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightWithinFrustumPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPointWithinFrustum])));
+
+#pragma endregion DeferredPointLight
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC spotLightPsoDesc = pointLightIntersectsFarPlanePsoDesc;
     spotLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferPointer()),
@@ -609,7 +637,7 @@ VOID Engine::CreatePointLights()
     pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), geosphere.vertices, geosphere.indices);
     m_geometries[pointLightMesh->Name] = std::move(pointLightMesh);
 
-    const int n = 5;
+    const int n = 10;
 
     auto pointLight = std::make_unique<RenderItem>();
     pointLight->Instances.resize(n * n);
@@ -632,11 +660,18 @@ VOID Engine::CreatePointLights()
         for (int j = 0; j < n; ++j)
         {
             int index = k*n + j;
-            pointLight->Instances[index].World = XMFLOAT4X4(
-                1.0f, 0.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f,
-                x + j * dx, 0.0f, z + k * dz, 1.0f);
+            
+            const float lightRange = 3.0f;
+            XMVECTOR pos = XMVectorSet(x + j * dx, -1.0f, z + k * dz, 1.0f);
+            // scale should be dependent from range of light source
+            XMMATRIX world = XMMatrixScalingFromVector(XMVectorReplicate(lightRange)) * XMMatrixTranslationFromVector(pos);
+
+            XMStoreFloat4x4(&pointLight->Instances[index].World, world);
+
+            XMStoreFloat3(&pointLight->Instances[index].Light.Position, pos);
+            pointLight->Instances[index].Light.FallOfStart = 2.0f;
+            pointLight->Instances[index].Light.FallOfEnd = 3.0f;
+            pointLight->Instances[index].Light.Strength = { 1.0f, 0.5f, 0.9f };
         }
     }
 
@@ -982,6 +1017,10 @@ void Engine::UpdateLightsBuffer(const ScaldTimer& st)
         for (UINT i = 0; i < (UINT)instances.size(); ++i)
         {
             XMStoreFloat4x4(&m_perInstanceSBData.World, XMMatrixTranspose(XMLoadFloat4x4(&instances[i].World)));
+            m_perInstanceSBData.Light.Strength = instances[i].Light.Strength;
+            m_perInstanceSBData.Light.FallOfStart = instances[i].Light.FallOfStart;
+            m_perInstanceSBData.Light.FallOfEnd = instances[i].Light.FallOfEnd;
+            m_perInstanceSBData.Light.Position = instances[i].Light.Position;
             // copy all instances to structured buffer
             currPointLightSB->CopyData(pointLightIndex++, m_perInstanceSBData);
         }
@@ -1176,8 +1215,8 @@ void Engine::RenderGeometryPass()
 
     m_commandList->OMSetRenderTargets(ARRAYSIZE(rtvs), rtvs[0], TRUE, &dsvHandle);
 
-    const float clearColor[4] = { 0.7f, 0.7f, 0.7f, 1.0f };
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO), clearColor, 0u, nullptr);
+    const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO), Colors::LightSteelBlue, 0u, nullptr);
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION), clearColor, 0u, nullptr);
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL), clearColor, 0u, nullptr);
     m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
@@ -1248,7 +1287,8 @@ void Engine::DeferredPointLightPass()
     // Bind GBuffer textures
     m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
 
-    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPoint).Get());
+    // !!! HACK (TO DRAW EVEN IF FRUSTUM INTERSECTS LIGHT VOLUME)
+    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPointIntersectsFarPlane).Get());
     DrawInstancedRenderItems(m_commandList.Get(), m_pointLights);
 
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

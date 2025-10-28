@@ -68,5 +68,5 @@ private:
 		DXGI_FORMAT_D24_UNORM_S8_UINT		//DEPTH. Format for DSV (SRV demands R24...)
 	};
 
-	static constexpr FLOAT m_optimizedClearColor[4] = { 0.7f, 0.7f, 0.7f, 1.0f };
+	static constexpr FLOAT m_optimizedClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 };

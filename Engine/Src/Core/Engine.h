@@ -107,10 +107,14 @@ public:
 
         DeferredGeometry,
         DeferredDirectional,
-        DeferredPoint,
+
+        DeferredPointWithinFrustum,
+        DeferredPointIntersectsFarPlane,
+        DeferredPointFullQuad,
+        
         DeferredSpot,
         
-        NumPipelineStates = 8u
+        NumPipelineStates = 10u
     };
 
     enum EShaderType : UINT
