@@ -661,7 +661,7 @@ VOID Engine::CreatePointLights()
         {
             int index = k*n + j;
             
-            const float lightRange = 3.0f;
+            const float lightRange = ScaldMath::RandF(2.5, 3.0f);
             XMVECTOR pos = XMVectorSet(x + j * dx, -1.0f, z + k * dz, 1.0f);
             // scale should be dependent from range of light source
             XMMATRIX world = XMMatrixScalingFromVector(XMVectorReplicate(lightRange)) * XMMatrixTranslationFromVector(pos);
@@ -669,9 +669,9 @@ VOID Engine::CreatePointLights()
             XMStoreFloat4x4(&pointLight->Instances[index].World, world);
 
             XMStoreFloat3(&pointLight->Instances[index].Light.Position, pos);
-            pointLight->Instances[index].Light.FallOfStart = 2.0f;
-            pointLight->Instances[index].Light.FallOfEnd = 3.0f;
-            pointLight->Instances[index].Light.Strength = { 1.0f, 0.5f, 0.9f };
+            pointLight->Instances[index].Light.FallOfStart = ScaldMath::RandF(1.5, 2.0f);
+            pointLight->Instances[index].Light.FallOfEnd = lightRange;
+            pointLight->Instances[index].Light.Strength = { ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f) };
         }
     }
 
