@@ -51,20 +51,18 @@
     <ClInclude Include="Src\GameFramework\Components\Transform.h" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Assets\Shaders\PixelShader.hlsl" />
-    <FxCompile Include="Assets\Shaders\VertexShader.hlsl" />
-    <FxCompile Include="Assets\Shaders\GeometryShader.hlsl" />
-    <FxCompile Include="Assets\Shaders\ShadowVertexShader.hlsl" />
-    <FxCompile Include="Assets\Shaders\GBufferPassPS.hlsl" />
-    <FxCompile Include="Assets\Shaders\GBufferPassVS.hlsl" />
-    <FxCompile Include="Assets\Shaders\DeferredDirectionalLightPS.hlsl" />
-    <FxCompile Include="Assets\Shaders\DeferredDirectionalLightVS.hlsl" />
-    <FxCompile Include="Assets\Shaders\LightVolumesVS.hlsl" />
-    <FxCompile Include="Assets\Shaders\DeferredPointLightPS.hlsl" />
-    <FxCompile Include="Assets\Shaders\DeferredSpotLightPS.hlsl" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="Assets\Shaders\LightUtil.hlsl" />
     <None Include="Assets\Shaders\Common.hlsl" />
+    <None Include="Assets\Shaders\DeferredDirectionalLightPS.hlsl" />
+    <None Include="Assets\Shaders\DeferredDirectionalLightVS.hlsl" />
+    <None Include="Assets\Shaders\DeferredPointLightPS.hlsl" />
+    <None Include="Assets\Shaders\DeferredSpotLightPS.hlsl" />
+    <None Include="Assets\Shaders\GBufferPassPS.hlsl" />
+    <None Include="Assets\Shaders\GBufferPassVS.hlsl" />
+    <None Include="Assets\Shaders\GeometryShader.hlsl" />
+    <None Include="Assets\Shaders\LightVolumesVS.hlsl" />
+    <None Include="Assets\Shaders\PixelShader.hlsl" />
+    <None Include="Assets\Shaders\ShadowVertexShader.hlsl" />
+    <None Include="Assets\Shaders\VertexShader.hlsl" />
   </ItemGroup>
 </Project>

@@ -3,9 +3,9 @@
 struct Light
 {
     float3 Strength;
-    float FallOfStart;
+    float FalloffStart;
     float3 Direction;
-    float FallOfEnd;
+    float FalloffEnd;
     float3 Position;
     float SpotPower;
 };
@@ -55,12 +55,12 @@ float3 BlinnPhong(float3 lightStrength, float3 lightDir, float3 N, float3 viewDi
     return (mat.DiffuseAlbedo.rgb + specAlbedo) * lightStrength;
 }
 
-float3 CalcDirLight(Light L, float3 N, float3 viewDir, Material mat)
+float3 CalcDirLight(Light L, float3 N, float3 viewDir, Material mat, float shadowFactor)
 {
     float3 lightDirection = normalize(-L.Direction);
     float NdotL = max(dot(lightDirection, N), 0.0f);
     float3 lightStrength = NdotL * L.Strength;
-    return BlinnPhong(lightStrength, lightDirection, N, viewDir, mat);
+    return BlinnPhong(lightStrength, lightDirection, N, viewDir, mat) * shadowFactor;
 }
 
 float CalcAttenuation(float distance, float falloffStart, float falloffEnd)
@@ -74,21 +74,45 @@ float3 CalcPointLight(Light L, float3 N, float3 posW, float3 viewDir, Material m
     
     float d = length(lightVec);
     
-    if (d > L.FallOfEnd)
+    if (d > L.FalloffEnd)
         return .0f;
     
     float3 lightDir = lightVec / d;
     float NdotL = max(dot(lightDir, N), 0.0f);
-    float attenuation = CalcAttenuation(d, L.FallOfStart, L.FallOfEnd);
+    float attenuation = CalcAttenuation(d, L.FalloffStart, L.FalloffEnd);
     float3 lightStrength = L.Strength * NdotL * attenuation;
     
     return BlinnPhong(lightStrength, lightDir, N, viewDir, mat);
 }
 
-float3 CalcSpotLight(Light L, float3 N, float3 posW, float3 viewDir, Material mat)
+float3 ComputeSpotLight(Light L, Material mat, float3 posW, float3 normal, float3 toEye)
 {
-    
-    return float3(1.f, 1.f, 1.f);
+    // The vector from the surface to the light.
+    float3 lightVec = L.Position - posW;
+
+    // The distance from surface to light.
+    float d = length(lightVec);
+
+    // Range test.
+    if (d > L.FalloffEnd)
+        return 0.0f;
+
+    // Normalize the light vector.
+    float3 lightDir = lightVec / d;
+
+    // Scale light down by Lambert's cosine law.
+    float ndotl = max(dot(lightDir, normal), 0.0f);
+    float3 lightStrength = L.Strength * ndotl;
+
+    // Attenuate light by distance.
+    float att = CalcAttenuation(d, L.FalloffStart, L.FalloffEnd);
+    lightStrength *= att;
+
+    // Scale by spotlight
+    float spotFactor = pow(max(dot(-lightDir, L.Direction), 0.0f), L.SpotPower);
+    lightStrength *= spotFactor;
+
+    return BlinnPhong(lightStrength, lightDir, normal, toEye, mat);
 }
 
 // The idea is to calculate every light object's illumination strength related to it's type specific parameters
@@ -105,7 +129,7 @@ float4 ComputeLight(Light gLights[MaxLights], float3 N, float3 posW, float3 view
     for (int i = 0; i < NUM_DIR_LIGHTS; i++)
     {
         // stuff with shadows supposed to work with only one directional light
-        dirLight += shadowFactor * CalcDirLight(gLights[i], N, viewDir, mat);
+        dirLight += CalcDirLight(gLights[i], N, viewDir, mat, shadowFactor);
     }
     litColor += dirLight;
 #endif

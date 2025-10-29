@@ -105,8 +105,8 @@ float4 main(PSInput input) : SV_TARGET
         cascadeColor = float3(0.5f, 1.0f, 1.0f);
     
     float shadowFactor = GetShadowFactor(input.iPosW, layer);
-    
-    litColor += ComputeLight(gLights, N, input.iPosW, viewDir, mat, shadowFactor);
+    float3 dirLight = CalcDirLight(gDirLight, N, viewDir, mat, shadowFactor);
+    litColor += float4(dirLight, 0.0f);
     
     // linear fog
 #ifdef FOG

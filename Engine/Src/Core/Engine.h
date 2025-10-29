@@ -20,6 +20,19 @@ using Microsoft::WRL::ComPtr;
 
 struct Material
 {
+    Material(const char* name)
+        : Name(std::string(name))
+    {
+    }
+
+    Material(const char* name, int materialBufferIndex, int diffuseSrvHeapIndex)
+        : Name(std::string(name))
+        , MatBufferIndex(materialBufferIndex)
+        , DiffuseSrvHeapIndex(diffuseSrvHeapIndex)
+    {
+
+    }
+
     std::string Name;
 
     // Index into constant/structured buffer corresponding to this material (to map with render item).
@@ -38,7 +51,7 @@ struct Material
     float Roughness = 0.25f;
 
     // could be used for material animation (water for instance)
-    XMMATRIX MatTransform;
+    XMMATRIX MatTransform = XMMatrixIdentity();
 };
 
 // F. Luna stuff: lightweight structure that stores parameters to draw a shape.
@@ -50,6 +63,9 @@ struct RenderItem
     // could be used for texture tiling
     XMMATRIX TexTransform = XMMatrixIdentity();
 
+    BoundingBox Bounds;
+    std::vector<InstanceData> Instances; // for spot and point lights for now
+    
     int NumFramesDirty = gNumFrameResources;
 
     // Index into GPU constant buffer corresponding to the ObjectCB for this render item.
@@ -61,11 +77,10 @@ struct RenderItem
     D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopologyType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
     // DrawIndexedInstanced parameters.
-    UINT IndexCount = 0;
-    UINT StartIndexLocation = 0;
+    UINT InstanceCount = 0u;            // for spot and point lights for now
+    UINT IndexCount = 0u;
+    UINT StartIndexLocation = 0u;
     int BaseVertexLocation = 0;
-
-    BoundingBox Bounds;
 };
 
 class Engine : public D3D12Sample
@@ -76,11 +91,50 @@ public:
         PerObjectDataCB = 0,
         PerPassDataCB,
         MaterialDataSB,
+        PointLightsDataSB,
+        SpotLightsDataSB,
         CascadedShadowMaps,
         Textures,
         GBufferTextures,
 
-        NumRootParameters = 6u
+        NumRootParameters = 8u
+    };
+
+    enum EPsoType : UINT
+    {
+        Opaque = 0,
+        WireframeOpaque,
+        Transparency,
+        CascadedShadowsOpaque,
+
+        DeferredGeometry,
+        DeferredDirectional,
+
+        DeferredPointWithinFrustum,
+        DeferredPointIntersectsFarPlane,
+        DeferredPointFullQuad,
+        
+        DeferredSpot,
+        
+        NumPipelineStates = 10u
+    };
+
+    enum EShaderType : UINT
+    {
+        DefaultVS = 0,
+        DefaultOpaquePS,
+        CascadedShadowsVS,
+        CascadedShadowsGS,
+
+        DeferredGeometryVS,
+        DeferredGeometryPS,
+        DeferredDirVS,
+        DeferredDirPS,
+        DeferredLightVolumesVS,
+        DeferredPointPS,
+        DeferredSpotPS,
+
+        NumShaders = 11U
     };
 
 public:
@@ -101,10 +155,12 @@ public:
 private:
     void OnKeyboardInput(const ScaldTimer& st);
     void UpdateObjectsCB(const ScaldTimer& st);
-    void UpdateMainPassCB(const ScaldTimer& st);
     void UpdateMaterialBuffer(const ScaldTimer& st);
+    void UpdateLightsBuffer(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
     void UpdateShadowPassCB(const ScaldTimer& st);
+    void UpdateGeometryPassCB(const ScaldTimer& st);
+    void UpdateMainPassCB(const ScaldTimer& st);
     
     void RenderDepthOnlyPass();
 #pragma region DeferredShading
@@ -116,6 +172,8 @@ private:
 #pragma endregion DeferredShading
 
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
+    void DrawInstancedRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
+    void DrawQuad(ID3D12GraphicsCommandList* cmdList);
 
 private:
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
@@ -132,28 +190,33 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
    
-    std::unordered_map<std::string, ComPtr<ID3DBlob>> m_shaders;
+    std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
     std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
-    std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> m_pipelineStates;
+    std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
 
     ObjectConstants m_perObjectCBData;
-    PassConstants m_mainPassCBData;
     PassConstants m_shadowPassCBData;
+    PassConstants m_geometryPassCBData;
+    PassConstants m_mainPassCBData; // deferred color(light) pass
     //PassConstants m_lightingPassCBData;
-    //PassConstants m_geometryPassCBData;
     MaterialData m_perMaterialSBData;
+    InstanceData m_perInstanceSBData;
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
-    std::unordered_map < std::string, std::unique_ptr<Material>> m_materials;
+    std::unordered_map<std::string, std::unique_ptr<Material>> m_materials;
     std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
+
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::vector<Scald::SObject> m_sceneObjects;
+    std::vector<std::unique_ptr<RenderItem>> m_pointLights;
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
     std::shared_ptr<Scald::Scene> m_scene;
+
+    std::unique_ptr<MeshGeometry> m_fullQuad;
 
 #pragma region DeferredRendering
     std::unique_ptr<GBuffer> m_GBuffer;
@@ -181,6 +244,7 @@ private:
     // Shapes could constist of some items to render
     VOID CreateSceneObjects();
     VOID CreateRenderItems();
+    VOID CreatePointLights();
     VOID CreateFrameResources();
     // Heaps are created if there are root descriptor tables in root signature 
     VOID CreateDescriptorHeaps();

@@ -33,6 +33,18 @@ public:
 		);
 	}
 
+	// Returns random float in [0, 1).
+	static float RandF()
+	{
+		return (float)(rand()) / (float)RAND_MAX;
+	}
+
+	// Returns random float in [a, b).
+	static float RandF(float a, float b)
+	{
+		return a + RandF() * (b - a);
+	}
+
 	static inline const XMVECTOR ForwardVector = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 	static inline const XMVECTOR RightVector = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
 	static inline const XMVECTOR UpVector = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);

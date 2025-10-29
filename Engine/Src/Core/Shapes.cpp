@@ -244,3 +244,168 @@ MeshData<SVertex, uint16_t> Shapes::CreateGrid(float width, float depth, UINT m,
 
 	return meshData;
 }
+
+MeshData Shapes::CreateGeosphere(float radius, UINT numSubdivisions)
+{
+	MeshData meshData;
+
+	numSubdivisions = std::min<UINT>(numSubdivisions, 6u);
+	
+	// Approximate a sphere by tessellating an icosahedron.
+	const float X = 0.525731f;
+	const float Z = 0.850651f;
+
+	XMFLOAT3 pos[12] =
+	{
+		XMFLOAT3(-X, 0.0f, Z),  XMFLOAT3(X, 0.0f, Z),
+		XMFLOAT3(-X, 0.0f, -Z), XMFLOAT3(X, 0.0f, -Z),
+		XMFLOAT3(0.0f, Z, X),   XMFLOAT3(0.0f, Z, -X),
+		XMFLOAT3(0.0f, -Z, X),  XMFLOAT3(0.0f, -Z, -X),
+		XMFLOAT3(Z, X, 0.0f),   XMFLOAT3(-Z, X, 0.0f),
+		XMFLOAT3(Z, -X, 0.0f),  XMFLOAT3(-Z, -X, 0.0f)
+	};
+
+	UINT k[60] =
+	{
+		1,4,0,  4,9,0,  4,5,9,  8,5,4,  1,8,4,
+		1,10,8, 10,3,8, 8,3,5,  3,2,5,  3,7,2,
+		3,10,7, 10,6,7, 6,11,7, 6,0,11, 6,1,0,
+		10,1,6, 11,0,9, 2,11,9, 5,2,9,  11,2,7
+	};
+
+	meshData.vertices.resize(12);
+	meshData.indices.assign(&k[0], &k[60]);
+
+	for (UINT i = 0; i < 12; ++i)
+		meshData.vertices[i].position = pos[i];
+
+	for (UINT i = 0; i < numSubdivisions; ++i)
+		Subdivide(meshData);
+
+	// Project vertices onto sphere and scale.
+	for (UINT i = 0; i < meshData.vertices.size(); ++i)
+	{
+		// Project onto unit sphere.
+		XMVECTOR n = XMVector3Normalize(XMLoadFloat3(&meshData.vertices[i].position));
+
+		// Project onto sphere.
+		XMVECTOR p = radius * n;
+
+		XMStoreFloat3(&meshData.vertices[i].position, p);
+		XMStoreFloat3(&meshData.vertices[i].normal, n);
+
+		// Derive texture coordinates from spherical coordinates.
+		float theta = atan2f(meshData.vertices[i].position.z, meshData.vertices[i].position.x);
+
+		// Put in [0, 2pi].
+		if (theta < 0.0f)
+			theta += XM_2PI;
+
+		float phi = acosf(meshData.vertices[i].position.y / radius);
+
+		meshData.vertices[i].texCoord.x = theta / XM_2PI;
+		meshData.vertices[i].texCoord.y = phi / XM_PI;
+
+		// Partial derivative of P with respect to theta
+		meshData.vertices[i].tangent.x = -radius * sinf(phi) * sinf(theta);
+		meshData.vertices[i].tangent.y = 0.0f;
+		meshData.vertices[i].tangent.z = +radius * sinf(phi) * cosf(theta);
+
+		XMVECTOR T = XMLoadFloat3(&meshData.vertices[i].tangent);
+		XMStoreFloat3(&meshData.vertices[i].tangent, XMVector3Normalize(T));
+	}
+
+	return meshData;
+}
+
+void Shapes::Subdivide(MeshData& meshData)
+{
+	// Save a copy of the input geometry.
+	MeshData inputCopy = meshData;
+
+	meshData.vertices.resize(0);
+	meshData.indices.resize(0);
+
+	//       v1
+	//       *
+	//      / \
+	//     /   \
+	//  m0*-----*m1
+	//   / \   / \
+	//  /   \ /   \
+	// *-----*-----*
+	// v0    m2     v2
+
+	UINT numTris = (UINT)inputCopy.indices.size() / 3;
+	for (UINT i = 0; i < numTris; ++i)
+	{
+		SVertex v0 = inputCopy.vertices[inputCopy.indices[i * 3 + 0]];
+		SVertex v1 = inputCopy.vertices[inputCopy.indices[i * 3 + 1]];
+		SVertex v2 = inputCopy.vertices[inputCopy.indices[i * 3 + 2]];
+
+		//
+		// Generate the midpoints.
+		//
+
+		SVertex m0 = MidPoint(v0, v1);
+		SVertex m1 = MidPoint(v1, v2);
+		SVertex m2 = MidPoint(v0, v2);
+
+		//
+		// Add new geometry.
+		//
+
+		meshData.vertices.push_back(v0); // 0
+		meshData.vertices.push_back(v1); // 1
+		meshData.vertices.push_back(v2); // 2
+		meshData.vertices.push_back(m0); // 3
+		meshData.vertices.push_back(m1); // 4
+		meshData.vertices.push_back(m2); // 5
+
+		meshData.indices.push_back(i * 6 + 0);
+		meshData.indices.push_back(i * 6 + 3);
+		meshData.indices.push_back(i * 6 + 5);
+
+		meshData.indices.push_back(i * 6 + 3);
+		meshData.indices.push_back(i * 6 + 4);
+		meshData.indices.push_back(i * 6 + 5);
+
+		meshData.indices.push_back(i * 6 + 5);
+		meshData.indices.push_back(i * 6 + 4);
+		meshData.indices.push_back(i * 6 + 2);
+
+		meshData.indices.push_back(i * 6 + 3);
+		meshData.indices.push_back(i * 6 + 1);
+		meshData.indices.push_back(i * 6 + 4);
+	}
+}
+
+SVertex Shapes::MidPoint(const SVertex& v0, const SVertex& v1)
+{
+	XMVECTOR p0 = XMLoadFloat3(&v0.position);
+	XMVECTOR p1 = XMLoadFloat3(&v1.position);
+
+	XMVECTOR n0 = XMLoadFloat3(&v0.normal);
+	XMVECTOR n1 = XMLoadFloat3(&v1.normal);
+
+	XMVECTOR tan0 = XMLoadFloat3(&v0.tangent);
+	XMVECTOR tan1 = XMLoadFloat3(&v1.tangent);
+
+	XMVECTOR tex0 = XMLoadFloat2(&v0.texCoord);
+	XMVECTOR tex1 = XMLoadFloat2(&v1.texCoord);
+
+	// Compute the midpoints of all the attributes.  Vectors need to be normalized
+	// since linear interpolating can make them not unit length.  
+	XMVECTOR pos = 0.5f * (p0 + p1);
+	XMVECTOR normal = XMVector3Normalize(0.5f * (n0 + n1));
+	XMVECTOR tangent = XMVector3Normalize(0.5f * (tan0 + tan1));
+	XMVECTOR tex = 0.5f * (tex0 + tex1);
+
+	SVertex v;
+	XMStoreFloat3(&v.position, pos);
+	XMStoreFloat3(&v.normal, normal);
+	XMStoreFloat3(&v.tangent, tangent);
+	XMStoreFloat2(&v.texCoord, tex);
+
+	return v;
+}

@@ -30,6 +30,12 @@ struct SubmeshGeometry
 
 struct MeshGeometry
 {
+	MeshGeometry(const char* name)
+		:
+		Name(std::string(name))
+	{
+	}
+
 	// Give it a name so we can look it up by name.
 	std::string Name;
 
@@ -82,6 +88,39 @@ struct MeshGeometry
 	{
 		VertexBufferUploader = nullptr;
 		IndexBufferUploader = nullptr;
+	}
+
+	template<typename TVertex, typename  TIndex = uint16_t>
+	void CreateGPUBuffers(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const std::vector<TVertex>& vertices, const std::vector<TIndex>& indices = std::vector<TIndex>(0))
+	{
+		static_assert(std::is_same<TIndex, unsigned>() || std::is_same<TIndex, unsigned short>());
+
+		const UINT64 vbByteSize = vertices.size() * sizeof(TVertex);
+		const UINT ibByteSize = (UINT)indices.size() * sizeof(TIndex);
+
+		if (vbByteSize)
+		{
+			// Create system buffer for copy vertices data
+			ThrowIfFailed(D3DCreateBlob(vbByteSize, &VertexBufferCPU));
+			CopyMemory(VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+			// Create GPU resource
+			VertexBufferGPU = ScaldUtil::CreateDefaultBuffer(device, cmdList, vertices.data(), vbByteSize, VertexBufferUploader);
+			// Initialize the vertex buffer view.
+			VertexBufferByteSize = (UINT)vbByteSize;
+			VertexByteStride = sizeof(TVertex);
+		}
+
+		if (ibByteSize)
+		{
+			// Create system buffer for copy indices data
+			ThrowIfFailed(D3DCreateBlob(ibByteSize, &IndexBufferCPU));
+			CopyMemory(IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+			// Create GPU resource
+			IndexBufferGPU = ScaldUtil::CreateDefaultBuffer(device, cmdList, indices.data(), ibByteSize, IndexBufferUploader);
+			// Initialize the index buffer view.
+			IndexBufferByteSize = ibByteSize;
+			IndexFormat = (std::is_same<TIndex, unsigned short>()) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+		}
 	}
 };
 
