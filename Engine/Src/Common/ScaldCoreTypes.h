@@ -7,6 +7,13 @@
 	#define FORCEINLINE __forceinline
 #endif
 
+constexpr int INVALID_ID = -1;
+using ID_TYPE = int;
+
+using MeshID = ID_TYPE;
+using ModelID = ID_TYPE;
+using TextureID = ID_TYPE;
+
 using namespace DirectX;
 
 enum class EPassType : uint8_t

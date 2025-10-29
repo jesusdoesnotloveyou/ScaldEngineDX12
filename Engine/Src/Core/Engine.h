@@ -5,6 +5,8 @@
 #include "Camera.h"
 #include "CascadeShadowMap.h"
 #include "GBuffer.h"
+#include "GameFramework/Components/Scene.h"
+#include "GameFramework/Objects/SObject.h"
 
 const int gNumFrameResources = 3;
 
@@ -206,11 +208,13 @@ private:
     std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
 
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
+    std::vector<Scald::SObject> m_sceneObjects;
     std::vector<std::unique_ptr<RenderItem>> m_pointLights;
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
+    std::shared_ptr<Scald::Scene> m_scene;
 
     std::unique_ptr<MeshGeometry> m_fullQuad;
 
@@ -231,12 +235,14 @@ private:
     VOID CreateShaders();
     VOID CreatePSO();
     
+    VOID LoadScene();
     VOID LoadTextures();
     // Shapes
     VOID CreateGeometry();
     // Propertirs of shapes' surfaces to model light interaction
     VOID CreateGeometryMaterials();
     // Shapes could constist of some items to render
+    VOID CreateSceneObjects();
     VOID CreateRenderItems();
     VOID CreatePointLights();
     VOID CreateFrameResources();

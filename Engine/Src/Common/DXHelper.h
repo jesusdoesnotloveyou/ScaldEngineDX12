@@ -9,18 +9,24 @@
 #include "ScaldCoreTypes.h"
 
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 #include <string>
 #include <array>
 #include <vector>
 #include <cassert>
 
+template<typename TVertex = SVertex, typename TIndex = uint16_t> 
 struct MeshData
 {
-    std::vector<SVertex> vertices;
-    std::vector<uint16_t> indices;
-    
-    BoundingBox Bounds;
+    static_assert(std::is_same<TIndex, unsigned>() || std::is_same<TIndex, unsigned short>()); // to make sure that index type either uint16_t or uint32_t
+
+    MeshData(UINT numLODs = 1u) : LODVertices(numLODs), LODIndices(numLODs), LODBounds(numLODs), NumLODs(numLODs) {}
+
+    std::vector<std::vector<TVertex>> LODVertices;
+    std::vector<std::vector<TIndex>> LODIndices;
+    std::vector<BoundingBox> LODBounds;
+    UINT NumLODs;
 };
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,

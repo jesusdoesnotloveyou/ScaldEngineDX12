@@ -1,7 +1,9 @@
 #include "stdafx.h"
 #include "Engine.h"
-#include "Shapes.h"
 #include "Common/ScaldMath.h"
+#include "GameFramework/Components/Scene.h"
+#include "GameFramework/Components/Transform.h"
+#include "GameFramework/Components/Renderer.h"
 
 extern const int gNumFrameResources;
 
@@ -43,6 +45,7 @@ VOID Engine::LoadAssets()
 {
     ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), nullptr));
     
+    LoadScene();
     LoadTextures();
     CreateGeometry();
     CreateGeometryMaterials();
@@ -338,6 +341,11 @@ VOID Engine::CreatePSO()
 #pragma endregion DeferredShading
 }
 
+VOID Engine::LoadScene()
+{
+    m_scene = std::make_shared<Scald::Scene>();
+}
+
 VOID Engine::LoadTextures()
 {
     auto brickTex = std::make_unique<Texture>("brickTex", L"./Assets/Textures/bricks.dds", m_device.Get(), m_commandList.Get());
@@ -357,133 +365,129 @@ VOID Engine::LoadTextures()
 
 VOID Engine::CreateGeometry()
 {
-    // Just meshes
-    MeshData box = Shapes::CreateBox(1.0f, 1.0f, 1.0f);
-    // the same mesh for all planets
-    MeshData sphere = Shapes::CreateSphere(1.0f, 16u, 16u);
-
-    MeshData grid = Shapes::CreateGrid(100.0f, 100.0f, 2u, 2u);
+    auto sphereMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::SPHERE);
+    auto gridMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::GRID);
 
     // Create shared vertex/index buffer for all geometry.
     UINT sunVertexOffset = 0u;
-    UINT mercuryVertexOffset = sunVertexOffset + (UINT)sphere.vertices.size();
-    UINT venusVertexOffset = mercuryVertexOffset + (UINT)sphere.vertices.size();
-    UINT earthVertexOffset = venusVertexOffset + (UINT)sphere.vertices.size();
-    UINT marsVertexOffset = earthVertexOffset + (UINT)sphere.vertices.size();
-    UINT planeVertexOffset = marsVertexOffset + (UINT)sphere.vertices.size();
+    UINT mercuryVertexOffset = sunVertexOffset + (UINT)sphereMesh.LODVertices[0].size();
+    UINT venusVertexOffset = mercuryVertexOffset + (UINT)sphereMesh.LODVertices[0].size();
+    UINT earthVertexOffset = venusVertexOffset + (UINT)sphereMesh.LODVertices[0].size();
+    UINT marsVertexOffset = earthVertexOffset + (UINT)sphereMesh.LODVertices[0].size();
+    UINT planeVertexOffset = marsVertexOffset + (UINT)sphereMesh.LODVertices[0].size();
 
     UINT sunIndexOffset = 0u;
-    UINT mercuryIndexOffset = sunIndexOffset + (UINT)sphere.indices.size();
-    UINT venusIndexOffset = mercuryIndexOffset + (UINT)sphere.indices.size();
-    UINT earthIndexOffset = venusIndexOffset + (UINT)sphere.indices.size();
-    UINT marsIndexOffset = earthIndexOffset + (UINT)sphere.indices.size();
-    UINT planeIndexOffset = marsIndexOffset + (UINT)sphere.indices.size();
+    UINT mercuryIndexOffset = sunIndexOffset + (UINT)sphereMesh.LODIndices[0].size();
+    UINT venusIndexOffset = mercuryIndexOffset + (UINT)sphereMesh.LODIndices[0].size();
+    UINT earthIndexOffset = venusIndexOffset + (UINT)sphereMesh.LODIndices[0].size();
+    UINT marsIndexOffset = earthIndexOffset + (UINT)sphereMesh.LODIndices[0].size();
+    UINT planeIndexOffset = marsIndexOffset + (UINT)sphereMesh.LODIndices[0].size();
 
     SubmeshGeometry sunSubmesh;
-    sunSubmesh.IndexCount = (UINT)sphere.indices.size();
+    sunSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
     sunSubmesh.StartIndexLocation = sunIndexOffset;
     sunSubmesh.BaseVertexLocation = sunVertexOffset;
-    sunSubmesh.Bounds = sphere.Bounds;
+    sunSubmesh.Bounds = sphereMesh.LODBounds[0];
 
     SubmeshGeometry mercurySubmesh;
-    mercurySubmesh.IndexCount = (UINT)sphere.indices.size();
+    mercurySubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
     mercurySubmesh.StartIndexLocation = mercuryIndexOffset;
     mercurySubmesh.BaseVertexLocation = mercuryVertexOffset;
-    mercurySubmesh.Bounds = sphere.Bounds;
+    mercurySubmesh.Bounds = sphereMesh.LODBounds[0];
 
     SubmeshGeometry venusSubmesh;
-    venusSubmesh.IndexCount = (UINT)sphere.indices.size();
+    venusSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
     venusSubmesh.StartIndexLocation = venusIndexOffset;
     venusSubmesh.BaseVertexLocation = venusVertexOffset;
-    venusSubmesh.Bounds = sphere.Bounds;
+    venusSubmesh.Bounds = sphereMesh.LODBounds[0];
 
     SubmeshGeometry earthSubmesh;
-    earthSubmesh.IndexCount = (UINT)sphere.indices.size();
+    earthSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
     earthSubmesh.StartIndexLocation = earthIndexOffset;
     earthSubmesh.BaseVertexLocation = earthVertexOffset;
-    earthSubmesh.Bounds = sphere.Bounds;
+    earthSubmesh.Bounds = sphereMesh.LODBounds[0];
 
     SubmeshGeometry marsSubmesh;
-    marsSubmesh.IndexCount = (UINT)sphere.indices.size();
+    marsSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
     marsSubmesh.StartIndexLocation = marsIndexOffset;
     marsSubmesh.BaseVertexLocation = marsVertexOffset;
-    marsSubmesh.Bounds = sphere.Bounds;;
+    marsSubmesh.Bounds = sphereMesh.LODBounds[0];
 
     SubmeshGeometry planeSubmesh;
-    planeSubmesh.IndexCount = (UINT)grid.indices.size();
+    planeSubmesh.IndexCount = (UINT)gridMesh.LODIndices[0].size();
     planeSubmesh.StartIndexLocation = planeIndexOffset;
     planeSubmesh.BaseVertexLocation = planeVertexOffset;
     planeSubmesh.BaseVertexLocation = planeVertexOffset;
 
     auto totalVertexCount = 
-        sphere.vertices.size() // sun
-        + sphere.vertices.size() // merc
-        + sphere.vertices.size() // venus
-        + sphere.vertices.size() //earth
-        + sphere.vertices.size() //mars
-        + grid.vertices.size() //mars
+        sphereMesh.LODVertices[0].size() // sun
+        + sphereMesh.LODVertices[0].size() // merc
+        + sphereMesh.LODVertices[0].size() // venus
+        + sphereMesh.LODVertices[0].size() //earth
+        + sphereMesh.LODVertices[0].size() //mars
+        + gridMesh.LODVertices[0].size() //mars
         ;
     auto totalIndexCount = 
-        sphere.indices.size()
-        + sphere.indices.size()
-        + sphere.indices.size()
-        + sphere.indices.size()
-        + sphere.indices.size()
-        + grid.indices.size()
+        sphereMesh.LODIndices[0].size()
+        + sphereMesh.LODIndices[0].size()
+        + sphereMesh.LODIndices[0].size()
+        + sphereMesh.LODIndices[0].size()
+        + sphereMesh.LODIndices[0].size()
+        + gridMesh.LODIndices[0].size()
         ;
 
     std::vector<SVertex> vertices(totalVertexCount);
 
     int k = 0;
-    for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
+    for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
     {
-        vertices[k].position = sphere.vertices[i].position;
-        vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texCoord = sphere.vertices[i].texCoord;
+        vertices[k].position = sphereMesh.LODVertices[0][i].position;
+        vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
-    for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
+    for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
     {
-        vertices[k].position = sphere.vertices[i].position;
-        vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texCoord = sphere.vertices[i].texCoord;
+        vertices[k].position = sphereMesh.LODVertices[0][i].position;
+        vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
-    for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
+    for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
     {
-        vertices[k].position = sphere.vertices[i].position;
-        vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texCoord = sphere.vertices[i].texCoord;
+        vertices[k].position = sphereMesh.LODVertices[0][i].position;
+        vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
-    for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
+    for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
     {
-        vertices[k].position = sphere.vertices[i].position;
-        vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texCoord = sphere.vertices[i].texCoord;
+        vertices[k].position = sphereMesh.LODVertices[0][i].position;
+        vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
-    for (size_t i = 0; i < sphere.vertices.size(); ++i, ++k)
+    for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
     {
-        vertices[k].position = sphere.vertices[i].position;
-        vertices[k].normal = sphere.vertices[i].normal;
-        vertices[k].texCoord = sphere.vertices[i].texCoord;
+        vertices[k].position = sphereMesh.LODVertices[0][i].position;
+        vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
-    for (size_t i = 0; i < grid.vertices.size(); ++i, ++k)
+    for (size_t i = 0; i < gridMesh.LODVertices[0].size(); ++i, ++k)
     {
-        vertices[k].position = grid.vertices[i].position;
-        vertices[k].normal = grid.vertices[i].normal;
-        vertices[k].texCoord = grid.vertices[i].texCoord;
+        vertices[k].position = gridMesh.LODVertices[0][i].position;
+        vertices[k].normal = gridMesh.LODVertices[0][i].normal;
+        vertices[k].texCoord = gridMesh.LODVertices[0][i].texCoord;
     }
 
     std::vector<uint16_t> indices;
-    indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
-    indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
-    indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
-    indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
-    indices.insert(indices.end(), sphere.indices.begin(), sphere.indices.end());
-    indices.insert(indices.end(), grid.indices.begin(), grid.indices.end());
+    indices.insert(indices.end(), sphereMesh.LODIndices[0].begin(), sphereMesh.LODIndices[0].end());
+    indices.insert(indices.end(), sphereMesh.LODIndices[0].begin(), sphereMesh.LODIndices[0].end());
+    indices.insert(indices.end(), sphereMesh.LODIndices[0].begin(), sphereMesh.LODIndices[0].end());
+    indices.insert(indices.end(), sphereMesh.LODIndices[0].begin(), sphereMesh.LODIndices[0].end());
+    indices.insert(indices.end(), sphereMesh.LODIndices[0].begin(), sphereMesh.LODIndices[0].end());
+    indices.insert(indices.end(), gridMesh.LODIndices[0].begin(), gridMesh.LODIndices[0].end());
 
     auto geometry = std::make_unique<MeshGeometry>("solarSystem");
     geometry->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), vertices, indices);
@@ -550,71 +554,78 @@ VOID Engine::CreateGeometryMaterials()
     m_materials["wood0"] = std::move(wood0);
 }
 
+VOID Engine::CreateSceneObjects()
+{
+    auto testObj = std::make_shared<Scald::SObject>();
+    testObj->AddComponent<Scald::Transform>(ScaldMath::ZeroVector, ScaldMath::ZeroVector, ScaldMath::One);
+    testObj->AddComponent<Scald::Renderer>();
+}
+
 VOID Engine::CreateRenderItems()
 {
     auto sunRenderItem = std::make_unique<RenderItem>();
     sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
     sunRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
-    sunRenderItem->Geo = m_geometries["solarSystem"].get();
-    sunRenderItem->Mat = m_materials["flame0"].get();
+    sunRenderItem->Geo = m_geometries.at("solarSystem").get();
+    sunRenderItem->Mat = m_materials.at("flame0").get();
     sunRenderItem->ObjCBIndex = 0u;
-    sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs["sun"].IndexCount;
-    sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs["sun"].StartIndexLocation;
-    sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs["sun"].BaseVertexLocation;
-    sunRenderItem->Bounds = sunRenderItem->Geo->DrawArgs["sun"].Bounds;
+    sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs.at("sun").IndexCount;
+    sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs.at("sun").StartIndexLocation;
+    sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs.at("sun").BaseVertexLocation;
+    sunRenderItem->Bounds = sunRenderItem->Geo->DrawArgs.at("sun").Bounds;
 
     auto mercuryRenderItem = std::make_unique<RenderItem>();
     mercuryRenderItem->World = XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(2.0f, 0.0f, 0.0f);
-    mercuryRenderItem->Geo = m_geometries["solarSystem"].get();
-    mercuryRenderItem->Mat = m_materials["sand0"].get();
+    mercuryRenderItem->Geo = m_geometries.at("solarSystem").get();
+    mercuryRenderItem->Mat = m_materials.at("sand0").get();
     mercuryRenderItem->ObjCBIndex = 1u;
-    mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs["mercury"].IndexCount;
-    mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].StartIndexLocation;
-    mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs["mercury"].BaseVertexLocation;
-    mercuryRenderItem->Bounds = mercuryRenderItem->Geo->DrawArgs["mercury"].Bounds;
+    mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs.at("mercury").IndexCount;
+    mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").StartIndexLocation;
+    mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").BaseVertexLocation;
+    mercuryRenderItem->Bounds = mercuryRenderItem->Geo->DrawArgs.at("mercury").Bounds;
 
     auto venusRenderItem = std::make_unique<RenderItem>();
     venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
     venusRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
-    venusRenderItem->Geo = m_geometries["solarSystem"].get();
-    venusRenderItem->Mat = m_materials["stone0"].get();
+    venusRenderItem->Geo = m_geometries.at("solarSystem").get();
+    venusRenderItem->Mat = m_materials.at("stone0").get();
     venusRenderItem->ObjCBIndex = 2u;
-    venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs["venus"].IndexCount;
-    venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs["venus"].StartIndexLocation;
-    venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs["venus"].BaseVertexLocation;
-    venusRenderItem->Bounds = venusRenderItem->Geo->DrawArgs["venus"].Bounds;
+    venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs.at("venus").IndexCount;
+    venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs.at("venus").StartIndexLocation;
+    venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs.at("venus").BaseVertexLocation;
+    venusRenderItem->Bounds = venusRenderItem->Geo->DrawArgs.at("venus").Bounds;
 
     auto earthRenderItem = std::make_unique<RenderItem>();
     earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
     earthRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
-    earthRenderItem->Geo = m_geometries["solarSystem"].get();
-    earthRenderItem->Mat = m_materials["ground0"].get();
+    earthRenderItem->Geo = m_geometries.at("solarSystem").get();
+    earthRenderItem->Mat = m_materials.at("ground0").get();
     earthRenderItem->ObjCBIndex = 3u;
-    earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs["earth"].IndexCount;
-    earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs["earth"].StartIndexLocation;
-    earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs["earth"].BaseVertexLocation;
-    earthRenderItem->Bounds = earthRenderItem->Geo->DrawArgs["earth"].Bounds;
+    earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs.at("earth").IndexCount;
+    earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs.at("earth").StartIndexLocation;
+    earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs.at("earth").BaseVertexLocation;
+    earthRenderItem->Bounds = earthRenderItem->Geo->DrawArgs.at("earth").Bounds;
 
     auto marsRenderItem = std::make_unique<RenderItem>();
     marsRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(5.0f, 0.0f, 5.0f);
     marsRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
-    marsRenderItem->Geo = m_geometries["solarSystem"].get();
-    marsRenderItem->Mat = m_materials["iron0"].get();
+    marsRenderItem->Geo = m_geometries.at("solarSystem").get();
+    marsRenderItem->Mat = m_materials.at("iron0").get();
     marsRenderItem->ObjCBIndex = 4u;
-    marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs["mars"].IndexCount;
-    marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs["mars"].StartIndexLocation;
-    marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs["mars"].BaseVertexLocation;
-    marsRenderItem->Bounds = marsRenderItem->Geo->DrawArgs["mars"].Bounds;
+    marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs.at("mars").IndexCount;
+    marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs.at("mars").StartIndexLocation;
+    marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs.at("mars").BaseVertexLocation;
+    marsRenderItem->Bounds = marsRenderItem->Geo->DrawArgs.at("mars").Bounds;
 
     auto planeRenderItem = std::make_unique<RenderItem>();
     planeRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, -1.5f, 0.0f);
     planeRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
-    planeRenderItem->Geo = m_geometries["solarSystem"].get();
-    planeRenderItem->Mat = m_materials["wood0"].get();
+    planeRenderItem->Geo = m_geometries.at("solarSystem").get();
+    planeRenderItem->Mat = m_materials.at("wood0").get();
     planeRenderItem->ObjCBIndex = 5u;
-    planeRenderItem->IndexCount = planeRenderItem->Geo->DrawArgs["plane"].IndexCount;
-    planeRenderItem->StartIndexLocation = planeRenderItem->Geo->DrawArgs["plane"].StartIndexLocation;
-    planeRenderItem->BaseVertexLocation = planeRenderItem->Geo->DrawArgs["plane"].BaseVertexLocation;
+    planeRenderItem->IndexCount = planeRenderItem->Geo->DrawArgs.at("plane").IndexCount;
+    planeRenderItem->StartIndexLocation = planeRenderItem->Geo->DrawArgs.at("plane").StartIndexLocation;
+    planeRenderItem->BaseVertexLocation = planeRenderItem->Geo->DrawArgs.at("plane").BaseVertexLocation;
 
     m_renderItems.push_back(std::move(sunRenderItem));
     m_renderItems.push_back(std::move(mercuryRenderItem));
@@ -631,10 +642,10 @@ VOID Engine::CreateRenderItems()
 
 VOID Engine::CreatePointLights()
 {
-    MeshData geosphere = Shapes::CreateGeosphere(1.0f, 3u);
+    MeshData geosphereMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::SPHERE);
 
     auto pointLightMesh = std::make_unique<MeshGeometry>("pointLightMesh");
-    pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), geosphere.vertices, geosphere.indices);
+    pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), geosphereMesh.LODVertices[0], geosphereMesh.LODIndices[0]);
     m_geometries[pointLightMesh->Name] = std::move(pointLightMesh);
 
     const int n = 10;
@@ -645,7 +656,7 @@ VOID Engine::CreatePointLights()
     pointLight->Geo = m_geometries.at("pointLightMesh").get();
     pointLight->StartIndexLocation = 0u;
     pointLight->BaseVertexLocation = 0;
-    pointLight->IndexCount = (UINT)geosphere.indices.size();
+    pointLight->IndexCount = (UINT)geosphereMesh.LODIndices[0].size();
 
     float width = 50.0f;
     float depth = 50.0f;
@@ -927,6 +938,12 @@ void Engine::OnKeyboardInput(const ScaldTimer& st)
 
     if (GetAsyncKeyState('D') & 0x8000)
         m_camera->MoveRight(10.0f * dt);
+
+    if (GetAsyncKeyState('Q') & 0x8000)
+        m_camera->MoveUp(-8.f * dt);
+
+    if (GetAsyncKeyState('E') & 0x8000)
+        m_camera->MoveUp(8.f * dt);
 
 #pragma endregion CameraMovement
 

@@ -36,6 +36,7 @@ public:
 	// Translation
 	void MoveRight(float d);
 	void MoveForward(float d);
+	void MoveUp(float d);
 
 	// Rotation
 	void AdjustYaw(float adjustYawValue);

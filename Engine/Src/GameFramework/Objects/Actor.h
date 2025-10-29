@@ -1,22 +1,22 @@
 #pragma once
 
-#include "Object.h"
+#include "SObject.h"
 
 namespace Scald
 {
-	class Actor : public Object
+	class Actor : public SObject
 	{
-		using Super = Object;
+		using Super = SObject;
 
 	public:
 		Actor() = default;
 		virtual ~Actor() noexcept override;
 
-		//~ Begin of Object interface
+		//~ Begin of SObject interface
 		virtual void OnInit() override {};
 		virtual void OnUpdate() override {};
 		virtual void OnBegin() override {};
 		virtual void OnDestroy() override {};
-		//~ End of Object interface
+		//~ End of SObject interface
 	};
 }

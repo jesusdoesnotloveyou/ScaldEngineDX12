@@ -114,6 +114,16 @@ void Camera::MoveForward(float d)
 	m_isDirty = true;
 }
 
+void Camera::MoveUp(float d)
+{
+	// m_position += d * m_up
+	XMVECTOR s = XMVectorReplicate(d);
+	XMVECTOR u = XMLoadFloat3(&m_up);
+	XMVECTOR p = GetPosition();
+	XMStoreFloat3(&m_position, XMVectorMultiplyAdd(s, u, p));
+	m_isDirty = true;
+}
+
 // Rotation around world's Y axis
 void Camera::AdjustYaw(float angle)
 {
