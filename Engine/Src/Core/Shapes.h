@@ -15,11 +15,10 @@ public:
 	/// at the origin with the specified width and depth.
 	///</summary>
 	static MeshData<SVertex, uint16_t> CreateGrid(float width, float depth, UINT m, UINT n);
-	static MeshData CreateGrid(float width, float depth, UINT m, UINT n);
 
-	static MeshData CreateGeosphere(float radius, UINT numSubdivisions);
+	static MeshData<SVertex, uint16_t> CreateGeosphere(float radius, UINT numSubdivisions);
 
 private:
-	static void Subdivide(MeshData& meshData);
+	static void Subdivide(MeshData<>& meshData);
 	static SVertex MidPoint(const SVertex& v0, const SVertex& v1);
 };

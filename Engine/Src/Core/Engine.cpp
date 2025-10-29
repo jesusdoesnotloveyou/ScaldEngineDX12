@@ -443,42 +443,42 @@ VOID Engine::CreateGeometry()
     {
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
-        vertices[k].texC = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
     {
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
-        vertices[k].texC = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
     {
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
-        vertices[k].texC = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
     {
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
-        vertices[k].texC = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
     {
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
-        vertices[k].texC = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
     }
 
     for (size_t i = 0; i < gridMesh.LODVertices[0].size(); ++i, ++k)
     {
         vertices[k].position = gridMesh.LODVertices[0][i].position;
         vertices[k].normal = gridMesh.LODVertices[0][i].normal;
-        vertices[k].texC = gridMesh.LODVertices[0][i].texCoord;
+        vertices[k].texCoord = gridMesh.LODVertices[0][i].texCoord;
     }
 
     std::vector<uint16_t> indices;
@@ -642,10 +642,10 @@ VOID Engine::CreateRenderItems()
 
 VOID Engine::CreatePointLights()
 {
-    MeshData geosphere = Shapes::CreateGeosphere(1.0f, 3u);
+    MeshData geosphereMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::SPHERE);
 
     auto pointLightMesh = std::make_unique<MeshGeometry>("pointLightMesh");
-    pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), geosphere.vertices, geosphere.indices);
+    pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), geosphereMesh.LODVertices[0], geosphereMesh.LODIndices[0]);
     m_geometries[pointLightMesh->Name] = std::move(pointLightMesh);
 
     const int n = 10;
@@ -656,7 +656,7 @@ VOID Engine::CreatePointLights()
     pointLight->Geo = m_geometries.at("pointLightMesh").get();
     pointLight->StartIndexLocation = 0u;
     pointLight->BaseVertexLocation = 0;
-    pointLight->IndexCount = (UINT)geosphere.indices.size();
+    pointLight->IndexCount = (UINT)geosphereMesh.LODIndices[0].size();
 
     float width = 50.0f;
     float depth = 50.0f;

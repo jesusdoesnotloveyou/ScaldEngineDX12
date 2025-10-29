@@ -9,6 +9,7 @@ namespace Scald
 	{
 		BOX = 0,
 		SPHERE,
+		GEOSPHERE,
 		GRID,
 		NUM_BUILTIN_MESHES
 	};
