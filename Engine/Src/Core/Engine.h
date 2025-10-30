@@ -57,7 +57,10 @@ struct Material
 // F. Luna stuff: lightweight structure that stores parameters to draw a shape.
 struct RenderItem
 {
-    RenderItem() = default;
+    RenderItem(int objectCBIndex = -1)
+        : ObjCBIndex(objectCBIndex)
+    {
+    }
 
     XMMATRIX World = XMMatrixIdentity();
     // could be used for texture tiling
