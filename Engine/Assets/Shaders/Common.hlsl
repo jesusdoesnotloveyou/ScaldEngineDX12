@@ -1,17 +1,20 @@
 // Defaults for number of lights.
+
+// Forward Rendering
 #ifndef NUM_DIR_LIGHTS
 #define NUM_DIR_LIGHTS 0
 #endif
-
 #ifndef NUM_POINT_LIGHTS
 #define NUM_POINT_LIGHTS 0
 #endif
-
 #ifndef NUM_SPOT_LIGHTS
 #define NUM_SPOT_LIGHTS 0
 #endif
 
+
 #define MaxCascades 4
+
+// Deferred Rendering
 #define GBufferSize 5 // should be sync with GBuffer class
 
 #ifndef DIFFUSE_ALBEDO

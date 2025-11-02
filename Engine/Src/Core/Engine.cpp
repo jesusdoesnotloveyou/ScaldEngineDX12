@@ -1311,6 +1311,11 @@ void Engine::DeferredPointLightPass()
     m_commandList->ResourceBarrier(1u, &transition);
 }
 
+void Engine::DeferredSpotLightPass()
+{
+
+}
+
 void Engine::RenderTransparencyPass()
 {
     // forward-like
