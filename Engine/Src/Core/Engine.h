@@ -57,7 +57,10 @@ struct Material
 // F. Luna stuff: lightweight structure that stores parameters to draw a shape.
 struct RenderItem
 {
-    RenderItem() = default;
+    RenderItem(int objectCBIndex = -1)
+        : ObjCBIndex(objectCBIndex)
+    {
+    }
 
     XMMATRIX World = XMMatrixIdentity();
     // could be used for texture tiling
@@ -162,13 +165,18 @@ private:
     void UpdateGeometryPassCB(const ScaldTimer& st);
     void UpdateMainPassCB(const ScaldTimer& st);
     
+private:
+#pragma region Shadows
     void RenderDepthOnlyPass();
+#pragma endregion Shadows
 #pragma region DeferredShading
     void RenderGeometryPass();
     void RenderLightingPass();
     void RenderTransparencyPass();
+
     void DeferredDirectionalLightPass();
     void DeferredPointLightPass();
+    void DeferredSpotLightPass();
 #pragma endregion DeferredShading
 
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);

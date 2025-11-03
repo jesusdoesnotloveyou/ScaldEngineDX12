@@ -47,8 +47,8 @@ public:
     virtual void CalculateFrameStats();
 
     // Accessors.
-    __forceinline UINT GetWidth() const { return m_width; }
-    __forceinline UINT GetHeight() const { return m_height; }
+    FORCEINLINE UINT GetWidth() const { return m_width; }
+    FORCEINLINE UINT GetHeight() const { return m_height; }
     const WCHAR* GetTitle() const { return m_title.c_str(); }
     const WCHAR* GetWindowClass() const { return m_class.c_str(); }
 
@@ -71,8 +71,8 @@ protected:
     VOID CreateDevice();
     VOID CreateCommandObjects();
     VOID CreateFence();
-    virtual VOID CreateRtvAndDsvDescriptorHeaps();
     VOID CreateSwapChain();
+    virtual VOID CreateRtvAndDsvDescriptorHeaps();
 
     // Wait for pending GPU work to complete.
     VOID WaitForGPU();

@@ -61,6 +61,7 @@ struct SVertex
 #define MaxDirLights 1u
 #define MaxPointLights 128u
 #define MaxSpotLights 128u
+#define MaxLightsPool (MaxPointLights + MaxSpotLights)
 
 struct CascadesShadows
 {
@@ -111,6 +112,7 @@ struct InstanceData
 	LightData Light;
 };
 
+// Fprward Rendering
 #define MaxLights 16
 
 struct PassConstants

@@ -16,6 +16,8 @@
 #include <vector>
 #include <cassert>
 
+using Microsoft::WRL::ComPtr;
+
 template<typename TVertex = SVertex, typename TIndex = uint16_t> 
 struct MeshData
 {
@@ -34,7 +36,6 @@ struct MeshData
 // for the GPU lifetime of resources to avoid destroying objects that may still be
 // referenced by the GPU.
 
-using Microsoft::WRL::ComPtr;
 
 inline std::string HrToString(HRESULT hr)
 {

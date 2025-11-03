@@ -563,66 +563,63 @@ VOID Engine::CreateSceneObjects()
 
 VOID Engine::CreateRenderItems()
 {
-    auto sunRenderItem = std::make_unique<RenderItem>();
+    // Should probably be global scene variable or incapsulated inside scene class
+    int ObjectCBIndex = 0;
+
+    auto sunRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
     sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
     sunRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     sunRenderItem->Geo = m_geometries.at("solarSystem").get();
     sunRenderItem->Mat = m_materials.at("flame0").get();
-    sunRenderItem->ObjCBIndex = 0u;
     sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs.at("sun").IndexCount;
     sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs.at("sun").StartIndexLocation;
     sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs.at("sun").BaseVertexLocation;
     sunRenderItem->Bounds = sunRenderItem->Geo->DrawArgs.at("sun").Bounds;
 
-    auto mercuryRenderItem = std::make_unique<RenderItem>();
+    auto mercuryRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
     mercuryRenderItem->World = XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(2.0f, 0.0f, 0.0f);
     mercuryRenderItem->Geo = m_geometries.at("solarSystem").get();
     mercuryRenderItem->Mat = m_materials.at("sand0").get();
-    mercuryRenderItem->ObjCBIndex = 1u;
     mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs.at("mercury").IndexCount;
     mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").StartIndexLocation;
     mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").BaseVertexLocation;
     mercuryRenderItem->Bounds = mercuryRenderItem->Geo->DrawArgs.at("mercury").Bounds;
 
-    auto venusRenderItem = std::make_unique<RenderItem>();
+    auto venusRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
     venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
     venusRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     venusRenderItem->Geo = m_geometries.at("solarSystem").get();
     venusRenderItem->Mat = m_materials.at("stone0").get();
-    venusRenderItem->ObjCBIndex = 2u;
     venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs.at("venus").IndexCount;
     venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs.at("venus").StartIndexLocation;
     venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs.at("venus").BaseVertexLocation;
     venusRenderItem->Bounds = venusRenderItem->Geo->DrawArgs.at("venus").Bounds;
 
-    auto earthRenderItem = std::make_unique<RenderItem>();
+    auto earthRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
     earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
     earthRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
     earthRenderItem->Geo = m_geometries.at("solarSystem").get();
     earthRenderItem->Mat = m_materials.at("ground0").get();
-    earthRenderItem->ObjCBIndex = 3u;
     earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs.at("earth").IndexCount;
     earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs.at("earth").StartIndexLocation;
     earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs.at("earth").BaseVertexLocation;
     earthRenderItem->Bounds = earthRenderItem->Geo->DrawArgs.at("earth").Bounds;
 
-    auto marsRenderItem = std::make_unique<RenderItem>();
+    auto marsRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
     marsRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(5.0f, 0.0f, 5.0f);
     marsRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     marsRenderItem->Geo = m_geometries.at("solarSystem").get();
     marsRenderItem->Mat = m_materials.at("iron0").get();
-    marsRenderItem->ObjCBIndex = 4u;
     marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs.at("mars").IndexCount;
     marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs.at("mars").StartIndexLocation;
     marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs.at("mars").BaseVertexLocation;
     marsRenderItem->Bounds = marsRenderItem->Geo->DrawArgs.at("mars").Bounds;
 
-    auto planeRenderItem = std::make_unique<RenderItem>();
+    auto planeRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
     planeRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, -1.5f, 0.0f);
     planeRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
     planeRenderItem->Geo = m_geometries.at("solarSystem").get();
     planeRenderItem->Mat = m_materials.at("wood0").get();
-    planeRenderItem->ObjCBIndex = 5u;
     planeRenderItem->IndexCount = planeRenderItem->Geo->DrawArgs.at("plane").IndexCount;
     planeRenderItem->StartIndexLocation = planeRenderItem->Geo->DrawArgs.at("plane").StartIndexLocation;
     planeRenderItem->BaseVertexLocation = planeRenderItem->Geo->DrawArgs.at("plane").BaseVertexLocation;
@@ -642,10 +639,11 @@ VOID Engine::CreateRenderItems()
 
 VOID Engine::CreatePointLights()
 {
-    MeshData geosphereMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::SPHERE);
+    // create point light mesh as sphere, since there is issue with geosphere mesh (see in renderDoc)
+    MeshData sphereMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::SPHERE);
 
     auto pointLightMesh = std::make_unique<MeshGeometry>("pointLightMesh");
-    pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), geosphereMesh.LODVertices[0], geosphereMesh.LODIndices[0]);
+    pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), sphereMesh.LODVertices[0], sphereMesh.LODIndices[0]);
     m_geometries[pointLightMesh->Name] = std::move(pointLightMesh);
 
     const int n = 10;
@@ -656,7 +654,7 @@ VOID Engine::CreatePointLights()
     pointLight->Geo = m_geometries.at("pointLightMesh").get();
     pointLight->StartIndexLocation = 0u;
     pointLight->BaseVertexLocation = 0;
-    pointLight->IndexCount = (UINT)geosphereMesh.LODIndices[0].size();
+    pointLight->IndexCount = (UINT)sphereMesh.LODIndices[0].size();
 
     float width = 50.0f;
     float depth = 50.0f;
@@ -673,14 +671,14 @@ VOID Engine::CreatePointLights()
             int index = k*n + j;
             
             const float lightRange = ScaldMath::RandF(2.5, 3.0f);
-            XMVECTOR pos = XMVectorSet(x + j * dx, -1.0f, z + k * dz, 1.0f);
+            XMVECTOR pos = XMVectorSet(x + j * dx, -0.5f, z + k * dz, 1.0f);
             // scale should be dependent from range of light source
             XMMATRIX world = XMMatrixScalingFromVector(XMVectorReplicate(lightRange)) * XMMatrixTranslationFromVector(pos);
 
             XMStoreFloat4x4(&pointLight->Instances[index].World, world);
 
             XMStoreFloat3(&pointLight->Instances[index].Light.Position, pos);
-            pointLight->Instances[index].Light.FallOfStart = ScaldMath::RandF(1.5, 2.0f);
+            pointLight->Instances[index].Light.FallOfStart = ScaldMath::RandF(1.0, 2.0f);
             pointLight->Instances[index].Light.FallOfEnd = lightRange;
             pointLight->Instances[index].Light.Strength = { ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f) };
         }
@@ -1311,6 +1309,11 @@ void Engine::DeferredPointLightPass()
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1u, &transition);
+}
+
+void Engine::DeferredSpotLightPass()
+{
+
 }
 
 void Engine::RenderTransparencyPass()
