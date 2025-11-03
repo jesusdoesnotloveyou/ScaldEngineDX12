@@ -2,19 +2,13 @@
 
 struct VSInput
 {
-    float3 iPosL    : POSITION;
-    float3 iNormalL : NORMAL;
-    float3 iTangent : TANGENT;
-    float2 iTexC    : TEXCOORD;
+    float3 iPosL : POSITION0;
 };
 
 struct VSOutput
 {
-    float4 oPosH    : SV_POSITION;
-    float3 oPosW    : POSITION;
-    float3 oNormalW : NORMAL;
-    float2 oTexC    : TEXCOORD;
-    
+    float4 oPosH : SV_POSITION;
+    // for instancing (not sure that's the best way to implement this logic)
     nointerpolation uint oInstanceID : InstanceID;
 };
 
