@@ -1,51 +1,51 @@
 #include "stdafx.h"
 #include "Shapes.h"
 
-MeshData<SVertex, uint16_t> Shapes::CreateBox(float width, float height, float depth)
+MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateBox(float width, float height, float depth)
 {
-    MeshData<SVertex, uint16_t> meshData;
+    MeshData<VertexPositionNormalTangentUV, uint16_t> meshData;
 
-    SVertex v[24];
+    VertexPositionNormalTangentUV v[24];
 
     float w2 = 0.5f * width;
     float h2 = 0.5f * height;
     float d2 = 0.5f * depth;
 
 	// Fill in the front face vertex data.
-	v[0] = SVertex(-w2, -h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-	v[1] = SVertex(-w2, +h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-	v[2] = SVertex(+w2, +h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
-	v[3] = SVertex(+w2, -h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
+	v[0] = VertexPositionNormalTangentUV(-w2, -h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+	v[1] = VertexPositionNormalTangentUV(-w2, +h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	v[2] = VertexPositionNormalTangentUV(+w2, +h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	v[3] = VertexPositionNormalTangentUV(+w2, -h2, -d2, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
 
 	// Fill in the back face vertex data.
-	v[4] = SVertex(-w2, -h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
-	v[5] = SVertex(+w2, -h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-	v[6] = SVertex(+w2, +h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-	v[7] = SVertex(-w2, +h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	v[4] = VertexPositionNormalTangentUV(-w2, -h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
+	v[5] = VertexPositionNormalTangentUV(+w2, -h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+	v[6] = VertexPositionNormalTangentUV(+w2, +h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	v[7] = VertexPositionNormalTangentUV(-w2, +h2, +d2, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
 	// Fill in the top face vertex data.
-	v[8] = SVertex(-w2, +h2, -d2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-	v[9] = SVertex(-w2, +h2, +d2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-	v[10] = SVertex(+w2, +h2, +d2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
-	v[11] = SVertex(+w2, +h2, -d2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
+	v[8] = VertexPositionNormalTangentUV(-w2, +h2, -d2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+	v[9] = VertexPositionNormalTangentUV(-w2, +h2, +d2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	v[10] = VertexPositionNormalTangentUV(+w2, +h2, +d2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	v[11] = VertexPositionNormalTangentUV(+w2, +h2, -d2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
 
 	// Fill in the bottom face vertex data.
-	v[12] = SVertex(-w2, -h2, -d2, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
-	v[13] = SVertex(+w2, -h2, -d2, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-	v[14] = SVertex(+w2, -h2, +d2, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-	v[15] = SVertex(-w2, -h2, +d2, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	v[12] = VertexPositionNormalTangentUV(-w2, -h2, -d2, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
+	v[13] = VertexPositionNormalTangentUV(+w2, -h2, -d2, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+	v[14] = VertexPositionNormalTangentUV(+w2, -h2, +d2, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	v[15] = VertexPositionNormalTangentUV(-w2, -h2, +d2, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
 	// Fill in the left face vertex data.
-	v[16] = SVertex(-w2, -h2, +d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f);
-	v[17] = SVertex(-w2, +h2, +d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f);
-	v[18] = SVertex(-w2, +h2, -d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f);
-	v[19] = SVertex(-w2, -h2, -d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f);
+	v[16] = VertexPositionNormalTangentUV(-w2, -h2, +d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f);
+	v[17] = VertexPositionNormalTangentUV(-w2, +h2, +d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f);
+	v[18] = VertexPositionNormalTangentUV(-w2, +h2, -d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f);
+	v[19] = VertexPositionNormalTangentUV(-w2, -h2, -d2, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f);
 
 	// Fill in the right face vertex data.
-	v[20] = SVertex(+w2, -h2, -d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f);
-	v[21] = SVertex(+w2, +h2, -d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
-	v[22] = SVertex(+w2, +h2, +d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
-	v[23] = SVertex(+w2, -h2, +d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
+	v[20] = VertexPositionNormalTangentUV(+w2, -h2, -d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f);
+	v[21] = VertexPositionNormalTangentUV(+w2, +h2, -d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
+	v[22] = VertexPositionNormalTangentUV(+w2, +h2, +d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
+	v[23] = VertexPositionNormalTangentUV(+w2, -h2, +d2, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
 
 	meshData.LODVertices[0].assign(&v[0], &v[24]);
 
@@ -79,18 +79,18 @@ MeshData<SVertex, uint16_t> Shapes::CreateBox(float width, float height, float d
 
 	for (UINT i = 0; i < meshData.NumLODs; ++i)
 	{
-		BoundingBox::CreateFromPoints(meshData.LODBounds[i], meshData.LODVertices[i].size(), &meshData.LODVertices[i][0].position, sizeof(SVertex));
+		BoundingBox::CreateFromPoints(meshData.LODBounds[i], meshData.LODVertices[i].size(), &meshData.LODVertices[i][0].position, sizeof(VertexPositionNormalTangentUV));
 	}
 
 	return meshData;
 }
 
-MeshData<SVertex, uint16_t> Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
+MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateSphere(float radius, UINT sliceCount, UINT stackCount)
 {
-	MeshData<SVertex, uint16_t> meshData;
+	MeshData<VertexPositionNormalTangentUV, uint16_t> meshData;
 	
-	SVertex topVertex(0.0f, +radius, 0.0f, 0.0f, +1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-	SVertex bottomVertex(0.0f, -radius, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+	VertexPositionNormalTangentUV topVertex(0.0f, +radius, 0.0f, 0.0f, +1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	VertexPositionNormalTangentUV bottomVertex(0.0f, -radius, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 
 	meshData.LODVertices[0].push_back(topVertex);
 
@@ -107,7 +107,7 @@ MeshData<SVertex, uint16_t> Shapes::CreateSphere(float radius, UINT sliceCount, 
 		{
 			float theta = j * thetaStep;
 
-			SVertex v;
+			VertexPositionNormalTangentUV v;
 
 			// spherical to cartesian
 			v.position.x = radius * sinf(phi) * cosf(theta);
@@ -174,15 +174,15 @@ MeshData<SVertex, uint16_t> Shapes::CreateSphere(float radius, UINT sliceCount, 
 
 	for (UINT i = 0; i < meshData.NumLODs; ++i)
 	{
-		BoundingBox::CreateFromPoints(meshData.LODBounds[i], meshData.LODVertices[i].size(), &meshData.LODVertices[i][0].position, sizeof(SVertex));
+		BoundingBox::CreateFromPoints(meshData.LODBounds[i], meshData.LODVertices[i].size(), &meshData.LODVertices[i][0].position, sizeof(VertexPositionNormalTangentUV));
 	}
 
 	return meshData;
 }
 
-MeshData<SVertex, uint16_t> Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
+MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
 {
-	MeshData<SVertex, uint16_t> meshData;
+	MeshData<VertexPositionNormalTangentUV, uint16_t> meshData;
 
 	UINT vertexCount = m * n;
 	UINT faceCount = (m - 1) * (n - 1) * 2;
@@ -245,7 +245,7 @@ MeshData<SVertex, uint16_t> Shapes::CreateGrid(float width, float depth, UINT m,
 	return meshData;
 }
 
-MeshData<SVertex, uint16_t> Shapes::CreateGeosphere(float radius, UINT numSubdivisions)
+MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateGeosphere(float radius, UINT numSubdivisions)
 {
 	MeshData meshData;
 
@@ -339,17 +339,17 @@ void Shapes::Subdivide(MeshData<>& meshData)
 	UINT numTris = (UINT)inputCopy.LODIndices[0].size() / 3;
 	for (UINT i = 0; i < numTris; ++i)
 	{
-		SVertex v0 = inputCopy.LODVertices[0][inputCopy.LODIndices[0][i * 3 + 0]];
-		SVertex v1 = inputCopy.LODVertices[0][inputCopy.LODIndices[0][i * 3 + 1]];
-		SVertex v2 = inputCopy.LODVertices[0][inputCopy.LODIndices[0][i * 3 + 2]];
+		VertexPositionNormalTangentUV v0 = inputCopy.LODVertices[0][inputCopy.LODIndices[0][i * 3 + 0]];
+		VertexPositionNormalTangentUV v1 = inputCopy.LODVertices[0][inputCopy.LODIndices[0][i * 3 + 1]];
+		VertexPositionNormalTangentUV v2 = inputCopy.LODVertices[0][inputCopy.LODIndices[0][i * 3 + 2]];
 
 		//
 		// Generate the midpoints.
 		//
 
-		SVertex m0 = MidPoint(v0, v1);
-		SVertex m1 = MidPoint(v1, v2);
-		SVertex m2 = MidPoint(v0, v2);
+		VertexPositionNormalTangentUV m0 = MidPoint(v0, v1);
+		VertexPositionNormalTangentUV m1 = MidPoint(v1, v2);
+		VertexPositionNormalTangentUV m2 = MidPoint(v0, v2);
 
 		//
 		// Add new geometry.
@@ -380,7 +380,7 @@ void Shapes::Subdivide(MeshData<>& meshData)
 	}
 }
 
-SVertex Shapes::MidPoint(const SVertex& v0, const SVertex& v1)
+VertexPositionNormalTangentUV Shapes::MidPoint(const VertexPositionNormalTangentUV& v0, const VertexPositionNormalTangentUV& v1)
 {
 	XMVECTOR p0 = XMLoadFloat3(&v0.position);
 	XMVECTOR p1 = XMLoadFloat3(&v1.position);
@@ -401,7 +401,7 @@ SVertex Shapes::MidPoint(const SVertex& v0, const SVertex& v1)
 	XMVECTOR tangent = XMVector3Normalize(0.5f * (tan0 + tan1));
 	XMVECTOR tex = 0.5f * (tex0 + tex1);
 
-	SVertex v;
+	VertexPositionNormalTangentUV v;
 	XMStoreFloat3(&v.position, pos);
 	XMStoreFloat3(&v.normal, normal);
 	XMStoreFloat3(&v.tangent, tangent);

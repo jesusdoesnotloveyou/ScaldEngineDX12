@@ -1,6 +1,6 @@
 #pragma once
 
-#include <DirectXMath.h>
+#include "VertexTypes.h"
 #include <DirectXColors.h>
 
 #ifndef FORCEINLINE
@@ -14,8 +14,6 @@ using MeshID = ID_TYPE;
 using ModelID = ID_TYPE;
 using TextureID = ID_TYPE;
 
-using namespace DirectX;
-
 enum class EPassType : uint8_t
 {
 	// ComputePass
@@ -24,36 +22,6 @@ enum class EPassType : uint8_t
 	DeferredGeometry,
 	DeferredLighting,
 	NumPasses = 3
-};
-
-struct SVertex
-{
-	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 tangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT2 texCoord = XMFLOAT2(0.0f, 0.0f);
-
-	SVertex() {}
-
-	SVertex(const XMFLOAT3& p, const XMFLOAT3& n, const XMFLOAT3& t, const XMFLOAT2& uv)
-		:
-		position(p),
-		normal(n),
-		tangent(t),
-		texCoord(uv)
-	{}
-	
-	SVertex(
-		float px, float py, float pz,
-		float nx, float ny, float nz,
-		float tx, float ty, float tz,
-		float u, float v)
-		:
-		position(px, py, pz),
-		normal(nx, ny, nz),
-		tangent(tx, ty, tz),
-		texCoord(u, v)
-	{}
 };
 
 #define MaxCascades 4
