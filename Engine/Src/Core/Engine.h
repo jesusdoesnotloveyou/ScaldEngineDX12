@@ -199,8 +199,6 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
    
     std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
-    std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
-
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
 
     ObjectConstants m_perObjectCBData;

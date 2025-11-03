@@ -141,14 +141,6 @@ VOID Engine::CreateShaders()
     m_shaders[EShaderType::DeferredPointPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredPointLightPS.hlsl", nullptr, "main", "ps_5_1");
     m_shaders[EShaderType::DeferredSpotPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredSpotLightPS.hlsl", nullptr, "main", "ps_5_1");
 #pragma endregion DeferredShading
-
-    m_inputLayout =
-    {
-        { "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-        { "NORMAL", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 12u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-        { "TANGENT", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 24u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-        { "TEXCOORD", 0u, DXGI_FORMAT_R32G32_FLOAT, 0u, 36u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
-    };
 }
 
 VOID Engine::CreatePSO()
@@ -172,7 +164,7 @@ VOID Engine::CreatePSO()
     opaquePsoDesc.SampleMask = UINT_MAX;
     opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    opaquePsoDesc.InputLayout = { m_inputLayout.data(), (UINT)m_inputLayout.size()};
+    opaquePsoDesc.InputLayout = VertexPositionNormalTangentUV::InputLayout;
     opaquePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     opaquePsoDesc.NumRenderTargets = 1u;
     opaquePsoDesc.RTVFormats[0] = BackBufferFormat;
@@ -235,7 +227,7 @@ VOID Engine::CreatePSO()
     cascadeShadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
     cascadeShadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
     cascadeShadowPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    cascadeShadowPsoDesc.InputLayout = { m_inputLayout.data(), (UINT)m_inputLayout.size() };
+    cascadeShadowPsoDesc.InputLayout = VertexPosition::InputLayout;
     cascadeShadowPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     cascadeShadowPsoDesc.NumRenderTargets = 0u;
     cascadeShadowPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
@@ -277,6 +269,7 @@ VOID Engine::CreatePSO()
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredDirPS)->GetBufferPointer()),
             m_shaders.at(EShaderType::DeferredDirPS)->GetBufferSize()
         });
+    dirLightPsoDesc.InputLayout = VertexPosition::InputLayout;
     dirLightPsoDesc.NumRenderTargets = 1u;
     dirLightPsoDesc.RTVFormats[0] = BackBufferFormat;
     dirLightPsoDesc.DSVFormat = DepthStencilFormat;
@@ -326,10 +319,12 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightWithinFrustumPsoDesc = pointLightIntersectsFarPlanePsoDesc;
     pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT; // ???
     pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+    pointLightIntersectsFarPlanePsoDesc.InputLayout = VertexPosition::InputLayout;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightWithinFrustumPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPointWithinFrustum])));
 
 #pragma endregion DeferredPointLight
 
+#pragma region DeferredSpotLight
     D3D12_GRAPHICS_PIPELINE_STATE_DESC spotLightPsoDesc = pointLightIntersectsFarPlanePsoDesc;
     spotLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
@@ -337,6 +332,7 @@ VOID Engine::CreatePSO()
             m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferSize()
         });
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&spotLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredSpot])));
+#pragma endregion DeferredSpotLight
 
 #pragma endregion DeferredShading
 }
@@ -436,7 +432,7 @@ VOID Engine::CreateGeometry()
         + gridMesh.LODIndices[0].size()
         ;
 
-    std::vector<SVertex> vertices(totalVertexCount);
+    std::vector<VertexPositionNormalTangentUV> vertices(totalVertexCount);
 
     int k = 0;
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
@@ -501,7 +497,9 @@ VOID Engine::CreateGeometry()
     m_geometries[geometry->Name] = std::move(geometry);
 
     m_fullQuad = std::make_unique<MeshGeometry>("fullQuad");
-    std::vector<SVertex> fullQuadVertices(4, SVertex{});
+    std::vector<VertexPosition> fullQuadVertices(4, VertexPosition{}); // SV_VertexID in DeferredDirLightVS
+                                                                       // we don't need any other data besides vertex position,
+                                                                       // so there is actually no input layout for that shader
     m_fullQuad->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), fullQuadVertices);
 }
 
