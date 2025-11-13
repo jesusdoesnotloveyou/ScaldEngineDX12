@@ -51,5 +51,4 @@ private:
 	BYTE* m_mappedData = nullptr;
 	UINT m_elementByteSize = 0u;
 	bool m_isConstantBuffer = false;
-
 };

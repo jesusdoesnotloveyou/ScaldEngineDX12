@@ -19,6 +19,7 @@ enum class EPassType : uint8_t
 	// ComputePass
 	// ZPrePass
 	DepthShadow = 0,
+	// SSAO
 	DeferredGeometry,
 	DeferredLighting,
 	NumPasses = 3

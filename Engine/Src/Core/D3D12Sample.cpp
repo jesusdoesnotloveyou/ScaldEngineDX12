@@ -3,7 +3,7 @@
 
 using namespace Microsoft::WRL;
 
-D3D12Sample::D3D12Sample(UINT width, UINT height, std::wstring name, std::wstring className)
+D3D12Sample::D3D12Sample(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
     :
     m_width(width),
     m_height(height),
@@ -165,7 +165,7 @@ VOID D3D12Sample::Reset()
         }
 
         // Create the depth/stencil view.
-        D3D12_RESOURCE_DESC depthStencilDesc;
+        D3D12_RESOURCE_DESC depthStencilDesc = {};
         depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
         depthStencilDesc.Alignment = 0;
         depthStencilDesc.Width = m_width;
@@ -180,7 +180,7 @@ VOID D3D12Sample::Reset()
         depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-        D3D12_CLEAR_VALUE optClear;
+        D3D12_CLEAR_VALUE optClear = {};
         optClear.Format = DepthStencilFormat;
         optClear.DepthStencil.Depth = 1.0f;
         optClear.DepthStencil.Stencil = 0u;
@@ -258,7 +258,7 @@ void D3D12Sample::CalculateFrameStats()
 }
 
 // Helper function for resolving the full path of assets.
-std::wstring D3D12Sample::GetAssetFullPath(LPCWSTR assetName)
+std::wstring D3D12Sample::GetAssetFullPath(LPCWSTR assetName) const
 {
     return m_assetsPath + assetName;
 }
@@ -332,7 +332,7 @@ void D3D12Sample::GetHardwareAdapter(
 }
 
 // Helper function for setting the window's title text.
-void D3D12Sample::SetCustomWindowText(LPCWSTR text)
+void D3D12Sample::SetCustomWindowText(LPCWSTR text) const
 {
     std::wstring windowText = m_title + L": " + text;
     SetWindowText(Win32App::GetHwnd(), windowText.c_str());

@@ -7,7 +7,7 @@
 
 extern const int gNumFrameResources;
 
-Engine::Engine(UINT width, UINT height, std::wstring name, std::wstring className) 
+Engine::Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
     : 
     D3D12Sample(width, height, name, className)
 {

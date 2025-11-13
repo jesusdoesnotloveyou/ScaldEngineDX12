@@ -12,7 +12,7 @@
 class D3D12Sample
 {
 public:
-    D3D12Sample(UINT width, UINT height, std::wstring name, std::wstring className);
+    D3D12Sample(UINT width, UINT height, const std::wstring& name, const std::wstring& className);
     virtual ~D3D12Sample();
 
 public:
@@ -58,14 +58,14 @@ public:
     void ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc);
 
 protected:
-    std::wstring GetAssetFullPath(LPCWSTR assetName);
+    std::wstring GetAssetFullPath(LPCWSTR assetName) const;
 
     void GetHardwareAdapter(
         _In_ IDXGIFactory1* pFactory,
         _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter,
         bool requestHighPerformanceAdapter = false);
 
-    void SetCustomWindowText(LPCWSTR text);
+    void SetCustomWindowText(LPCWSTR text) const;
 
     VOID CreateDebugLayer();
     VOID CreateDevice();

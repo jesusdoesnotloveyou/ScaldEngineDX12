@@ -141,7 +141,7 @@ public:
     };
 
 public:
-    Engine(UINT width, UINT height, std::wstring name, std::wstring className);
+    Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className);
     virtual ~Engine() override;
 
     virtual void OnInit() override;
@@ -258,7 +258,7 @@ private:
     VOID PopulateCommandList();
     VOID MoveToNextFrame();
 
-    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers();
+    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> GetStaticSamplers();
 
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
     // Doubt that't a good idea to return vector of matrices. Should rather pass vector as a parameter probalby and fill it inside function.
