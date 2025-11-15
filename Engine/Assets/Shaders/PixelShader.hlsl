@@ -2,10 +2,10 @@
 
 struct PSInput
 {
-    float4 iPosH       : SV_POSITION;
-    float3 iPosW       : POSITION0;
-    float3 iNormalW    : NORMAL;
-    float2 iTexC       : TEXCOORD0;
+    float4 iPosH    : SV_POSITION;
+    float3 iPosW    : POSITION0;
+    float3 iNormalW : NORMAL;
+    float2 iTexC    : TEXCOORD0;
 };
 
 float SampleShadowMap(uint layer, float2 uv, float depth)
@@ -50,7 +50,7 @@ float GetShadowFactor(float3 posW, uint layer)
         return percentLit / 9.0f;
     }
     
-    return 1.0f;
+    return 1.0f.r;
 }
 
 float4 main(PSInput input) : SV_TARGET

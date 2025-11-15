@@ -49,6 +49,7 @@
     <ClInclude Include="Src\GameFramework\Components\Scene.h" />
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
     <ClInclude Include="Src\GameFramework\Components\Transform.h" />
+    <ClInclude Include="Src\Common\VertexTypes.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\LightUtil.hlsl" />

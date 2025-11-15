@@ -2,10 +2,7 @@
 
 struct PSInput
 {
-    float4 iPosH    : SV_POSITION;
-    float3 iPosW    : POSITION;
-    float3 iNormalW : NORMAL;
-    float2 iTexC    : TEXCOORD;
+    float4 iPosH : SV_POSITION;
     
     nointerpolation uint iInstanceID : InstanceID;
 };

@@ -75,7 +75,7 @@ float3 CalcPointLight(Light L, float3 N, float3 posW, float3 viewDir, Material m
     float d = length(lightVec);
     
     if (d > L.FalloffEnd)
-        return .0f;
+        return 0.0f.rrr;
     
     float3 lightDir = lightVec / d;
     float NdotL = max(dot(lightDir, N), 0.0f);
@@ -119,11 +119,11 @@ float3 ComputeSpotLight(Light L, Material mat, float3 posW, float3 normal, float
 // and to pass it in BlinnPhong model function
 float4 ComputeLight(Light gLights[MaxLights], float3 N, float3 posW, float3 viewDir, Material mat, float shadowFactor)
 {
-    float3 litColor = 0.0f;
+    float3 litColor = 0.0f.rrr;
     
 #if NUM_DIR_LIGHTS
     
-    float3 dirLight = 0.f;
+    float3 dirLight = 0.f.rrr;
     
     [unroll]
     for (int i = 0; i < NUM_DIR_LIGHTS; i++)
@@ -136,7 +136,7 @@ float4 ComputeLight(Light gLights[MaxLights], float3 N, float3 posW, float3 view
     
 #if NUM_POINT_LIGHTS
     
-    float3 pointLight = 0.f;
+    float3 pointLight = 0.f.rrr;
     
     [unroll]
     for (i = NUM_DIR_LIGHTS; i < NUM_DIR_LIGHTS + NUM_POINT_LIGHTS; i++)
@@ -149,7 +149,7 @@ float4 ComputeLight(Light gLights[MaxLights], float3 N, float3 posW, float3 view
     
 #if NUM_SPOT_LIGHTS
     
-    float3 spotLight = 0.f;
+    float3 spotLight = 0.f.rrr;
     
     [unroll]
     for (i = NUM_DIR_LIGHTS + NUM_POINT_LIGHTS; i < NUM_DIR_LIGHTS + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS; i++)

@@ -141,7 +141,7 @@ public:
     };
 
 public:
-    Engine(UINT width, UINT height, std::wstring name, std::wstring className);
+    Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className);
     virtual ~Engine() override;
 
     virtual void OnInit() override;
@@ -199,8 +199,6 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
    
     std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
-    std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
-
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
 
     ObjectConstants m_perObjectCBData;
@@ -226,15 +224,21 @@ private:
 
     std::unique_ptr<MeshGeometry> m_fullQuad;
 
-#pragma region DeferredRendering
+#pragma region DeferredShading
     std::unique_ptr<GBuffer> m_GBuffer;
-
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_GBufferTexturesSrv;
-    float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
+#pragma endregion DeferredShading
+
+#pragma region CascadedShadows
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
+#pragma endregion CascadedShadows
 
 private:
     VOID LoadPipeline() override;
+    VOID LoadGraphicsFeatures();
+    VOID LoadCSMResources();
+    VOID LoadDeferredRenderingResources();
+    
     VOID Reset() override;
     VOID CreateRtvAndDsvDescriptorHeaps() override;
     
@@ -260,12 +264,11 @@ private:
     VOID PopulateCommandList();
     VOID MoveToNextFrame();
 
-    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers();
+    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> GetStaticSamplers();
 
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
     // Doubt that't a good idea to return vector of matrices. Should rather pass vector as a parameter probalby and fill it inside function.
     void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
-    void CreateShadowCascadeSplits();
 
     std::vector<XMVECTOR> GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection);
 };

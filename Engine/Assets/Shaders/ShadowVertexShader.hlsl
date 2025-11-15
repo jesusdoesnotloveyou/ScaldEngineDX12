@@ -2,10 +2,7 @@
 
 struct VSInput
 {
-    float3 iPosL     : POSITION0;
-    float3 iNormalL : NORMAL;
-    float3 iTangent  : TANGENT;
-    float2 inTexC    : TEXCOORD0;
+    float3 iPosL : POSITION0;
 };
 
 struct VSOutput

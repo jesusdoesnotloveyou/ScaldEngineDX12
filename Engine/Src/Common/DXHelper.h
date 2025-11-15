@@ -18,7 +18,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-template<typename TVertex = SVertex, typename TIndex = uint16_t> 
+template<typename TVertex = VertexPositionNormalTangentUV, typename TIndex = uint16_t> 
 struct MeshData
 {
     static_assert(std::is_same<TIndex, unsigned>() || std::is_same<TIndex, unsigned short>()); // to make sure that index type either uint16_t or uint32_t
