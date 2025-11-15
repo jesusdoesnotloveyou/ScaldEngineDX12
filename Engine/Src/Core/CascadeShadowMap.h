@@ -15,5 +15,4 @@ protected:
 	virtual void CreateDescriptors() override;
 private:
 	void CreateResource();
-
 };

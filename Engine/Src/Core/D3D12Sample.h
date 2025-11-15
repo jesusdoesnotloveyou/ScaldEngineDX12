@@ -126,6 +126,7 @@ protected:
     ComPtr<ID3D12Resource> m_depthStencilBuffer;
 
     // Synchronization objects.
+    // swapChain->GetCurrentBackBufferIndex() return current free index of back buffer to write to
     UINT m_frameIndex = 0u; // keep track of front and back buffers (see SwapChainFrameCount)
     ComPtr<ID3D12Fence> m_fence;
     HANDLE m_fenceEvent;
