@@ -224,15 +224,21 @@ private:
 
     std::unique_ptr<MeshGeometry> m_fullQuad;
 
-#pragma region DeferredRendering
+#pragma region DeferredShading
     std::unique_ptr<GBuffer> m_GBuffer;
-
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_GBufferTexturesSrv;
-    float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
+#pragma endregion DeferredShading
+
+#pragma region CascadedShadows
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
+#pragma endregion CascadedShadows
 
 private:
     VOID LoadPipeline() override;
+    VOID LoadGraphicsFeatures();
+    VOID LoadCSMResources();
+    VOID LoadDeferredRenderingResources();
+    
     VOID Reset() override;
     VOID CreateRtvAndDsvDescriptorHeaps() override;
     
@@ -263,7 +269,6 @@ private:
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
     // Doubt that't a good idea to return vector of matrices. Should rather pass vector as a parameter probalby and fill it inside function.
     void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
-    void CreateShadowCascadeSplits();
 
     std::vector<XMVECTOR> GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection);
 };

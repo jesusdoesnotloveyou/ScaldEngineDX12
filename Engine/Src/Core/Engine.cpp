@@ -26,10 +26,7 @@ void Engine::OnInit()
 {
     LoadPipeline();
 
-    m_cascadeShadowMap = std::make_unique<CascadeShadowMap>(m_device.Get(), 2048u, 2048u, MaxCascades);
-    CreateShadowCascadeSplits();
-
-    m_GBuffer = std::make_unique<GBuffer>(m_device.Get(), m_width, m_height);
+    LoadGraphicsFeatures();
 
     LoadAssets();
 }
@@ -38,6 +35,23 @@ void Engine::OnInit()
 VOID Engine::LoadPipeline()
 {
     D3D12Sample::LoadPipeline();
+}
+
+VOID Engine::LoadGraphicsFeatures()
+{
+    LoadCSMResources();
+    LoadDeferredRenderingResources();
+}
+
+VOID Engine::LoadCSMResources()
+{
+    m_cascadeShadowMap = std::make_unique<CascadeShadowMap>(m_device.Get(), 2048u, 2048u, MaxCascades);
+    m_cascadeShadowMap->CreateShadowCascadeSplits(m_camera->GetNearZ(), m_camera->GetFarZ());
+}
+
+VOID Engine::LoadDeferredRenderingResources()
+{
+    m_GBuffer = std::make_unique<GBuffer>(m_device.Get(), m_width, m_height);
 }
 
 // Load the sample assets.
@@ -1055,7 +1069,7 @@ void Engine::UpdateShadowTransform(const ScaldTimer& st)
         m_shadowPassCBData.Cascades.CascadeViewProj[i] = XMMatrixTranspose(shadowTransform);
 
         m_mainPassCBData.Cascades.CascadeViewProj[i] = XMMatrixTranspose(shadowTransform);
-        m_mainPassCBData.Cascades.Distances[i] = m_shadowCascadeLevels[i];
+        m_mainPassCBData.Cascades.Distances[i] = m_cascadeShadowMap->GetCascadeLevel(i);
     }
 }
 
@@ -1490,38 +1504,16 @@ std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, con
 
 void Engine::GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices)
 {
-    for (UINT i = 0; i < MaxCascades; ++i)
+    for (UINT i = 0u; i < MaxCascades; ++i)
     {
-        if (i == 0)
+        if (i == 0u)
         {
-            outMatrices.push_back(GetLightSpaceMatrix(m_camera->GetNearZ(), m_shadowCascadeLevels[i]));
-        }
-        else if (i < MaxCascades - 1)
-        {
-            outMatrices.push_back(GetLightSpaceMatrix(m_shadowCascadeLevels[i - 1], m_shadowCascadeLevels[i]));
+            outMatrices.push_back(GetLightSpaceMatrix(m_camera->GetNearZ(), m_cascadeShadowMap->GetCascadeLevel(i)));
         }
         else
         {
-            outMatrices.push_back(GetLightSpaceMatrix(m_shadowCascadeLevels[i - 1], m_shadowCascadeLevels[i]));
+            outMatrices.push_back(GetLightSpaceMatrix(m_cascadeShadowMap->GetCascadeLevel(i-1), m_cascadeShadowMap->GetCascadeLevel(i)));
         }
-    }
-}
-
-void Engine::CreateShadowCascadeSplits()
-{
-    const float minZ = m_camera->GetNearZ();
-    const float maxZ = m_camera->GetFarZ();
-
-    const float range = maxZ - minZ;
-    const float ratio = maxZ / minZ;
-
-    for (int i = 0; i < MaxCascades; i++)
-    {
-        float p = (i + 1) / (float)(MaxCascades);
-        float log = (float)(minZ * pow(ratio, p));
-        float uniform = minZ + range * p;
-        float d = 0.95f * (log - uniform) + uniform; // 0.95f - idk, just magic value
-        m_shadowCascadeLevels[i] = ((d - minZ) / range) * maxZ;
     }
 }
 

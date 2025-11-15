@@ -31,6 +31,14 @@ public:
 
 	void OnResize(UINT newWidth, UINT newHeight);
 
+	FORCEINLINE float GetCascadeLevel(UINT level) const
+	{
+		return m_shadowCascadeLevels[level];
+	}
+
+	// could be updatable if we are changing frustum in runtime 
+	void CreateShadowCascadeSplits(float nearZ, float farZ);
+
 protected:
 	virtual void CreateDescriptors();
 private:
@@ -55,4 +63,6 @@ protected:
 
 	// actual gpu resource
 	ComPtr<ID3D12Resource> m_shadowMap = nullptr;
+
+	float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
 };
