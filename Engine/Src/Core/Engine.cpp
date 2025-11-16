@@ -4,6 +4,7 @@
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
+#include "RootSignature.h"
 
 extern const int gNumFrameResources;
 
@@ -103,7 +104,7 @@ VOID Engine::CreateRootSignature()
     slotRootParameter[ERootParameter::Textures].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                            // a descriptor table for textures
     slotRootParameter[ERootParameter::GBufferTextures].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                 // a descriptor table for GBuffer
 
-    auto staticSamplers = GetStaticSamplers();
+    auto staticSamplers = RootSignature::GetStaticSamplers();
 
     // Root signature is an array of root parameters
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
@@ -473,22 +474,24 @@ VOID Engine::CreateGeometry()
     indices.insert(indices.end(), sphereMesh.LODIndices[0].begin(), sphereMesh.LODIndices[0].end());
     indices.insert(indices.end(), gridMesh.LODIndices[0].begin(), gridMesh.LODIndices[0].end());
 
-    auto geometry = std::make_unique<MeshGeometry>("solarSystem");
-    geometry->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), vertices, indices);
+    auto solarSystem = std::make_unique<MeshGeometry>("solarSystem");
 
-    geometry->DrawArgs["sun"] = createSubmeshWithParams(sphereMesh, sunIndexOffset, sunVertexOffset);
-    geometry->DrawArgs["mercury"] = createSubmeshWithParams(sphereMesh, mercuryIndexOffset, mercuryVertexOffset);
-    geometry->DrawArgs["venus"] = createSubmeshWithParams(sphereMesh, venusIndexOffset, venusVertexOffset);
-    geometry->DrawArgs["earth"] = createSubmeshWithParams(sphereMesh, earthIndexOffset, earthVertexOffset);
-    geometry->DrawArgs["mars"] = createSubmeshWithParams(sphereMesh, marsIndexOffset, marsVertexOffset);
-    geometry->DrawArgs["plane"] = createSubmeshWithParams(gridMesh, planeIndexOffset, planeVertexOffset);
-    m_geometries[geometry->Name] = std::move(geometry);
+    solarSystem->DrawArgs["sun"] = createSubmeshWithParams(sphereMesh, sunIndexOffset, sunVertexOffset);
+    solarSystem->DrawArgs["mercury"] = createSubmeshWithParams(sphereMesh, mercuryIndexOffset, mercuryVertexOffset);
+    solarSystem->DrawArgs["venus"] = createSubmeshWithParams(sphereMesh, venusIndexOffset, venusVertexOffset);
+    solarSystem->DrawArgs["earth"] = createSubmeshWithParams(sphereMesh, earthIndexOffset, earthVertexOffset);
+    solarSystem->DrawArgs["mars"] = createSubmeshWithParams(sphereMesh, marsIndexOffset, marsVertexOffset);
+    solarSystem->DrawArgs["plane"] = createSubmeshWithParams(gridMesh, planeIndexOffset, planeVertexOffset);
 
-    m_fullQuad = std::make_unique<MeshGeometry>("fullQuad");
+    auto fullQuad = std::make_unique<MeshGeometry>("fullQuad");
     std::vector<VertexPosition> fullQuadVertices(4, VertexPosition{}); // SV_VertexID in DeferredDirLightVS
                                                                        // we don't need any other data besides vertex position,
                                                                        // so there is actually no input layout for that shader
-    m_fullQuad->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), fullQuadVertices);
+    solarSystem->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), vertices, indices);
+    fullQuad->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), fullQuadVertices);
+
+    m_geometries[solarSystem->Name] = std::move(solarSystem);
+    m_geometries[fullQuad->Name] = std::move(fullQuad);
 }
 
 VOID Engine::CreateGeometryMaterials()
@@ -1354,7 +1357,7 @@ void Engine::DrawQuad(ID3D12GraphicsCommandList* cmdList)
     auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();
 
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    cmdList->IASetVertexBuffers(0u, 1u, &m_fullQuad->VertexBufferView());
+    cmdList->IASetVertexBuffers(0u, 1u, &m_geometries.at("fullQuad")->VertexBufferView());
 
     cmdList->DrawInstanced(4u, 1u, 0u, 0u);
 }
@@ -1377,56 +1380,6 @@ VOID Engine::MoveToNextFrame()
 
     // Set the fence value for the next frame.
     m_fenceValues[m_frameIndex] = currentFenceValue + 1;
-}
-
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers()
-{
-    const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
-        0u, // shaderRegister
-        D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
-
-    const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
-        1u, // shaderRegister
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
-
-    const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
-        2u, // shaderRegister
-        D3D12_FILTER_ANISOTROPIC, // filter
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
-        0.0f,                             // mipLODBias
-        8u);                              // maxAnisotropy
-
-    const CD3DX12_STATIC_SAMPLER_DESC shadowSampler(
-        3u,
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        0.0f,
-        16u
-        );
-
-    const CD3DX12_STATIC_SAMPLER_DESC shadowComparison(
-        4u,
-        D3D12_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        0.0f,
-        16u,
-        D3D12_COMPARISON_FUNC_LESS_EQUAL,
-        D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK
-    );
-
-    return { pointWrap, linearWrap, anisotropicWrap, shadowSampler, shadowComparison };
 }
 
 std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, const float farZ)

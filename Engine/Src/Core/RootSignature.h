@@ -5,7 +5,7 @@
 class RootSignature
 {
 public:
-	RootSignature() = default;
+	RootSignature();
 
 	RootSignature(const RootSignature& lhs) = delete;
 	RootSignature& operator=(const RootSignature& lhs) = delete;
@@ -13,5 +13,5 @@ public:
 	RootSignature& operator=(RootSignature&& rhs) = delete;
 
 public:
-
+	static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> GetStaticSamplers();
 };

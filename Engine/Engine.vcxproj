@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Core\RootSignature.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
     <ClCompile Include="Src\GameFramework\Components\SComponent.cpp" />

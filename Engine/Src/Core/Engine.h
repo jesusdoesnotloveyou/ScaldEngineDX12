@@ -222,8 +222,6 @@ private:
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
     std::shared_ptr<Scald::Scene> m_scene;
 
-    std::unique_ptr<MeshGeometry> m_fullQuad;
-
 #pragma region DeferredShading
     std::unique_ptr<GBuffer> m_GBuffer;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_GBufferTexturesSrv;
@@ -263,8 +261,6 @@ private:
 
     VOID PopulateCommandList();
     VOID MoveToNextFrame();
-
-    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> GetStaticSamplers();
 
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
     // Doubt that't a good idea to return vector of matrices. Should rather pass vector as a parameter probalby and fill it inside function.
