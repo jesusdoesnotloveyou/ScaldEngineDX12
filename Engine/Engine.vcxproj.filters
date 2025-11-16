@@ -50,6 +50,7 @@
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
     <ClInclude Include="Src\GameFramework\Components\Transform.h" />
     <ClInclude Include="Src\Common\VertexTypes.h" />
+    <ClInclude Include="Src\Core\RootSignature.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\LightUtil.hlsl" />
