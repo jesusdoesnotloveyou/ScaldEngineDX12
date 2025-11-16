@@ -393,41 +393,15 @@ VOID Engine::CreateGeometry()
     UINT marsIndexOffset = earthIndexOffset + (UINT)sphereMesh.LODIndices[0].size();
     UINT planeIndexOffset = marsIndexOffset + (UINT)sphereMesh.LODIndices[0].size();
 
-    SubmeshGeometry sunSubmesh;
-    sunSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    sunSubmesh.StartIndexLocation = sunIndexOffset;
-    sunSubmesh.BaseVertexLocation = sunVertexOffset;
-    sunSubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry mercurySubmesh;
-    mercurySubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    mercurySubmesh.StartIndexLocation = mercuryIndexOffset;
-    mercurySubmesh.BaseVertexLocation = mercuryVertexOffset;
-    mercurySubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry venusSubmesh;
-    venusSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    venusSubmesh.StartIndexLocation = venusIndexOffset;
-    venusSubmesh.BaseVertexLocation = venusVertexOffset;
-    venusSubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry earthSubmesh;
-    earthSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    earthSubmesh.StartIndexLocation = earthIndexOffset;
-    earthSubmesh.BaseVertexLocation = earthVertexOffset;
-    earthSubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry marsSubmesh;
-    marsSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    marsSubmesh.StartIndexLocation = marsIndexOffset;
-    marsSubmesh.BaseVertexLocation = marsVertexOffset;
-    marsSubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry planeSubmesh;
-    planeSubmesh.IndexCount = (UINT)gridMesh.LODIndices[0].size();
-    planeSubmesh.StartIndexLocation = planeIndexOffset;
-    planeSubmesh.BaseVertexLocation = planeVertexOffset;
-    planeSubmesh.BaseVertexLocation = planeVertexOffset;
+    auto createSubmeshWithParams = [](const MeshData<>& mesh, const UINT indexOffset, const UINT vertexOffset) -> SubmeshGeometry
+        {
+            SubmeshGeometry submesh;
+            submesh.IndexCount = (UINT)mesh.LODIndices[0].size();
+            submesh.StartIndexLocation = indexOffset;
+            submesh.BaseVertexLocation = vertexOffset;
+            submesh.Bounds = mesh.LODBounds[0];
+            return submesh;
+        };
 
     auto totalVertexCount = 
         sphereMesh.LODVertices[0].size() // sun
@@ -502,12 +476,12 @@ VOID Engine::CreateGeometry()
     auto geometry = std::make_unique<MeshGeometry>("solarSystem");
     geometry->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), vertices, indices);
 
-    geometry->DrawArgs["sun"] = sunSubmesh;
-    geometry->DrawArgs["mercury"] = mercurySubmesh;
-    geometry->DrawArgs["venus"] = venusSubmesh;
-    geometry->DrawArgs["earth"] = earthSubmesh;
-    geometry->DrawArgs["mars"] = marsSubmesh;
-    geometry->DrawArgs["plane"] = planeSubmesh;
+    geometry->DrawArgs["sun"] = createSubmeshWithParams(sphereMesh, sunIndexOffset, sunVertexOffset);
+    geometry->DrawArgs["mercury"] = createSubmeshWithParams(sphereMesh, mercuryIndexOffset, mercuryVertexOffset);
+    geometry->DrawArgs["venus"] = createSubmeshWithParams(sphereMesh, venusIndexOffset, venusVertexOffset);
+    geometry->DrawArgs["earth"] = createSubmeshWithParams(sphereMesh, earthIndexOffset, earthVertexOffset);
+    geometry->DrawArgs["mars"] = createSubmeshWithParams(sphereMesh, marsIndexOffset, marsVertexOffset);
+    geometry->DrawArgs["plane"] = createSubmeshWithParams(gridMesh, planeIndexOffset, planeVertexOffset);
     m_geometries[geometry->Name] = std::move(geometry);
 
     m_fullQuad = std::make_unique<MeshGeometry>("fullQuad");
