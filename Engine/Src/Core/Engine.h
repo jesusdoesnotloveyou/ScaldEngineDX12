@@ -7,6 +7,7 @@
 #include "GBuffer.h"
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Objects/SObject.h"
+#include "RootSignature.h"
 
 const int gNumFrameResources = 3;
 
@@ -193,7 +194,7 @@ private:
     float m_sunPhi = XM_PIDIV4;
     float m_sunTheta = 1.25f * XM_PI;
     
-    ComPtr<ID3D12RootSignature> m_rootSignature;
+    std::shared_ptr<RootSignature> m_rootSignature;
 
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures

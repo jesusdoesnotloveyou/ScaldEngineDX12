@@ -4,7 +4,6 @@
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
-#include "RootSignature.h"
 
 extern const int gNumFrameResources;
 
@@ -82,6 +81,8 @@ VOID Engine::LoadAssets()
 
 VOID Engine::CreateRootSignature()
 {
+    m_rootSignature = std::make_shared<RootSignature>();
+
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
     cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
     
@@ -104,16 +105,7 @@ VOID Engine::CreateRootSignature()
     slotRootParameter[ERootParameter::Textures].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                            // a descriptor table for textures
     slotRootParameter[ERootParameter::GBufferTextures].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                 // a descriptor table for GBuffer
 
-    auto staticSamplers = RootSignature::GetStaticSamplers();
-
-    // Root signature is an array of root parameters
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(ARRAYSIZE(slotRootParameter), slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-    ComPtr<ID3DBlob> signature = nullptr;
-    ComPtr<ID3DBlob> error = nullptr;
-    ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-    ThrowIfFailed(m_device->CreateRootSignature(0u, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+    m_rootSignature->Create(m_device.Get(), ARRAYSIZE(slotRootParameter), slotRootParameter, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 }
 
 VOID Engine::CreateShaders()
@@ -164,7 +156,7 @@ VOID Engine::CreatePSO()
     // Describe and create the graphics pipeline state object (PSO).
     D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc = {};
     ZeroMemory(&opaquePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-    opaquePsoDesc.pRootSignature = m_rootSignature.Get();
+    opaquePsoDesc.pRootSignature = m_rootSignature->Get();
     opaquePsoDesc.VS = D3D12_SHADER_BYTECODE(
         { 
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DefaultVS)->GetBufferPointer()),
@@ -224,7 +216,7 @@ VOID Engine::CreatePSO()
 #pragma region CascadeShadowsDepthPass
     D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = {};
     ZeroMemory(&cascadeShadowPsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-    cascadeShadowPsoDesc.pRootSignature = m_rootSignature.Get();
+    cascadeShadowPsoDesc.pRootSignature = m_rootSignature->Get();
     cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferPointer()),
@@ -1143,7 +1135,7 @@ VOID Engine::PopulateCommandList()
     }
 
     // Set necessary state.
-    m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_commandList->SetGraphicsRootSignature(m_rootSignature->Get());
 
     // Access for setting and using root descriptor table
     ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.Get() };
