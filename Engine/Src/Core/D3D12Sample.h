@@ -111,7 +111,7 @@ protected:
     // Pipeline objects.
     ComPtr<IDXGIFactory4> m_factory;
     ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device> m_device;
+    ComPtr<ID3D12Device2> m_device;
 
     ComPtr<IDXGIAdapter1> m_hardwareAdapter;
 
