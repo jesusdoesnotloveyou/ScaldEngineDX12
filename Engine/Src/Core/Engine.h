@@ -106,27 +106,28 @@ public:
 
     enum EPsoType : UINT
     {
-        Opaque = 0,
-        WireframeOpaque,
-        Transparency,
-        CascadedShadowsOpaque,
-
+        CascadedShadowsOpaque = 0,
+        
         DeferredGeometry,
-        DeferredDirectional,
+        Wireframe,
 
+        DeferredDirectional,
         DeferredPointWithinFrustum,
         DeferredPointIntersectsFarPlane,
         DeferredPointFullQuad,
-        
         DeferredSpot,
+
+        Transparency,
         
-        NumPipelineStates = 10u
+        NumPipelineStates = 9u
     };
 
     enum EShaderType : UINT
     {
+        // Forward rendering
         DefaultVS = 0,
         DefaultOpaquePS,
+
         CascadedShadowsVS,
         CascadedShadowsGS,
 
