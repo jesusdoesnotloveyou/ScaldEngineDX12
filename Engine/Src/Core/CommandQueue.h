@@ -13,7 +13,7 @@ public:
     /*virtual */~CommandQueue(); // gfx, compute, copy
 
     // Get an available command list from the command queue.
-    ComPtr<ID3D12GraphicsCommandList2> GetCommandList();
+    ComPtr<ID3D12GraphicsCommandList2> GetCommandList(ID3D12CommandAllocator* pCommandList);
 
     // Execute a command list.
     // Returns the fence value to wait for for this command list.
@@ -28,17 +28,9 @@ public:
 
 protected:
     ComPtr<ID3D12CommandAllocator> CreateCommandAllocator();
-    ComPtr<ID3D12GraphicsCommandList2> CreateCommandList(ComPtr<ID3D12CommandAllocator> cmdAllocator);
+    ComPtr<ID3D12GraphicsCommandList2> CreateCommandList(ID3D12CommandAllocator* pCommandAllocator);
 
 private:
-    // Keep track of command allocators that are "in-flight"
-    struct CommandAllocatorEntry
-    {
-        UINT64 fenceValue;
-        ComPtr<ID3D12CommandAllocator> commandAllocator;
-    };
-
-    using CommandAllocatorQueue = std::queue<CommandAllocatorEntry>;
     using CommandListQueue = std::queue<ComPtr<ID3D12GraphicsCommandList2>>;
 
     ComPtr<ID3D12Device2> m_device;
@@ -48,6 +40,5 @@ private:
     UINT64 m_fenceValue;
 
     D3D12_COMMAND_LIST_TYPE m_commandListType;
-    CommandAllocatorQueue m_commandAllocatorQueue;
     CommandListQueue m_commandListQueue;
 };

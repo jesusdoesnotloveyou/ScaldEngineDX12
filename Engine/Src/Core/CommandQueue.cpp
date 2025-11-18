@@ -8,44 +8,57 @@ CommandQueue::CommandQueue(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE
     , m_commandListType(type)
     , m_device(device)
 {
-    D3D12_COMMAND_QUEUE_DESC desc = {};
-    desc.Type = type;
-    desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-    desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-    desc.NodeMask = 0;
+    D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+    queueDesc.Type = type;
+    queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    queueDesc.NodeMask = 0u;
 
-    ThrowIfFailed(m_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&m_commandQueue)));
+    ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
 
-    ThrowIfFailed(m_device->CreateFence(m_fenceValue,
-        // D3D12_FENCE_FLAG_SHARED | D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER,
+    ThrowIfFailed(m_device->CreateFence(m_fenceValue, 
+        /*D3D12_FENCE_FLAG_SHARED | D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER,*/
         D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
 
-    m_fenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
-    assert(m_fenceEvent && "Failed to create fence event handle.");
+    m_fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    //assert(m_fenceEvent && "Failed to create fence event handle.");
+    if (m_fenceEvent == nullptr)
+    {
+        ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+    }
 }
 
 CommandQueue::~CommandQueue()
 {
+    CloseHandle(m_fenceEvent);
 }
 
 UINT64 CommandQueue::Signal()
 {
-    UINT64 fenceValue = ++m_fenceValue;
-    m_commandQueue->Signal(m_fence.Get(), fenceValue);
-    return fenceValue;
+    ++m_fenceValue;
+    m_commandQueue->Signal(m_fence.Get(), m_fenceValue);
+    return m_fenceValue;
 }
 
 bool CommandQueue::IsFenceComplete(UINT64 fenceValue) const
 {
-    return m_fence->GetCompletedValue() >= fenceValue;
+    /*
+     * GetCompletedValue()
+     * Returns the current value of the fence. If the device has been removed, the return value will be UINT64_MAX.
+    */
+    return fenceValue <= m_fence->GetCompletedValue();
 }
 
 void CommandQueue::WaitForFenceValue(UINT64 fenceValue)
 {
     if (!IsFenceComplete(fenceValue))
     {
+        /*
+         * SetEventOnCompletion(fenceValue, fenceEvent)
+         * Specifies an event that's raised when the fence reaches a certain value.
+        */
         m_fence->SetEventOnCompletion(fenceValue, m_fenceEvent);
-        WaitForSingleObject(m_fenceEvent, DWORD_MAX);
+        WaitForSingleObject(m_fenceEvent, INFINITE); // WaitForSingleObjecEx(m_fenceEvent, INFINITE, FALSE)
     }
 }
 
@@ -62,45 +75,29 @@ ComPtr<ID3D12CommandAllocator> CommandQueue::CreateCommandAllocator()
     return commandAllocator;
 }
 
-ComPtr<ID3D12GraphicsCommandList2> CommandQueue::CreateCommandList(ComPtr<ID3D12CommandAllocator> cmdAllocator)
+ComPtr<ID3D12GraphicsCommandList2> CommandQueue::CreateCommandList(ID3D12CommandAllocator* pCommandAllocator)
 {
     ComPtr<ID3D12GraphicsCommandList2> commandList;
-    ThrowIfFailed(m_device->CreateCommandList(0, m_commandListType, cmdAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
+    ThrowIfFailed(m_device->CreateCommandList(0u, m_commandListType, pCommandAllocator, nullptr, IID_PPV_ARGS(&commandList)));
 
     return commandList;
 }
 
-ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList()
+ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList(ID3D12CommandAllocator* pCommandAllocator)
 {
-    ComPtr<ID3D12CommandAllocator> commandAllocator;
     ComPtr<ID3D12GraphicsCommandList2> commandList;
-
-    if (!m_commandAllocatorQueue.empty() && IsFenceComplete(m_commandAllocatorQueue.front().fenceValue))
-    {
-        commandAllocator = m_commandAllocatorQueue.front().commandAllocator;
-        m_commandAllocatorQueue.pop();
-
-        ThrowIfFailed(commandAllocator->Reset());
-    }
-    else
-    {
-        commandAllocator = CreateCommandAllocator();
-    }
 
     if (!m_commandListQueue.empty())
     {
         commandList = m_commandListQueue.front();
         m_commandListQueue.pop();
 
-        ThrowIfFailed(commandList->Reset(commandAllocator.Get(), nullptr));
+        ThrowIfFailed(commandList->Reset(pCommandAllocator, nullptr));
     }
     else
     {
-        commandList = CreateCommandList(commandAllocator);
+        commandList = CreateCommandList(pCommandAllocator);
     }
-
-    // Associate the command allocator with the command list so that it can be retrieved when the command list is executed.
-    ThrowIfFailed(commandList->SetPrivateDataInterface(__uuidof(ID3D12CommandAllocator), commandAllocator.Get()));
 
     return commandList;
 }
@@ -111,22 +108,10 @@ UINT64 CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> comma
 {
     commandList->Close();
 
-    ID3D12CommandAllocator* commandAllocator;
-    UINT dataSize = sizeof(commandAllocator);
-    ThrowIfFailed(commandList->GetPrivateData(__uuidof(ID3D12CommandAllocator), &dataSize, &commandAllocator));
-
     ID3D12CommandList* const ppCommandLists[] = { commandList.Get() };
 
-    m_commandQueue->ExecuteCommandLists(1, ppCommandLists);
+    m_commandQueue->ExecuteCommandLists(1u, ppCommandLists);
     UINT64 fenceValue = Signal();
-
-    m_commandAllocatorQueue.emplace(CommandAllocatorEntry{ fenceValue, commandAllocator });
-    m_commandListQueue.push(commandList);
-
-    // The ownership of the command allocator has been transferred to the ComPtr
-    // in the command allocator queue. It is safe to release the reference
-    // in this temporary COM pointer here.
-    commandAllocator->Release();
 
     return fenceValue;
 }
