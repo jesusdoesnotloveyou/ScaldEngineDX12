@@ -7,6 +7,10 @@
 	#define FORCEINLINE __forceinline
 #endif
 
+#ifndef VVOID
+	#define VVOID virtual void
+#endif
+
 constexpr int INVALID_ID = -1;
 using ID_TYPE = int;
 
