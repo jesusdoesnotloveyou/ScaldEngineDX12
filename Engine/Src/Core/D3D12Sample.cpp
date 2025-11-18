@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "D3D12Sample.h"
+#include "CommandQueue.h"
 
 using namespace Microsoft::WRL;
 
@@ -11,7 +12,7 @@ D3D12Sample::D3D12Sample(UINT width, UINT height, const std::wstring& name, cons
     m_rtvDescriptorSize(0u),
     m_dsvDescriptorSize(0u),
     m_cbvSrvUavDescriptorSize(0u),
-    m_frameIndex(0),
+    m_currBackBuffer(0),
     m_title(name),
     m_class(className)
 {
@@ -88,8 +89,7 @@ void D3D12Sample::LoadPipeline()
 #endif
 
     CreateDevice();
-    CreateCommandObjects();
-    CreateFence();
+    CreateCommandObjectsAndInternalFence();
     CreateRtvAndDsvDescriptorHeaps();
     CreateSwapChain();
 
@@ -121,112 +121,6 @@ void D3D12Sample::OnResize()
     m_resizing = false;
     m_timer.Start();
     Reset();
-}
-
-VOID D3D12Sample::Reset()
-{
-    assert(m_device);
-    assert(m_swapChain);
-
-    // Before making any changes
-    //FlushCommandQueue();
-
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), nullptr));
-
-    for (UINT i = 0; i < SwapChainFrameCount; i++)
-    {
-        m_renderTargets[i].Reset();
-    }
-    m_depthStencilBuffer.Reset();
-
-    // Resize the swap chain
-    ThrowIfFailed(m_swapChain->ResizeBuffers(
-        SwapChainFrameCount,
-        m_width,
-        m_height,
-        BackBufferFormat,
-        DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
-
-    m_frameIndex = 0u;
-
-    // Create/recreate frame resources.
-    {
-        // Create Render Targets
-        // Start of the rtv heap
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-        for (UINT i = 0; i < SwapChainFrameCount; i++)
-        {
-            ThrowIfFailed(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
-            m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHeapHandle);
-            rtvHeapHandle.Offset(1, m_rtvDescriptorSize);
-
-            // Create command allocator for every back buffer
-            ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[i])));
-        }
-
-        // Create the depth/stencil view.
-        D3D12_RESOURCE_DESC depthStencilDesc = {};
-        depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        depthStencilDesc.Alignment = 0;
-        depthStencilDesc.Width = m_width;
-        depthStencilDesc.Height = m_height;
-        depthStencilDesc.DepthOrArraySize = 1;
-        depthStencilDesc.MipLevels = 1;
-        depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; //
-        // MSAA, same settings as back buffer
-        depthStencilDesc.SampleDesc.Count = m_is4xMsaaState ? 4u : 1u;
-        depthStencilDesc.SampleDesc.Quality = m_is4xMsaaState ? (m_4xMsaaQuality - 1u) : 0u;
-
-        depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-        D3D12_CLEAR_VALUE optClear = {};
-        optClear.Format = DepthStencilFormat;
-        optClear.DepthStencil.Depth = 1.0f;
-        optClear.DepthStencil.Stencil = 0u;
-
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed (from CPU) */),
-            D3D12_HEAP_FLAG_NONE,
-            &depthStencilDesc,
-            D3D12_RESOURCE_STATE_COMMON,
-            &optClear,
-            IID_PPV_ARGS(m_depthStencilBuffer.GetAddressOf())));
-
-        CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-
-        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-        dsvDesc.Format = DepthStencilFormat;
-        dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-        dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-        dsvDesc.Texture2D.MipSlice = 0u;
-
-        m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvDesc, dsvHandle);
-    }
-
-    // Transition the resource from its initial state to be used as a depth buffer.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-
-    // Execute the resize commands. 
-    ThrowIfFailed(m_commandList->Close());
-    ID3D12CommandList* cmdLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-
-    // Wait until resize is complete.
-    //FlushCommandQueue();
-
-    m_viewport.TopLeftX = 0.0f;
-    m_viewport.TopLeftY = 0.0f;
-    m_viewport.Width = static_cast<FLOAT>(m_width);
-    m_viewport.Height = static_cast<FLOAT>(m_height);
-    m_viewport.MinDepth = 0.0f;
-    m_viewport.MaxDepth = 1.0f;
-
-    m_scissorRect.left = 0L;
-    m_scissorRect.top = 0L;
-    m_scissorRect.right = static_cast<LONG>(m_width);
-    m_scissorRect.bottom = static_cast<LONG>(m_height);
-
 }
 
 void D3D12Sample::CalculateFrameStats()
@@ -368,53 +262,14 @@ VOID D3D12Sample::CreateDevice()
     }
 }
 
-VOID D3D12Sample::CreateCommandObjects()
+VOID D3D12Sample::CreateCommandObjectsAndInternalFence()
 {
-    // Describe and create the command queue.
-    D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-    // the most often used are direct, compute and copy
-    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    queueDesc.Priority;
-    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-    queueDesc.NodeMask;
     // If we have multiple command queues, we can write a resource only from one queue at the same time.
     // Before it can be accessed by another queue, it must transition to read or common state.
     // In a read state resource can be read from multiple command queues simultaneously, including across processes, based on its read state.
-    ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+    m_commandQueue = std::make_shared<CommandQueue>(m_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-    ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[m_frameIndex])));
-
-    // Create the command list.
-    ThrowIfFailed(m_device->CreateCommandList(
-        0u /*Single GPU*/,
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        m_commandAllocators[m_frameIndex].Get() /*Must match the command list type*/,
-        nullptr,
-        IID_PPV_ARGS(&m_commandList)));
-
-    // Command lists are created in the recording state, but there is nothing
-    // to record yet. The main loop expects it to be closed, so close it now.
-    ThrowIfFailed(m_commandList->Close());
-}
-
-VOID D3D12Sample::CreateFence()
-{
-    // Create synchronization objects and wait until assets have been uploaded to the GPU.
-    {
-        ThrowIfFailed(m_device->CreateFence(m_fenceValues[m_frameIndex], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-
-        m_fenceValues[m_frameIndex]++;
-        // Create an event handle to use for frame synchronization.
-        m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if (m_fenceEvent == nullptr)
-        {
-            ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-        }
-        // Wait for the command list to execute; we are reusing the same command 
-        // list in our main loop but for now, we just want to wait for setup to 
-        // complete before continuing.
-        WaitForGPU();
-    }
+    m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
 }
 
 VOID D3D12Sample::CreateRtvAndDsvDescriptorHeaps()
@@ -445,13 +300,11 @@ VOID D3D12Sample::CreateRtvAndDsvDescriptorHeaps()
 VOID D3D12Sample::CreateSwapChain()
 {
     // Describe and create the swap chain.
-    //DXGI_SWAP_CHAIN_DESC sd;
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
     swapChainDesc.Width = m_width;
     swapChainDesc.Height = m_height;
     swapChainDesc.Format = BackBufferFormat; // Back buffer format
-    swapChainDesc.SampleDesc.Count = m_is4xMsaaState ? 4u : 1u; // MSAA
-    swapChainDesc.SampleDesc.Quality = m_is4xMsaaState ? (m_4xMsaaQuality - 1u) : 0u; // MSAA
+    swapChainDesc.SampleDesc = m_is4xMsaaState ? DXGI_SAMPLE_DESC{ 4u, m_4xMsaaQuality - 1u } : DXGI_SAMPLE_DESC{ 1u, 0u }; // MSAA
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.BufferCount = SwapChainFrameCount;
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
@@ -464,7 +317,7 @@ VOID D3D12Sample::CreateSwapChain()
 
     ComPtr<IDXGISwapChain1> swapChain;
     ThrowIfFailed(m_factory->CreateSwapChainForHwnd(
-        m_commandQueue.Get(),        // Swap chain needs the queue so that it can force a flush on it.
+        m_commandQueue->GetCommandQueue().Get(),        // Swap chain needs the queue so that it can force a flush on it.
         Win32App::GetHwnd(),
         &swapChainDesc,
         &swapChainFullScreenDesc,
@@ -476,19 +329,112 @@ VOID D3D12Sample::CreateSwapChain()
     ThrowIfFailed(m_factory->MakeWindowAssociation(Win32App::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
     ThrowIfFailed(swapChain.As(&m_swapChain));
-    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
-VOID D3D12Sample::WaitForGPU()
+VOID D3D12Sample::Reset()
 {
-    // Schedule a Signal command in the queue.
-    ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValues[m_frameIndex]));
+    assert(m_device);
+    assert(m_swapChain);
+    assert(m_commandQueue);
+    assert(m_commandAllocator);
 
-    // Wait until the fence has been processed.
-    ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent));
-    WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
+    // Before making any changes
+    m_commandQueue->Flush();
 
-    m_fenceValues[m_frameIndex]++;
+    auto commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get());
+
+    for (UINT i = 0; i < SwapChainFrameCount; i++)
+    {
+        m_renderTargets[i].Reset();
+    }
+    m_depthStencilBuffer.Reset();
+
+    // Resize the swap chain
+    ThrowIfFailed(m_swapChain->ResizeBuffers(
+        SwapChainFrameCount,
+        m_width,
+        m_height,
+        BackBufferFormat,
+        DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+
+    m_currBackBuffer = 0u;
+
+    // Create/recreate frame resources.
+    {
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+        for (UINT i = 0; i < SwapChainFrameCount; i++)
+        {
+            ThrowIfFailed(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
+            m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHeapHandle);
+            rtvHeapHandle.Offset(1, m_rtvDescriptorSize);
+        }
+
+        // Create the depth/stencil view.
+        D3D12_RESOURCE_DESC depthStencilDesc = {};
+        depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        depthStencilDesc.Alignment = 0;
+        depthStencilDesc.Width = m_width;
+        depthStencilDesc.Height = m_height;
+        depthStencilDesc.DepthOrArraySize = 1;
+        depthStencilDesc.MipLevels = 1;
+        depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; // 24 bits for depth, 8 bits for stencil
+        depthStencilDesc.SampleDesc = m_is4xMsaaState ? DXGI_SAMPLE_DESC{ 4u, m_4xMsaaQuality - 1u } : DXGI_SAMPLE_DESC{ 1u, 0u }; // MSAA: same settings as back buffer
+
+        depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+        D3D12_CLEAR_VALUE optClear = {};
+        optClear.Format = DepthStencilFormat;
+        optClear.DepthStencil.Depth = 1.0f;
+        optClear.DepthStencil.Stencil = 0u;
+
+        ThrowIfFailed(m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed (from CPU) */),
+            D3D12_HEAP_FLAG_NONE,
+            &depthStencilDesc,
+            D3D12_RESOURCE_STATE_COMMON,
+            &optClear,
+            IID_PPV_ARGS(m_depthStencilBuffer.GetAddressOf())));
+
+        CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+        dsvDesc.Format = DepthStencilFormat;
+        dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+        dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+        dsvDesc.Texture2D.MipSlice = 0u;
+
+        m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvDesc, dsvHandle);
+    }
+
+    // Transition the resource from its initial state to be used as a depth buffer.
+    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+    // Execute the resize commands. 
+    m_commandQueue->ExecuteCommandList(commandList);
+
+    // Wait until resize is complete.
+    m_commandQueue->Flush();
+
+    m_viewport.TopLeftX = 0.0f;
+    m_viewport.TopLeftY = 0.0f;
+    m_viewport.Width = static_cast<FLOAT>(m_width);
+    m_viewport.Height = static_cast<FLOAT>(m_height);
+    m_viewport.MinDepth = 0.0f;
+    m_viewport.MaxDepth = 1.0f;
+
+    m_scissorRect.left = 0L;
+    m_scissorRect.top = 0L;
+    m_scissorRect.right = static_cast<LONG>(m_width);
+    m_scissorRect.bottom = static_cast<LONG>(m_height);
+}
+
+VOID D3D12Sample::Present()
+{
+    /*UINT syncInterval = m_VSync ? 1 : 0;
+    UINT presentFlags = m_IsTearingSupported && !m_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;*/
+    // Present the frame.
+    ThrowIfFailed(m_swapChain->Present(1u, 0u));
 }
 
 // Helper function for parsing any supplied command line args.
