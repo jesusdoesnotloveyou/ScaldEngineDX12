@@ -7,6 +7,7 @@
 #include "GBuffer.h"
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Objects/SObject.h"
+#include "RootSignature.h"
 
 const int gNumFrameResources = 3;
 
@@ -105,27 +106,28 @@ public:
 
     enum EPsoType : UINT
     {
-        Opaque = 0,
-        WireframeOpaque,
-        Transparency,
-        CascadedShadowsOpaque,
-
+        CascadedShadowsOpaque = 0,
+        
         DeferredGeometry,
-        DeferredDirectional,
+        Wireframe,
 
+        DeferredDirectional,
         DeferredPointWithinFrustum,
         DeferredPointIntersectsFarPlane,
         DeferredPointFullQuad,
-        
         DeferredSpot,
+
+        Transparency,
         
-        NumPipelineStates = 10u
+        NumPipelineStates = 9u
     };
 
     enum EShaderType : UINT
     {
+        // Forward rendering
         DefaultVS = 0,
         DefaultOpaquePS,
+
         CascadedShadowsVS,
         CascadedShadowsGS,
 
@@ -193,7 +195,7 @@ private:
     float m_sunPhi = XM_PIDIV4;
     float m_sunTheta = 1.25f * XM_PI;
     
-    ComPtr<ID3D12RootSignature> m_rootSignature;
+    std::shared_ptr<RootSignature> m_rootSignature;
 
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
@@ -221,8 +223,6 @@ private:
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
     std::shared_ptr<Scald::Scene> m_scene;
-
-    std::unique_ptr<MeshGeometry> m_fullQuad;
 
 #pragma region DeferredShading
     std::unique_ptr<GBuffer> m_GBuffer;
@@ -263,8 +263,6 @@ private:
 
     VOID PopulateCommandList();
     VOID MoveToNextFrame();
-
-    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> GetStaticSamplers();
 
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
     // Doubt that't a good idea to return vector of matrices. Should rather pass vector as a parameter probalby and fill it inside function.

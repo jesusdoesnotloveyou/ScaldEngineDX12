@@ -81,6 +81,8 @@ VOID Engine::LoadAssets()
 
 VOID Engine::CreateRootSignature()
 {
+    m_rootSignature = std::make_shared<RootSignature>();
+
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
     cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
     
@@ -103,16 +105,7 @@ VOID Engine::CreateRootSignature()
     slotRootParameter[ERootParameter::Textures].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                            // a descriptor table for textures
     slotRootParameter[ERootParameter::GBufferTextures].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                 // a descriptor table for GBuffer
 
-    auto staticSamplers = GetStaticSamplers();
-
-    // Root signature is an array of root parameters
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(ARRAYSIZE(slotRootParameter), slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-    ComPtr<ID3DBlob> signature = nullptr;
-    ComPtr<ID3DBlob> error = nullptr;
-    ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-    ThrowIfFailed(m_device->CreateRootSignature(0u, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+    m_rootSignature->Create(m_device.Get(), ARRAYSIZE(slotRootParameter), slotRootParameter, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 }
 
 VOID Engine::CreateShaders()
@@ -159,46 +152,157 @@ VOID Engine::CreateShaders()
 
 VOID Engine::CreatePSO()
 {
-#pragma region DefaultOpaqueAndWireframe
-    // Describe and create the graphics pipeline state object (PSO).
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc = {};
-    ZeroMemory(&opaquePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-    opaquePsoDesc.pRootSignature = m_rootSignature.Get();
-    opaquePsoDesc.VS = D3D12_SHADER_BYTECODE(
-        { 
+    // To hold common properties
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC  defaultPsoDesc = {};
+    defaultPsoDesc.pRootSignature = m_rootSignature->Get();
+    defaultPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
+    defaultPsoDesc.SampleMask = UINT_MAX;
+    defaultPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    defaultPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    defaultPsoDesc.InputLayout = VertexPositionNormalTangentUV::InputLayout;
+    defaultPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    defaultPsoDesc.NumRenderTargets = 1u;
+    defaultPsoDesc.RTVFormats[0] = BackBufferFormat;
+    defaultPsoDesc.DSVFormat = DepthStencilFormat;
+    defaultPsoDesc.SampleDesc = { 1u, 0u }; // No MSAA. This should match the setting of the render target we are using (check swapChainDesc)
+
+#pragma region CascadeShadowsDepthPass
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = defaultPsoDesc;
+    cascadeShadowPsoDesc.pRootSignature = m_rootSignature->Get();
+    cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferPointer()),
+                m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferSize()
+        });
+    cascadeShadowPsoDesc.GS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferPointer()),
+                m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferSize()
+        });
+    cascadeShadowPsoDesc.RasterizerState.DepthBias = 10000;
+    cascadeShadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
+    cascadeShadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
+    cascadeShadowPsoDesc.InputLayout = VertexPosition::InputLayout;
+    cascadeShadowPsoDesc.NumRenderTargets = 0u;
+    cascadeShadowPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&cascadeShadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::CascadedShadowsOpaque])));
+#pragma endregion CascadeShadowsDepthPass
+
+#pragma region DeferredShading
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC GBufferPsoDesc = defaultPsoDesc;
+    GBufferPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredGeometryVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredGeometryVS)->GetBufferSize()
+        });
+    GBufferPsoDesc.PS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredGeometryPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredGeometryPS)->GetBufferSize()
+        });
+    GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(GBuffer::EGBufferLayer::MAX) - 1u;
+    GBufferPsoDesc.RTVFormats[0] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO);
+    GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION);
+    GBufferPsoDesc.RTVFormats[2] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::NORMAL);
+    GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::SPECULAR);
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&GBufferPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredGeometry])));
+
+#pragma region DeferredDirectional
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC dirLightPsoDesc = defaultPsoDesc;
+    dirLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredDirVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredDirVS)->GetBufferSize()
+        });
+    dirLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredDirPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredDirPS)->GetBufferSize()
+        });
+    dirLightPsoDesc.InputLayout = VertexPosition::InputLayout;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&dirLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredDirectional])));
+#pragma endregion DeferredDirectional
+
+    // not sure it works
+#pragma region Wireframe
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframe = GBufferPsoDesc;
+    opaqueWireframe.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaqueWireframe, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Wireframe])));
+#pragma endregion Wireframe
+
+#pragma region DeferredPointLight
+    // Still needs to be configured
+    // Hack with DSS and RS
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightIntersectsFarPlanePsoDesc = dirLightPsoDesc;
+    
+    D3D12_RENDER_TARGET_BLEND_DESC RTBlendDesc = {};
+    ZeroMemory(&RTBlendDesc, sizeof(D3D12_RENDER_TARGET_BLEND_DESC));
+    RTBlendDesc.BlendEnable = TRUE;
+    RTBlendDesc.LogicOpEnable = FALSE;
+    RTBlendDesc.SrcBlend = D3D12_BLEND_ONE;
+    RTBlendDesc.DestBlend = D3D12_BLEND_ONE;
+    RTBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+    RTBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+    RTBlendDesc.DestBlendAlpha = D3D12_BLEND_ONE;
+    RTBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    RTBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+    RTBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+    pointLightIntersectsFarPlanePsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferSize()
+        });
+    pointLightIntersectsFarPlanePsoDesc.PS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredPointPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredPointPS)->GetBufferSize()
+        });
+    pointLightIntersectsFarPlanePsoDesc.BlendState.AlphaToCoverageEnable = FALSE;
+    pointLightIntersectsFarPlanePsoDesc.BlendState.IndependentBlendEnable = FALSE;
+    pointLightIntersectsFarPlanePsoDesc.BlendState.RenderTarget[0] = RTBlendDesc;
+
+    pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthEnable = FALSE;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.StencilEnable = FALSE;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.StencilReadMask = 0xFF;
+    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.StencilWriteMask = 0xFF;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightIntersectsFarPlanePsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPointIntersectsFarPlane])));
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightWithinFrustumPsoDesc = pointLightIntersectsFarPlanePsoDesc;
+    pointLightWithinFrustumPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+    pointLightWithinFrustumPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightWithinFrustumPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPointWithinFrustum])));
+
+#pragma endregion DeferredPointLight
+
+#pragma region DeferredSpotLight
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC spotLightPsoDesc = pointLightIntersectsFarPlanePsoDesc;
+    spotLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferSize()
+        });
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&spotLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredSpot])));
+#pragma endregion DeferredSpotLight
+
+    // Transparent objects are drawn in forward rendering style
+#pragma region Transparency
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = defaultPsoDesc;
+    transparentPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DefaultVS)->GetBufferPointer()),
             m_shaders.at(EShaderType::DefaultVS)->GetBufferSize()
         });
-    opaquePsoDesc.PS = D3D12_SHADER_BYTECODE(
+    transparentPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DefaultOpaquePS)->GetBufferPointer()),
             m_shaders.at(EShaderType::DefaultOpaquePS)->GetBufferSize()
         });
-    opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
-    opaquePsoDesc.SampleMask = UINT_MAX;
-    opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    opaquePsoDesc.InputLayout = VertexPositionNormalTangentUV::InputLayout;
-    opaquePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    opaquePsoDesc.NumRenderTargets = 1u;
-    opaquePsoDesc.RTVFormats[0] = BackBufferFormat;
-    opaquePsoDesc.DSVFormat = DepthStencilFormat;
-    // Do not use multisampling
-    // This should match the setting of the render target we are using (check swapChainDesc)
-    opaquePsoDesc.SampleDesc.Count = 1u;
-    opaquePsoDesc.SampleDesc.Quality = 0u;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Opaque])));
 
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframe = opaquePsoDesc;
-    opaqueWireframe.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&opaqueWireframe, IID_PPV_ARGS(&m_pipelineStates[EPsoType::WireframeOpaque])));
-#pragma endregion DefaultOpaqueAndWireframe
-
-#pragma region Transparency
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = opaquePsoDesc;
-    
     // C = C(src) * F(src) + C(dst) * F(dst)
-
     D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc = {};
     ZeroMemory(&transparencyBlendDesc, sizeof(transparencyBlendDesc));
     transparencyBlendDesc.BlendEnable = TRUE;
@@ -219,135 +323,6 @@ VOID Engine::CreatePSO()
     transparentPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Transparency])));
 #pragma endregion Transparency
-
-#pragma region CascadeShadowsDepthPass
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = {};
-    ZeroMemory(&cascadeShadowPsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-    cascadeShadowPsoDesc.pRootSignature = m_rootSignature.Get();
-    cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferPointer()),
-                m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferSize()
-        });
-    cascadeShadowPsoDesc.GS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferPointer()),
-                m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferSize()
-        });
-    cascadeShadowPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
-    cascadeShadowPsoDesc.SampleMask = UINT_MAX;
-    cascadeShadowPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    cascadeShadowPsoDesc.RasterizerState.DepthBias = 10000;
-    cascadeShadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
-    cascadeShadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
-    cascadeShadowPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    cascadeShadowPsoDesc.InputLayout = VertexPosition::InputLayout;
-    cascadeShadowPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    cascadeShadowPsoDesc.NumRenderTargets = 0u;
-    cascadeShadowPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
-    cascadeShadowPsoDesc.DSVFormat = DepthStencilFormat;
-    cascadeShadowPsoDesc.SampleDesc.Count = 1u;
-    cascadeShadowPsoDesc.SampleDesc.Quality = 0u;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&cascadeShadowPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::CascadedShadowsOpaque])));
-#pragma endregion CascadeShadowsDepthPass
-
-#pragma region DeferredShading
-
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC GBufferPsoDesc = opaquePsoDesc;
-    GBufferPsoDesc.VS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredGeometryVS)->GetBufferPointer()),
-            m_shaders.at(EShaderType::DeferredGeometryVS)->GetBufferSize()
-        });
-    GBufferPsoDesc.PS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredGeometryPS)->GetBufferPointer()),
-            m_shaders.at(EShaderType::DeferredGeometryPS)->GetBufferSize()
-        });
-    GBufferPsoDesc.NumRenderTargets = static_cast<UINT>(GBuffer::EGBufferLayer::MAX) - 1u;
-    GBufferPsoDesc.RTVFormats[0] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO);
-    GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION);
-    GBufferPsoDesc.RTVFormats[2] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::NORMAL);
-    GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::SPECULAR);
-    GBufferPsoDesc.DSVFormat = DepthStencilFormat; // corresponds to default format
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&GBufferPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredGeometry])));
-
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC dirLightPsoDesc = opaquePsoDesc;
-    dirLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredDirVS)->GetBufferPointer()),
-            m_shaders.at(EShaderType::DeferredDirVS)->GetBufferSize()
-        });
-    dirLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredDirPS)->GetBufferPointer()),
-            m_shaders.at(EShaderType::DeferredDirPS)->GetBufferSize()
-        });
-    dirLightPsoDesc.InputLayout = VertexPosition::InputLayout;
-    dirLightPsoDesc.NumRenderTargets = 1u;
-    dirLightPsoDesc.RTVFormats[0] = BackBufferFormat;
-    dirLightPsoDesc.DSVFormat = DepthStencilFormat;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&dirLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredDirectional])));
-
-#pragma region DeferredPointLight
-    // Still needs to be configured
-    // Hack with DSS and RS
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightIntersectsFarPlanePsoDesc = dirLightPsoDesc;
-    
-    D3D12_RENDER_TARGET_BLEND_DESC RTBlendDesc = {};
-    ZeroMemory(&RTBlendDesc, sizeof(D3D12_RENDER_TARGET_BLEND_DESC));
-    RTBlendDesc.BlendEnable = TRUE;
-    RTBlendDesc.LogicOpEnable = FALSE;
-    RTBlendDesc.SrcBlend = D3D12_BLEND_ONE;
-    RTBlendDesc.DestBlend = D3D12_BLEND_ONE;
-    RTBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-    RTBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-    RTBlendDesc.DestBlendAlpha = D3D12_BLEND_ONE;
-    RTBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-    RTBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
-    RTBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-    pointLightIntersectsFarPlanePsoDesc.BlendState.AlphaToCoverageEnable = FALSE;
-    pointLightIntersectsFarPlanePsoDesc.BlendState.IndependentBlendEnable = FALSE;
-    pointLightIntersectsFarPlanePsoDesc.BlendState.RenderTarget[0] = RTBlendDesc;
-
-    pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
-    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthEnable = FALSE;
-    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.StencilEnable = FALSE;
-    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.StencilReadMask = 0xFF;
-    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.StencilWriteMask = 0xFF;
-    pointLightIntersectsFarPlanePsoDesc.VS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferPointer()),
-            m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferSize()
-        });
-    pointLightIntersectsFarPlanePsoDesc.PS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredPointPS)->GetBufferPointer()),
-            m_shaders.at(EShaderType::DeferredPointPS)->GetBufferSize()
-        });
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightIntersectsFarPlanePsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPointIntersectsFarPlane])));
-
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightWithinFrustumPsoDesc = pointLightIntersectsFarPlanePsoDesc;
-    pointLightIntersectsFarPlanePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT; // ???
-    pointLightIntersectsFarPlanePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
-    pointLightIntersectsFarPlanePsoDesc.InputLayout = VertexPosition::InputLayout;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&pointLightWithinFrustumPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredPointWithinFrustum])));
-
-#pragma endregion DeferredPointLight
-
-#pragma region DeferredSpotLight
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC spotLightPsoDesc = pointLightIntersectsFarPlanePsoDesc;
-    spotLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
-        {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferPointer()),
-            m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferSize()
-        });
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&spotLightPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredSpot])));
-#pragma endregion DeferredSpotLight
-
 #pragma endregion DeferredShading
 }
 
@@ -393,41 +368,15 @@ VOID Engine::CreateGeometry()
     UINT marsIndexOffset = earthIndexOffset + (UINT)sphereMesh.LODIndices[0].size();
     UINT planeIndexOffset = marsIndexOffset + (UINT)sphereMesh.LODIndices[0].size();
 
-    SubmeshGeometry sunSubmesh;
-    sunSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    sunSubmesh.StartIndexLocation = sunIndexOffset;
-    sunSubmesh.BaseVertexLocation = sunVertexOffset;
-    sunSubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry mercurySubmesh;
-    mercurySubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    mercurySubmesh.StartIndexLocation = mercuryIndexOffset;
-    mercurySubmesh.BaseVertexLocation = mercuryVertexOffset;
-    mercurySubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry venusSubmesh;
-    venusSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    venusSubmesh.StartIndexLocation = venusIndexOffset;
-    venusSubmesh.BaseVertexLocation = venusVertexOffset;
-    venusSubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry earthSubmesh;
-    earthSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    earthSubmesh.StartIndexLocation = earthIndexOffset;
-    earthSubmesh.BaseVertexLocation = earthVertexOffset;
-    earthSubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry marsSubmesh;
-    marsSubmesh.IndexCount = (UINT)sphereMesh.LODIndices[0].size();
-    marsSubmesh.StartIndexLocation = marsIndexOffset;
-    marsSubmesh.BaseVertexLocation = marsVertexOffset;
-    marsSubmesh.Bounds = sphereMesh.LODBounds[0];
-
-    SubmeshGeometry planeSubmesh;
-    planeSubmesh.IndexCount = (UINT)gridMesh.LODIndices[0].size();
-    planeSubmesh.StartIndexLocation = planeIndexOffset;
-    planeSubmesh.BaseVertexLocation = planeVertexOffset;
-    planeSubmesh.BaseVertexLocation = planeVertexOffset;
+    auto createSubmeshWithParams = [](const MeshData<>& mesh, const UINT indexOffset, const UINT vertexOffset) -> SubmeshGeometry
+        {
+            SubmeshGeometry submesh;
+            submesh.IndexCount = (UINT)mesh.LODIndices[0].size();
+            submesh.StartIndexLocation = indexOffset;
+            submesh.BaseVertexLocation = vertexOffset;
+            submesh.Bounds = mesh.LODBounds[0];
+            return submesh;
+        };
 
     auto totalVertexCount = 
         sphereMesh.LODVertices[0].size() // sun
@@ -499,22 +448,24 @@ VOID Engine::CreateGeometry()
     indices.insert(indices.end(), sphereMesh.LODIndices[0].begin(), sphereMesh.LODIndices[0].end());
     indices.insert(indices.end(), gridMesh.LODIndices[0].begin(), gridMesh.LODIndices[0].end());
 
-    auto geometry = std::make_unique<MeshGeometry>("solarSystem");
-    geometry->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), vertices, indices);
+    auto solarSystem = std::make_unique<MeshGeometry>("solarSystem");
 
-    geometry->DrawArgs["sun"] = sunSubmesh;
-    geometry->DrawArgs["mercury"] = mercurySubmesh;
-    geometry->DrawArgs["venus"] = venusSubmesh;
-    geometry->DrawArgs["earth"] = earthSubmesh;
-    geometry->DrawArgs["mars"] = marsSubmesh;
-    geometry->DrawArgs["plane"] = planeSubmesh;
-    m_geometries[geometry->Name] = std::move(geometry);
+    solarSystem->DrawArgs["sun"] = createSubmeshWithParams(sphereMesh, sunIndexOffset, sunVertexOffset);
+    solarSystem->DrawArgs["mercury"] = createSubmeshWithParams(sphereMesh, mercuryIndexOffset, mercuryVertexOffset);
+    solarSystem->DrawArgs["venus"] = createSubmeshWithParams(sphereMesh, venusIndexOffset, venusVertexOffset);
+    solarSystem->DrawArgs["earth"] = createSubmeshWithParams(sphereMesh, earthIndexOffset, earthVertexOffset);
+    solarSystem->DrawArgs["mars"] = createSubmeshWithParams(sphereMesh, marsIndexOffset, marsVertexOffset);
+    solarSystem->DrawArgs["plane"] = createSubmeshWithParams(gridMesh, planeIndexOffset, planeVertexOffset);
 
-    m_fullQuad = std::make_unique<MeshGeometry>("fullQuad");
+    auto fullQuad = std::make_unique<MeshGeometry>("fullQuad");
     std::vector<VertexPosition> fullQuadVertices(4, VertexPosition{}); // SV_VertexID in DeferredDirLightVS
                                                                        // we don't need any other data besides vertex position,
                                                                        // so there is actually no input layout for that shader
-    m_fullQuad->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), fullQuadVertices);
+    solarSystem->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), vertices, indices);
+    fullQuad->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), fullQuadVertices);
+
+    m_geometries[solarSystem->Name] = std::move(solarSystem);
+    m_geometries[fullQuad->Name] = std::move(fullQuad);
 }
 
 VOID Engine::CreateGeometryMaterials()
@@ -1158,15 +1109,15 @@ VOID Engine::PopulateCommandList()
     // that command list can then be reset at any time and must be before re-recording.
     if (m_isWireframe)
     {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at(EPsoType::WireframeOpaque).Get()));
+        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at(EPsoType::Wireframe).Get()));
     }
     else
     {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at(EPsoType::Opaque).Get()));
+        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at(EPsoType::DeferredGeometry).Get()));
     }
 
     // Set necessary state.
-    m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_commandList->SetGraphicsRootSignature(m_rootSignature->Get());
 
     // Access for setting and using root descriptor table
     ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.Get() };
@@ -1315,7 +1266,7 @@ void Engine::DeferredPointLightPass()
     m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
 
     // !!! HACK (TO DRAW EVEN IF FRUSTUM INTERSECTS LIGHT VOLUME)
-    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPointIntersectsFarPlane).Get());
+    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPointWithinFrustum).Get());
     DrawInstancedRenderItems(m_commandList.Get(), m_pointLights);
 
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -1380,7 +1331,7 @@ void Engine::DrawQuad(ID3D12GraphicsCommandList* cmdList)
     auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();
 
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    cmdList->IASetVertexBuffers(0u, 1u, &m_fullQuad->VertexBufferView());
+    cmdList->IASetVertexBuffers(0u, 1u, &m_geometries.at("fullQuad")->VertexBufferView());
 
     cmdList->DrawInstanced(4u, 1u, 0u, 0u);
 }
@@ -1403,56 +1354,6 @@ VOID Engine::MoveToNextFrame()
 
     // Set the fence value for the next frame.
     m_fenceValues[m_frameIndex] = currentFenceValue + 1;
-}
-
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 5> Engine::GetStaticSamplers()
-{
-    const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
-        0u, // shaderRegister
-        D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
-
-    const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
-        1u, // shaderRegister
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
-
-    const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
-        2u, // shaderRegister
-        D3D12_FILTER_ANISOTROPIC, // filter
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-        D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
-        0.0f,                             // mipLODBias
-        8u);                              // maxAnisotropy
-
-    const CD3DX12_STATIC_SAMPLER_DESC shadowSampler(
-        3u,
-        D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        0.0f,
-        16u
-        );
-
-    const CD3DX12_STATIC_SAMPLER_DESC shadowComparison(
-        4u,
-        D3D12_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-        0.0f,
-        16u,
-        D3D12_COMPARISON_FUNC_LESS_EQUAL,
-        D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK
-    );
-
-    return { pointWrap, linearWrap, anisotropicWrap, shadowSampler, shadowComparison };
 }
 
 std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, const float farZ)

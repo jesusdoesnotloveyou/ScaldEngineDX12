@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Core\RootSignature.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
     <ClCompile Include="Src\GameFramework\Components\SComponent.cpp" />
@@ -34,6 +35,7 @@
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
     <ClInclude Include="Src\Common\VertexTypes.h" />
+    <ClInclude Include="Src\Core\RootSignature.h" />
     <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
     <ClInclude Include="Src\GameFramework\Components\Scene.h" />
