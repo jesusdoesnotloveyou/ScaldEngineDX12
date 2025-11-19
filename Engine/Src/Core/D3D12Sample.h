@@ -70,7 +70,6 @@ protected:
     void LogAdapters();
     void LogAdapterOutputs(IDXGIAdapter* adapter);
     void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
-
     
     void CheckFeatureSupport();
     void SetCustomWindowText(LPCWSTR text) const;

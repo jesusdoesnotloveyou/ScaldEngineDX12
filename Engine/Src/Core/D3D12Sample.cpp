@@ -76,7 +76,7 @@ void D3D12Sample::OnUpdate(const ScaldTimer& st)
         // To check how much memory app is using from two pools: DXGI_MEMORY_SEGMENT_GROUP_LOCAL (L1) and DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL (L0)
         DXGI_QUERY_VIDEO_MEMORY_INFO videoMemoryInfo;
         UINT nodeIndex = 0u; // Single-GPU
-        if (SUCCEEDED(m_hardwareAdapter->QueryVideoMemoryInfo(nodeIndex, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &videoMemoryInfo)))
+        if (SUCCEEDED(m_hardwareAdapter->QueryVideoMemoryInfo(nodeIndex, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &videoMemoryInfo)))
         {
             std::wstring text = L"***VideoMemoryInfo***";
             text += L"\n\tBudget: " + std::to_wstring(BYTE_TO_MB(videoMemoryInfo.Budget));
@@ -423,6 +423,9 @@ VOID D3D12Sample::Reset()
             ThrowIfFailed(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
             m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHeapHandle);
             rtvHeapHandle.Offset(1, m_rtvDescriptorSize);
+
+            std::wstring name = L"Backbuffer[" + std::to_wstring(i) + L"]";
+            m_renderTargets[i]->SetName(name.c_str());
         }
 
         // Create the depth/stencil view.
@@ -461,6 +464,7 @@ VOID D3D12Sample::Reset()
         dsvDesc.Texture2D.MipSlice = 0u;
 
         m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvDesc, dsvHandle);
+        m_depthStencilBuffer->SetName(L"DepthStencilBuffer");
     }
 
     // Transition the resource from its initial state to be used as a depth buffer.
