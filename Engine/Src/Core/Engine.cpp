@@ -4,12 +4,13 @@
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
+#include "CommandQueue.h"
 
 extern const int gNumFrameResources;
 
 Engine::Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
     : 
-    D3D12Sample(width, height, name, className)
+    Super(width, height, name, className)
 {
     m_camera = std::make_unique<Camera>();
 }
@@ -18,7 +19,7 @@ Engine::~Engine()
 {
     if (m_device)
     {
-        //FlushCommandQueue();
+        m_commandQueue->Flush();
     }
 }
 
@@ -34,7 +35,7 @@ void Engine::OnInit()
 // Load the rendering pipeline dependencies.
 VOID Engine::LoadPipeline()
 {
-    D3D12Sample::LoadPipeline();
+    Super::LoadPipeline();
 }
 
 VOID Engine::LoadGraphicsFeatures()
@@ -57,26 +58,22 @@ VOID Engine::LoadDeferredRenderingResources()
 // Load the sample assets.
 VOID Engine::LoadAssets()
 {
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), nullptr));
+    auto commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get()); 
+    //ThrowIfFailed(commandList->Reset(m_commandAllocator.Get(), nullptr));
     
     LoadScene();
-    LoadTextures();
-    CreateGeometry();
+    LoadTextures(commandList.Get());
+    CreateGeometry(commandList.Get());
     CreateGeometryMaterials();
     CreateRenderItems();
-    CreatePointLights();
+    CreatePointLights(commandList.Get());
     CreateFrameResources();
     CreateDescriptorHeaps();
     CreateRootSignature();
-    // Create the pipeline state, which includes compiling and loading shaders.
-    {
-        CreateShaders();
-        CreatePSO();
-    }
+    CreateShaders();
+    CreatePSO();
 
-    m_commandList->Close();
-    ID3D12CommandList* cmdLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+    m_commandQueue->ExecuteCommandList(commandList);
 }
 
 VOID Engine::CreateRootSignature()
@@ -153,7 +150,7 @@ VOID Engine::CreateShaders()
 VOID Engine::CreatePSO()
 {
     // To hold common properties
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC  defaultPsoDesc = {};
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC defaultPsoDesc = {};
     defaultPsoDesc.pRootSignature = m_rootSignature->Get();
     defaultPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // Blend state is disable
     defaultPsoDesc.SampleMask = UINT_MAX;
@@ -331,14 +328,14 @@ VOID Engine::LoadScene()
     m_scene = std::make_shared<Scald::Scene>();
 }
 
-VOID Engine::LoadTextures()
+VOID Engine::LoadTextures(ID3D12GraphicsCommandList* pCommandList)
 {
-    auto brickTex = std::make_unique<Texture>("brickTex", L"./Assets/Textures/bricks.dds", m_device.Get(), m_commandList.Get());
-    auto grassTex = std::make_unique<Texture>("grassTex", L"./Assets/Textures/grass.dds", m_device.Get(), m_commandList.Get());
-    auto iceTex = std::make_unique<Texture>("iceTex", L"./Assets/Textures/ice.dds", m_device.Get(), m_commandList.Get());
-    auto stoneTex = std::make_unique<Texture>("stoneTex", L"./Assets/Textures/stone.dds", m_device.Get(), m_commandList.Get());
-    auto tileTex = std::make_unique<Texture>("tileTex", L"./Assets/Textures/tile.dds", m_device.Get(), m_commandList.Get());
-    auto planksTex = std::make_unique<Texture>("planksTex", L"./Assets/Textures/planks.dds", m_device.Get(), m_commandList.Get());
+    auto brickTex = std::make_unique<Texture>("brickTex", L"./Assets/Textures/bricks.dds", m_device.Get(), pCommandList);
+    auto grassTex = std::make_unique<Texture>("grassTex", L"./Assets/Textures/grass.dds", m_device.Get(), pCommandList);
+    auto iceTex = std::make_unique<Texture>("iceTex", L"./Assets/Textures/ice.dds", m_device.Get(), pCommandList);
+    auto stoneTex = std::make_unique<Texture>("stoneTex", L"./Assets/Textures/stone.dds", m_device.Get(), pCommandList);
+    auto tileTex = std::make_unique<Texture>("tileTex", L"./Assets/Textures/tile.dds", m_device.Get(), pCommandList);
+    auto planksTex = std::make_unique<Texture>("planksTex", L"./Assets/Textures/planks.dds", m_device.Get(), pCommandList);
 
     m_textures[brickTex->Name] = std::move(brickTex);
     m_textures[grassTex->Name] = std::move(grassTex);
@@ -348,7 +345,7 @@ VOID Engine::LoadTextures()
     m_textures[planksTex->Name] = std::move(planksTex);
 }
 
-VOID Engine::CreateGeometry()
+VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
 {
     auto sphereMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::SPHERE);
     auto gridMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::GRID);
@@ -461,8 +458,8 @@ VOID Engine::CreateGeometry()
     std::vector<VertexPosition> fullQuadVertices(4, VertexPosition{}); // SV_VertexID in DeferredDirLightVS
                                                                        // we don't need any other data besides vertex position,
                                                                        // so there is actually no input layout for that shader
-    solarSystem->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), vertices, indices);
-    fullQuad->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), fullQuadVertices);
+    solarSystem->CreateGPUBuffers(m_device.Get(), pCommandList, vertices, indices);
+    fullQuad->CreateGPUBuffers(m_device.Get(), pCommandList, fullQuadVertices);
 
     m_geometries[solarSystem->Name] = std::move(solarSystem);
     m_geometries[fullQuad->Name] = std::move(fullQuad);
@@ -600,13 +597,13 @@ VOID Engine::CreateRenderItems()
     }
 }
 
-VOID Engine::CreatePointLights()
+VOID Engine::CreatePointLights(ID3D12GraphicsCommandList* pCommandList)
 {
     // create point light mesh as sphere, since there is issue with geosphere mesh (see in renderDoc)
     MeshData sphereMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::SPHERE);
 
     auto pointLightMesh = std::make_unique<MeshGeometry>("pointLightMesh");
-    pointLightMesh->CreateGPUBuffers(m_device.Get(), m_commandList.Get(), sphereMesh.LODVertices[0], sphereMesh.LODIndices[0]);
+    pointLightMesh->CreateGPUBuffers(m_device.Get(), pCommandList, sphereMesh.LODVertices[0], sphereMesh.LODIndices[0]);
     m_geometries[pointLightMesh->Name] = std::move(pointLightMesh);
 
     const int n = 10;
@@ -753,7 +750,7 @@ VOID Engine::CreateDescriptorHeaps()
         m_device->CreateShaderResourceView(nullptr, &srvDesc, handle);
         
         auto cpuDsvRtvHandle = (i == GBuffer::EGBufferLayer::DEPTH) ? CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 2, m_dsvDescriptorSize)
-            : CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvCpuStart, 2 + i, m_rtvDescriptorSize);
+            : CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvCpuStart, SwapChainFrameCount + i, m_rtvDescriptorSize);
 
         m_GBuffer->SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize),
             CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize),
@@ -768,11 +765,10 @@ VOID Engine::CreateDescriptorHeaps()
 
 VOID Engine::Reset()
 {
-    D3D12Sample::Reset();
+    Super::Reset();
 
     // Init/Reinit camera
     m_camera->Reset(75.0f, m_aspectRatio, 1.0f, 250.0f);
-
     // need tests
     //m_cascadeShadowMap->OnResize(m_width, m_height);
     //m_GBuffer->OnResize(m_width, m_height);
@@ -804,12 +800,21 @@ VOID Engine::CreateRtvAndDsvDescriptorHeaps()
 // Update frame-based values.
 void Engine::OnUpdate(const ScaldTimer& st)
 {
+    Super::OnUpdate(st);
+
     OnKeyboardInput(st);
     m_camera->Update(st.DeltaTime());
     
     // Cycle through the circular frame resource array.
-    m_currFrameResourceIndex = (m_currFrameResourceIndex + 1) % gNumFrameResources;
-    m_currFrameResource = m_frameResources[m_currFrameResourceIndex].get();
+    m_ñurrFrameResourceIndex = (m_ñurrFrameResourceIndex + 1u) % gNumFrameResources;
+    m_currFrameResource = m_frameResources[m_ñurrFrameResourceIndex].get();
+
+    // Has the GPU finished processing the commands of the current frame resource?
+    // If not, wait until the GPU has completed commands up to this fence point.
+    if (m_currFrameResource->Fence != 0 /*&& !m_commandQueue->IsFenceComplete(m_currFrameResource->Fence)*/)
+    {
+        m_commandQueue->WaitForFenceValue(m_currFrameResource->Fence);
+    }
 
     UpdateObjectsCB(st);
     UpdateMaterialBuffer(st);
@@ -825,25 +830,38 @@ void Engine::OnUpdate(const ScaldTimer& st)
 // Render the scene.
 void Engine::OnRender(const ScaldTimer& st)
 {
+    auto currCmdAlloc = m_currFrameResource->commandAllocator.Get();
+    
+#if defined(DEBUG) || defined(_DEBUG)
+    wchar_t name[32] = {};
+    UINT size = sizeof(name);
+    currCmdAlloc->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, name);
+#endif
+
+    auto commandList = m_commandQueue->GetCommandList(currCmdAlloc);
+    // We could get new created command list, so it needs to be closed before reset
+    commandList->Close();
+    // Command list allocators can only be reset when the associated command lists have finished execution on the GPU;
+    // apps should use fences to determine GPU execution progress.
+    ThrowIfFailed(commandList->Reset(currCmdAlloc, nullptr));
+    //
     // Record all the commands we need to render the scene into the command list.
-    PopulateCommandList();
+    PopulateCommandList(commandList.Get());
 
     // Execute the command list.
-    ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    m_commandQueue->ExecuteCommandList(commandList);
 
-    // Present the frame.
-    ThrowIfFailed(m_swapChain->Present(1u, 0u));
+    Present();
 
-    MoveToNextFrame();
+    m_currBackBuffer = (m_currBackBuffer + 1u) % SwapChainFrameCount;
+
+    // Advance the fence value to mark commands up to this fence point.
+    m_currFrameResource->Fence = m_commandQueue->Signal();
 }
 
 void Engine::OnDestroy()
 {
-    // Ensure that the GPU is no longer referencing resources that are about to be cleaned up by the destructor.
-    WaitForGPU();
-
-    CloseHandle(m_fenceEvent);
+    m_commandQueue->Flush();
 }
 
 void Engine::OnMouseDown(WPARAM btnState, int x, int y)
@@ -1097,194 +1115,179 @@ void Engine::UpdateMainPassCB(const ScaldTimer& st)
     currPassCB->CopyData(static_cast<int>(EPassType::DeferredLighting), m_mainPassCBData);
 }
 
-VOID Engine::PopulateCommandList()
+VOID Engine::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList)
 {
-    // Command list allocators can only be reset when the associated command lists have finished execution on the GPU;
-    // apps should use fences to determine GPU execution progress.
-    auto currentCmdAlloc = m_currFrameResource->commandAllocator.Get();
-
-    ThrowIfFailed(currentCmdAlloc->Reset());
-
-    // However, when ExecuteCommandList() is called on a particular command list,
-    // that command list can then be reset at any time and must be before re-recording.
-    if (m_isWireframe)
-    {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at(EPsoType::Wireframe).Get()));
-    }
-    else
-    {
-        ThrowIfFailed(m_commandList->Reset(currentCmdAlloc, m_pipelineStates.at(EPsoType::DeferredGeometry).Get()));
-    }
-
     // Set necessary state.
-    m_commandList->SetGraphicsRootSignature(m_rootSignature->Get());
+    pCommandList->SetGraphicsRootSignature(m_rootSignature->Get());
 
     // Access for setting and using root descriptor table
     ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.Get() };
-    m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+    pCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-    RenderDepthOnlyPass();
-    RenderGeometryPass();
-    RenderLightingPass();
-    //RenderTransparencyPass();
-
-    ThrowIfFailed(m_commandList->Close());
+    RenderDepthOnlyPass(pCommandList);
+    RenderGeometryPass(pCommandList);
+    RenderLightingPass(pCommandList);
+    //RenderTransparencyPass(pCommandList);
 }
 
-void Engine::RenderDepthOnlyPass()
+void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList)
 {
-    m_commandList->RSSetViewports(1u, &m_cascadeShadowMap->GetViewport());
-    m_commandList->RSSetScissorRects(1u, &m_cascadeShadowMap->GetScissorRect());
+    pCommandList->RSSetViewports(1u, &m_cascadeShadowMap->GetViewport());
+    pCommandList->RSSetScissorRects(1u, &m_cascadeShadowMap->GetScissorRect());
 
     // change to depth write state
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    m_commandList->ResourceBarrier(1u, &transition);
+    pCommandList->ResourceBarrier(1u, &transition);
 
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress()); //cause shadow pass data lies in the first element
+    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress()); //cause shadow pass data lies in the first element
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_cascadeShadowMap->GetDsv());
-    m_commandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
-    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
+    pCommandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
+    pCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
 
-    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::CascadedShadowsOpaque).Get());
-    DrawRenderItems(m_commandList.Get(), m_renderItems);
+    pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::CascadedShadowsOpaque).Get());
+    DrawRenderItems(pCommandList, m_renderItems);
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
-    m_commandList->ResourceBarrier(1u, &transition);
+    pCommandList->ResourceBarrier(1u, &transition);
 }
 
-void Engine::RenderGeometryPass()
+void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
 {
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
     // The viewport needs to be reset whenever the command list is reset.
-    m_commandList->RSSetViewports(1u, &m_viewport);
-    m_commandList->RSSetScissorRects(1u, &m_scissorRect);
+    pCommandList->RSSetViewports(1u, &m_viewport);
+    pCommandList->RSSetScissorRects(1u, &m_scissorRect);
 
     // barrier
     for (unsigned i = 0; i < GBuffer::EGBufferLayer::MAX - 1u; i++)
     {
         auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(i), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        m_commandList->ResourceBarrier(1u, &transition);
+        pCommandList->ResourceBarrier(1u, &transition);
     }
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    m_commandList->ResourceBarrier(1u, &transition);
+    pCommandList->ResourceBarrier(1u, &transition);
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); // second element contains data for geometry pass
+    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); // second element contains data for geometry pass
 
     // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
     auto matBuffer = m_currFrameResource->MaterialSB->Get();
-    m_commandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
+    pCommandList->SetGraphicsRootShaderResourceView(ERootParameter::MaterialDataSB, matBuffer->GetGPUVirtualAddress());
 
     // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
     // The root signature knows how many descriptors are expected in the table.
-    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 #pragma endregion BypassResources
     
-    D3D12_CPU_DESCRIPTOR_HANDLE* rtvs[] = {
+    // start of the GBuffer rtvs in rtvHeap
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount, m_rtvDescriptorSize);
+
+    // Before. I left it here just for clarification, the approach above more preferable
+    /*D3D12_CPU_DESCRIPTOR_HANDLE* rtvs[] = {
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR),
-    };
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH));
+    };*/
 
-    m_commandList->OMSetRenderTargets(ARRAYSIZE(rtvs), rtvs[0], TRUE, &dsvHandle);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH));
+    pCommandList->OMSetRenderTargets(GBuffer::EGBufferLayer::DEPTH, &rtvHandle, TRUE, &dsvHandle);
 
     const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO), Colors::LightSteelBlue, 0u, nullptr);
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION), clearColor, 0u, nullptr);
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL), clearColor, 0u, nullptr);
-    m_commandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
-    m_commandList->ClearDepthStencilView(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
+    pCommandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO), Colors::LightSteelBlue, 0u, nullptr);
+    pCommandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION), clearColor, 0u, nullptr);
+    pCommandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL), clearColor, 0u, nullptr);
+    pCommandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
+    pCommandList->ClearDepthStencilView(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
 
-    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredGeometry).Get());
-    DrawRenderItems(m_commandList.Get(), m_renderItems);
+    pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredGeometry).Get());
+    DrawRenderItems(pCommandList, m_renderItems);
 
     for (unsigned i = 0; i < GBuffer::EGBufferLayer::MAX - 1u; i++)
     {
         auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
-        m_commandList->ResourceBarrier(1u, &transition);
+        pCommandList->ResourceBarrier(1u, &transition);
     }
 
     transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
-    m_commandList->ResourceBarrier(1u, &transition);
+    pCommandList->ResourceBarrier(1u, &transition);
 }
 
-void Engine::RenderLightingPass()
+void Engine::RenderLightingPass(ID3D12GraphicsCommandList* pCommandList)
 {
-    DeferredDirectionalLightPass();
-    DeferredPointLightPass();
-    //DeferredSpotLightPass();
+    DeferredDirectionalLightPass(pCommandList);
+    DeferredPointLightPass(pCommandList);
+    //DeferredSpotLightPass(pCommandList);
 }
 
-void Engine::DeferredDirectionalLightPass()
+void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandList)
 {
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(1u, &transition);
+    pCommandList->ResourceBarrier(1u, &transition);
 
     // The viewport needs to be reset whenever the command list is reset.
-    m_commandList->RSSetViewports(1u, &m_viewport);
-    m_commandList->RSSetScissorRects(1u, &m_scissorRect);
+    pCommandList->RSSetViewports(1u, &m_viewport);
+    pCommandList->RSSetScissorRects(1u, &m_scissorRect);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currBackBuffer, m_rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     const float* clearColor = &m_mainPassCBData.FogColor.x;
-    m_commandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
-    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
+    pCommandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
+    pCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
+    pCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
+    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
 
     // Set shaadow map texture for main pass
-    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
 
     // Bind GBuffer textures
-    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
 #pragma endregion BypassResources
 
-    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredDirectional).Get());
-    DrawQuad(m_commandList.Get());
+    pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredDirectional).Get());
+    DrawQuad(pCommandList);
 }
 
-void Engine::DeferredPointLightPass()
+void Engine::DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList)
 {
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    m_commandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
+    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
 
     // Bind GBuffer textures
-    m_commandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
 
     // !!! HACK (TO DRAW EVEN IF FRUSTUM INTERSECTS LIGHT VOLUME)
-    m_commandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPointWithinFrustum).Get());
-    DrawInstancedRenderItems(m_commandList.Get(), m_pointLights);
+    pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPointWithinFrustum).Get());
+    DrawInstancedRenderItems(pCommandList, m_pointLights);
 
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1u, &transition);
+    pCommandList->ResourceBarrier(1u, &transition);
 }
 
-void Engine::DeferredSpotLightPass()
+void Engine::DeferredSpotLightPass(ID3D12GraphicsCommandList* pCommandList)
 {
 
 }
 
-void Engine::RenderTransparencyPass()
+void Engine::RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList)
 {
     // forward-like
 }
 
-void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
+void Engine::DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
 {
     UINT objCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
@@ -1292,27 +1295,27 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std
 
     for (auto& ri : renderItems)
     {
-        cmdList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
-        cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
-        cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+        pCommandList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
+        pCommandList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
+        pCommandList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 
         D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = currFrameObjCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
 
         // now we set only objects' cbv per item, material data is set per pass
         // we get material data by index from structured buffer
-        cmdList->SetGraphicsRootConstantBufferView(ERootParameter::PerObjectDataCB, objCBAddress);
+        pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerObjectDataCB, objCBAddress);
 
-        cmdList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
+        pCommandList->DrawIndexedInstanced(ri->IndexCount, 1u, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
 }
 
-void Engine::DrawInstancedRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
+void Engine::DrawInstancedRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
 {
     for (auto& ri : renderItems)
     {
-        cmdList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
-        cmdList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
-        cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+        pCommandList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
+        pCommandList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
+        pCommandList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 
         // Set the instance buffer to use for this render-item.  For structured buffers, we can bypass 
         // the heap and set as a root descriptor.
@@ -1320,40 +1323,20 @@ void Engine::DrawInstancedRenderItems(ID3D12GraphicsCommandList* cmdList, std::v
 
         // now we set only objects' cbv per item, material data is set per pass
         // we get material data by index from structured buffer
-        cmdList->SetGraphicsRootShaderResourceView(ERootParameter::PointLightsDataSB, instanceBuffer->GetGPUVirtualAddress());
+        pCommandList->SetGraphicsRootShaderResourceView(ERootParameter::PointLightsDataSB, instanceBuffer->GetGPUVirtualAddress());
 
-        cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
+        pCommandList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
 }
 
-void Engine::DrawQuad(ID3D12GraphicsCommandList* cmdList)
+void Engine::DrawQuad(ID3D12GraphicsCommandList* pCommandList)
 {
     auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();
 
-    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    cmdList->IASetVertexBuffers(0u, 1u, &m_geometries.at("fullQuad")->VertexBufferView());
+    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    pCommandList->IASetVertexBuffers(0u, 1u, &m_geometries.at("fullQuad")->VertexBufferView());
 
-    cmdList->DrawInstanced(4u, 1u, 0u, 0u);
-}
-
-VOID Engine::MoveToNextFrame()
-{
-    // Schedule a Signal command in the queue.
-    const UINT64 currentFenceValue = m_fenceValues[m_frameIndex];
-    ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), currentFenceValue));
-
-    // Update the frame index.
-    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
-
-    // If the next frame is not ready to be rendered yet, wait until it is ready.
-    if (m_fence->GetCompletedValue() < m_fenceValues[m_frameIndex])
-    {
-        ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent));
-        WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
-    }
-
-    // Set the fence value for the next frame.
-    m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+    pCommandList->DrawInstanced(4u, 1u, 0u, 0u);
 }
 
 std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, const float farZ)

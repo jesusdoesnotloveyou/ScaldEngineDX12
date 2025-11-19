@@ -11,12 +11,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Core\CommandQueue.cpp" />
     <ClCompile Include="Src\Core\RootSignature.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
     <ClCompile Include="Src\GameFramework\Components\SComponent.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Transform.cpp" />
-    <ClCompile Include="Src\Core\Camera.cpp" />
+    <ClCompile Include="Src\Core\Camera.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="Src\Core\CascadeShadowMap.cpp" />
     <ClCompile Include="Src\Core\D3D12Sample.cpp" />
     <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
@@ -28,13 +31,19 @@
     <ClCompile Include="Src\Common\ScaldTimer.cpp" />
     <ClCompile Include="Src\Common\ScaldUtil.cpp" />
     <ClCompile Include="Src\Core\ShadowMap.cpp" />
-    <ClCompile Include="Src\Core\Shapes.cpp" />
-    <ClCompile Include="Src\stdafx.cpp" />
+    <ClCompile Include="Src\Core\Shapes.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="Src\stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="Src\Core\Win32App.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
     <ClInclude Include="Src\Common\VertexTypes.h" />
+    <ClInclude Include="Src\Core\CommandQueue.h" />
     <ClInclude Include="Src\Core\RootSignature.h" />
     <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
@@ -224,7 +233,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <PrecompiledHeader>Create</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\Src;$(SolutionDir)Engine\Assets\Shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -243,7 +252,7 @@
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <PrecompiledHeader>Create</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\Src;$(SolutionDir)Engine\Assets\Shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>

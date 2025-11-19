@@ -7,6 +7,13 @@
 	#define FORCEINLINE __forceinline
 #endif
 
+#ifndef VVOID
+	#define VVOID virtual void
+#endif
+
+#define BYTE_TO_MB(x) ((x) / (1024 * 1024))
+#define BYTE_TO_KB(x) (x / 1024)
+
 constexpr int INVALID_ID = -1;
 using ID_TYPE = int;
 

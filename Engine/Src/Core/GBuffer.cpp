@@ -131,8 +131,10 @@ void GBuffer::CreateResources()
         optClear.Format = texDesc.Format;
         
         if (i == EGBufferLayer::DIFFUSE_ALBEDO)
+            // To clear background at desirable color
             memcpy(&optClear.Color[0], &Colors::LightSteelBlue, sizeof(optClear.Color));
-        else 
+        else
+            // To clear to zero
             memcpy(&optClear.Color[0], &m_optimizedClearColor[0], sizeof(optClear.Color));
     
         ThrowIfFailed(m_device->CreateCommittedResource(

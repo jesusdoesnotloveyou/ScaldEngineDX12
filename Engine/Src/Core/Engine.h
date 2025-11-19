@@ -89,6 +89,7 @@ struct RenderItem
 
 class Engine : public D3D12Sample
 {
+    using Super = D3D12Sample;
 public:
     enum ERootParameter : UINT
     {
@@ -169,28 +170,28 @@ private:
     
 private:
 #pragma region Shadows
-    void RenderDepthOnlyPass();
+    void RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList);
 #pragma endregion Shadows
 #pragma region DeferredShading
-    void RenderGeometryPass();
-    void RenderLightingPass();
-    void RenderTransparencyPass();
+    void RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderLightingPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
 
-    void DeferredDirectionalLightPass();
-    void DeferredPointLightPass();
-    void DeferredSpotLightPass();
+    void DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandList);
+    void DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList);
+    void DeferredSpotLightPass(ID3D12GraphicsCommandList* pCommandList);
 #pragma endregion DeferredShading
 
-    void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
-    void DrawInstancedRenderItems(ID3D12GraphicsCommandList* cmdList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
-    void DrawQuad(ID3D12GraphicsCommandList* cmdList);
+    void DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
+    void DrawInstancedRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
+    void DrawQuad(ID3D12GraphicsCommandList* pCommandList);
 
 private:
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
     FrameResource* m_currFrameResource = nullptr;
-    int m_currFrameResourceIndex = 0;
+    int m_ñurrFrameResourceIndex = 0;
 
-    UINT m_passCbvOffset = 0;
+    UINT m_passCbvOffset = 0u;
 
     float m_sunPhi = XM_PIDIV4;
     float m_sunTheta = 1.25f * XM_PI;
@@ -248,21 +249,20 @@ private:
     VOID CreatePSO();
     
     VOID LoadScene();
-    VOID LoadTextures();
+    VOID LoadTextures(ID3D12GraphicsCommandList* pCommandList);
     // Shapes
-    VOID CreateGeometry();
+    VOID CreateGeometry(ID3D12GraphicsCommandList* pCommandList);
     // Propertirs of shapes' surfaces to model light interaction
     VOID CreateGeometryMaterials();
     // Shapes could constist of some items to render
     VOID CreateSceneObjects();
     VOID CreateRenderItems();
-    VOID CreatePointLights();
+    VOID CreatePointLights(ID3D12GraphicsCommandList* pCommandList);
     VOID CreateFrameResources();
     // Heaps are created if there are root descriptor tables in root signature 
     VOID CreateDescriptorHeaps();
 
-    VOID PopulateCommandList();
-    VOID MoveToNextFrame();
+    VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
 
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
     // Doubt that't a good idea to return vector of matrices. Should rather pass vector as a parameter probalby and fill it inside function.

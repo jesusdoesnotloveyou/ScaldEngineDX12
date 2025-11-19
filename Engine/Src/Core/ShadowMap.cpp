@@ -125,4 +125,6 @@ void ShadowMap::CreateResource()
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		&optClear,
 		IID_PPV_ARGS(&m_shadowMap)));
+	
+	m_shadowMap->SetName(m_cascadesCount != 0u ? L"CascadedShadowMap" : L"ShadowMap");
 }

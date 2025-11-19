@@ -15,6 +15,7 @@
 #include <array>
 #include <vector>
 #include <cassert>
+#include <queue>
 
 using Microsoft::WRL::ComPtr;
 

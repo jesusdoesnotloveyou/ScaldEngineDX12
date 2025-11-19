@@ -20,4 +20,6 @@ struct FrameResource
     // Fence value to mark commands up to this fence point.  This lets us
     // check if these frame resources are still in use by the GPU.
     UINT64 Fence = 0;
+
+    static inline int commandAllocatorIndex = 0u;
 };

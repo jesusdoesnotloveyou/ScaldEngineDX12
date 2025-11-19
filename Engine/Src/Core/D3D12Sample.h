@@ -9,6 +9,8 @@
 //#pragma comment(lib, "d3d12.lib")
 //#pragma comment(lib, "dxgi.lib")
 
+class CommandQueue;
+
 class D3D12Sample
 {
 public:
@@ -19,32 +21,32 @@ public:
 
     int Run();
 
-    virtual void OnInit() = 0;
-    virtual void OnUpdate(const ScaldTimer& st) = 0;
-    virtual void OnRender(const ScaldTimer& st) = 0;
-    virtual void OnDestroy() = 0;
+    VVOID OnInit() = 0;
+    VVOID OnUpdate(const ScaldTimer& st) = 0;
+    VVOID OnRender(const ScaldTimer& st) = 0;
+    VVOID OnDestroy() = 0;
 
     bool Get4xMsaaState()const;
     void Set4xMsaaState(bool value);
 
-    virtual void LoadPipeline();
+    VVOID LoadPipeline();
 
     // Convenience overrides for handling mouse input.
-    virtual void OnMouseDown(WPARAM btnState, int x, int y) {}
-    virtual void OnMouseUp(WPARAM btnState, int x, int y) {}
-    virtual void OnMouseMove(WPARAM btnState, int x, int y) {}
+    VVOID OnMouseDown(WPARAM btnState, int x, int y) {}
+    VVOID OnMouseUp(WPARAM btnState, int x, int y) {}
+    VVOID OnMouseMove(WPARAM btnState, int x, int y) {}
     // Samples override the event handlers to handle specific messages.
-    virtual void OnKeyDown(UINT8 /*key*/) {}
-    virtual void OnKeyUp(UINT8 /*key*/) {}
+    VVOID OnKeyDown(UINT8 /*key*/) {}
+    VVOID OnKeyUp(UINT8 /*key*/) {}
 
-    virtual VOID Pause();
-    virtual VOID UnPause();
-    virtual VOID Resize();
-    virtual VOID OnResize();
-    virtual VOID Reset();
+    VVOID Pause();
+    VVOID UnPause();
+    VVOID Resize();
+    VVOID OnResize();
+    VVOID Reset();
 
     // Timer stuff
-    virtual void CalculateFrameStats();
+    VOID CalculateFrameStats();
 
     // Accessors.
     FORCEINLINE UINT GetWidth() const { return m_width; }
@@ -63,19 +65,22 @@ protected:
     void GetHardwareAdapter(
         _In_ IDXGIFactory1* pFactory,
         _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter,
-        bool requestHighPerformanceAdapter = false);
+        bool requestHighPerformanceAdapter = true);
 
+    void LogAdapters();
+    void LogAdapterOutputs(IDXGIAdapter* adapter);
+    void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
+    
+    void CheckFeatureSupport();
     void SetCustomWindowText(LPCWSTR text) const;
 
     VOID CreateDebugLayer();
     VOID CreateDevice();
-    VOID CreateCommandObjects();
-    VOID CreateFence();
+    VOID CreateCommandObjectsAndInternalFence();
     VOID CreateSwapChain();
-    virtual VOID CreateRtvAndDsvDescriptorHeaps();
+    VVOID CreateRtvAndDsvDescriptorHeaps();
 
-    // Wait for pending GPU work to complete.
-    VOID WaitForGPU();
+    VOID Present();
 
 protected:
 
@@ -104,38 +109,37 @@ protected:
 
     XMFLOAT2 m_lastMousePos = { 0.0f, 0.0f };
 
-    static const UINT SwapChainFrameCount = 2;
+    static const UINT SwapChainFrameCount = 2u;
     static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     static const DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
     // Pipeline objects.
     ComPtr<IDXGIFactory4> m_factory;
     ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device> m_device;
+    ComPtr<ID3D12Device2> m_device;
 
-    ComPtr<IDXGIAdapter1> m_hardwareAdapter;
+    ComPtr<IDXGIAdapter3> m_hardwareAdapter;
 
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 
-    ComPtr<ID3D12CommandQueue> m_commandQueue;
-    ComPtr<ID3D12CommandAllocator> m_commandAllocators[SwapChainFrameCount];
-    ComPtr<ID3D12GraphicsCommandList> m_commandList;
+    std::shared_ptr<CommandQueue> m_commandQueue = nullptr;
+    // Temporary allocator that is needed only for initialization stage (but could be used for smth else)
+    ComPtr<ID3D12CommandAllocator> m_commandAllocator = nullptr;
 
     ComPtr<ID3D12Resource> m_renderTargets[SwapChainFrameCount];
     ComPtr<ID3D12Resource> m_depthStencilBuffer;
 
     // Synchronization objects.
-    // swapChain->GetCurrentBackBufferIndex() return current free index of back buffer to write to
-    UINT m_frameIndex = 0u; // keep track of front and back buffers (see SwapChainFrameCount)
-    ComPtr<ID3D12Fence> m_fence;
-    HANDLE m_fenceEvent;
-    UINT64 m_fenceValues[SwapChainFrameCount];
-
+    UINT m_currBackBuffer = 0u;
+    
     D3D12_VIEWPORT m_viewport;
     D3D12_RECT m_scissorRect;
 
 private:
+    BOOL UMA = FALSE;
+    float TimeStep = 0.0f;
+
     // Root assets path.
     std::wstring m_assetsPath;
 
@@ -149,7 +153,7 @@ private:
 protected:
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTV()
     {
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currBackBuffer, m_rtvDescriptorSize);
     }
 
     D3D12_CPU_DESCRIPTOR_HANDLE GetDSV()
