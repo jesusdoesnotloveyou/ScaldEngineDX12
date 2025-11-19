@@ -82,13 +82,18 @@ void D3D12Sample::Set4xMsaaState(bool value)
 
 void D3D12Sample::LoadPipeline()
 {
-#if defined(_DEBUG)
+#if defined(DEBUG) || defined(_DEBUG)
     // Enable the debug layer (requires the Graphics Tools "optional feature").
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
     CreateDebugLayer();
 #endif
-
+    
     CreateDevice();
+
+#if defined(DEBUG) || defined(_DEBUG)
+    LogAdapters();
+#endif
+
     CreateCommandObjectsAndInternalFence();
     CreateRtvAndDsvDescriptorHeaps();
     CreateSwapChain();
@@ -173,7 +178,7 @@ void D3D12Sample::GetHardwareAdapter(
     if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
     {
         for (
-            UINT adapterIndex = 0;
+            UINT adapterIndex = 0u;
             SUCCEEDED(factory6->EnumAdapterByGpuPreference(
                 adapterIndex,
                 requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
@@ -248,6 +253,8 @@ VOID D3D12Sample::CreateDevice()
 {
     ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
 
+    // use UMA video adapter if there is no dedicated
+    //[[unlikely]] // C++20
     if (m_useWarpDevice)
     {
         ComPtr<IDXGIAdapter> warpAdapter;
@@ -259,6 +266,29 @@ VOID D3D12Sample::CreateDevice()
         GetHardwareAdapter(m_factory.Get(), &m_hardwareAdapter);
 
         ThrowIfFailed(D3D12CreateDevice(m_hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
+    }
+
+    CheckFeatureSupport();
+}
+
+void D3D12Sample::CheckFeatureSupport()
+{
+    D3D12_FEATURE_DATA_ARCHITECTURE architectureInfo = {};
+    if (SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &architectureInfo, sizeof(architectureInfo))))
+    {
+        UMA = architectureInfo.UMA;
+
+        std::wstring text = L"***D3D12_FEATURE_ARCHITECTURE:";
+        text += L"\n\tNodeIndex ";
+        text += std::to_wstring(architectureInfo.NodeIndex);
+        text += L"\n\tTileBasedRenderer ";
+        text += std::to_wstring(architectureInfo.TileBasedRenderer);
+        text += L"\n\tUMA ";
+        text += std::to_wstring(architectureInfo.UMA);
+        text += L"\n\tCacheCoherentUMA ";
+        text += std::to_wstring(architectureInfo.CacheCoherentUMA);
+        text += L"\n";
+        OutputDebugString(text.c_str());
     }
 }
 
@@ -449,5 +479,80 @@ void D3D12Sample::ParseCommandLineArgs(WCHAR* argv[], int argc)
             m_useWarpDevice = true;
             m_title = m_title + L" (WARP)";
         }
+    }
+}
+
+void D3D12Sample::LogAdapters()
+{
+    UINT i = 0;
+    IDXGIAdapter* adapter = nullptr;
+    std::vector<IDXGIAdapter*> adapterList;
+    while (m_factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND)
+    {
+        DXGI_ADAPTER_DESC desc;
+        adapter->GetDesc(&desc);
+
+        std::wstring text = L"***Adapter: ";
+        text += desc.Description;
+        text += L"\n";
+
+        OutputDebugString(text.c_str());
+
+        adapterList.push_back(adapter);
+
+        ++i;
+    }
+
+    for (size_t i = 0; i < adapterList.size(); ++i)
+    {
+        LogAdapterOutputs(adapterList[i]);
+        SAFE_RELEASE(adapterList[i]);
+    }
+}
+
+void D3D12Sample::LogAdapterOutputs(IDXGIAdapter* adapter)
+{
+    UINT i = 0;
+    IDXGIOutput* output = nullptr;
+    while (adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND)
+    {
+        DXGI_OUTPUT_DESC desc;
+        output->GetDesc(&desc);
+
+        std::wstring text = L"***Output: ";
+        text += desc.DeviceName;
+        text += L"\n";
+        OutputDebugString(text.c_str());
+
+        LogOutputDisplayModes(output, BackBufferFormat);
+
+        SAFE_RELEASE(output);
+
+        ++i;
+    }
+}
+
+void D3D12Sample::LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format)
+{
+    UINT count = 0;
+    UINT flags = 0;
+
+    // Call with nullptr to get list count.
+    output->GetDisplayModeList(format, flags, &count, nullptr);
+
+    std::vector<DXGI_MODE_DESC> modeList(count);
+    output->GetDisplayModeList(format, flags, &count, &modeList[0]);
+
+    for (auto& x : modeList)
+    {
+        UINT n = x.RefreshRate.Numerator;
+        UINT d = x.RefreshRate.Denominator;
+        std::wstring text =
+            L"Width = " + std::to_wstring(x.Width) + L" " +
+            L"Height = " + std::to_wstring(x.Height) + L" " +
+            L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) +
+            L"\n";
+
+        ::OutputDebugString(text.c_str());
     }
 }

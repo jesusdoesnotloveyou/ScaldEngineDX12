@@ -65,8 +65,14 @@ protected:
     void GetHardwareAdapter(
         _In_ IDXGIFactory1* pFactory,
         _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter,
-        bool requestHighPerformanceAdapter = false);
+        bool requestHighPerformanceAdapter = true);
 
+    void LogAdapters();
+    void LogAdapterOutputs(IDXGIAdapter* adapter);
+    void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
+
+    
+    void CheckFeatureSupport();
     void SetCustomWindowText(LPCWSTR text) const;
 
     VOID CreateDebugLayer();
@@ -119,7 +125,7 @@ protected:
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 
     std::shared_ptr<CommandQueue> m_commandQueue = nullptr;
-    // Temporary allocator that is needed only for initialization stage (could be used for smth else)
+    // Temporary allocator that is needed only for initialization stage (but could be used for smth else)
     ComPtr<ID3D12CommandAllocator> m_commandAllocator = nullptr;
 
     ComPtr<ID3D12Resource> m_renderTargets[SwapChainFrameCount];
@@ -132,6 +138,8 @@ protected:
     D3D12_RECT m_scissorRect;
 
 private:
+    BOOL UMA = FALSE;
+
     // Root assets path.
     std::wstring m_assetsPath;
 

@@ -830,7 +830,7 @@ void Engine::OnRender(const ScaldTimer& st)
 {
     auto currCmdAlloc = m_currFrameResource->commandAllocator.Get();
     
-#if defined(_DEBUG)
+#if defined(DEBUG) || defined(_DEBUG)
     wchar_t name[32] = {};
     UINT size = sizeof(name);
     currCmdAlloc->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, name);
