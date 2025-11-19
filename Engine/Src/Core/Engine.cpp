@@ -750,7 +750,7 @@ VOID Engine::CreateDescriptorHeaps()
         m_device->CreateShaderResourceView(nullptr, &srvDesc, handle);
         
         auto cpuDsvRtvHandle = (i == GBuffer::EGBufferLayer::DEPTH) ? CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 2, m_dsvDescriptorSize)
-            : CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvCpuStart, 2 + i, m_rtvDescriptorSize);
+            : CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvCpuStart, SwapChainFrameCount + i, m_rtvDescriptorSize);
 
         m_GBuffer->SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize),
             CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize),
@@ -1180,15 +1180,19 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 #pragma endregion BypassResources
     
-    D3D12_CPU_DESCRIPTOR_HANDLE* rtvs[] = {
+    // start of the GBuffer rtvs in rtvHeap
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount, m_rtvDescriptorSize);
+
+    // Before. I left it here just for clarification, the approach above more preferable
+    /*D3D12_CPU_DESCRIPTOR_HANDLE* rtvs[] = {
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL),
         &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR),
-    };
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH));
+    };*/
 
-    pCommandList->OMSetRenderTargets(ARRAYSIZE(rtvs), rtvs[0], TRUE, &dsvHandle);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH));
+    pCommandList->OMSetRenderTargets(GBuffer::EGBufferLayer::DEPTH, &rtvHandle, TRUE, &dsvHandle);
 
     const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     pCommandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO), Colors::LightSteelBlue, 0u, nullptr);
