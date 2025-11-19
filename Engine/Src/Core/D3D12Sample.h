@@ -119,7 +119,7 @@ protected:
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 
     std::shared_ptr<CommandQueue> m_commandQueue = nullptr;
-    // Temporary allocator that is needed only for initialization stage
+    // Temporary allocator that is needed only for initialization stage (could be used for smth else)
     ComPtr<ID3D12CommandAllocator> m_commandAllocator = nullptr;
 
     ComPtr<ID3D12Resource> m_renderTargets[SwapChainFrameCount];

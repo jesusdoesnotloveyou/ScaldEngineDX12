@@ -20,6 +20,8 @@
     <ClCompile Include="Src\GameFramework\Components\Transform.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
+    <ClCompile Include="Src\Core\CommandQueue.cpp" />
+    <ClCompile Include="Src\Core\RootSignature.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
@@ -51,6 +53,7 @@
     <ClInclude Include="Src\GameFramework\Components\Transform.h" />
     <ClInclude Include="Src\Common\VertexTypes.h" />
     <ClInclude Include="Src\Core\RootSignature.h" />
+    <ClInclude Include="Src\Core\CommandQueue.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\LightUtil.hlsl" />
