@@ -113,6 +113,8 @@ UINT64 CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> comma
     m_commandQueue->ExecuteCommandLists(1u, ppCommandLists);
     UINT64 fenceValue = Signal();
 
+    m_commandListQueue.push(commandList);
+
     return fenceValue;
 }
 
