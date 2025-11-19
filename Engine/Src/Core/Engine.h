@@ -89,6 +89,7 @@ struct RenderItem
 
 class Engine : public D3D12Sample
 {
+    using Super = D3D12Sample;
 public:
     enum ERootParameter : UINT
     {

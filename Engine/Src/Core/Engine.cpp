@@ -10,7 +10,7 @@ extern const int gNumFrameResources;
 
 Engine::Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
     : 
-    D3D12Sample(width, height, name, className)
+    Super(width, height, name, className)
 {
     m_camera = std::make_unique<Camera>();
 }
@@ -35,7 +35,7 @@ void Engine::OnInit()
 // Load the rendering pipeline dependencies.
 VOID Engine::LoadPipeline()
 {
-    D3D12Sample::LoadPipeline();
+    Super::LoadPipeline();
 }
 
 VOID Engine::LoadGraphicsFeatures()
@@ -765,7 +765,7 @@ VOID Engine::CreateDescriptorHeaps()
 
 VOID Engine::Reset()
 {
-    D3D12Sample::Reset();
+    Super::Reset();
 
     // Init/Reinit camera
     m_camera->Reset(75.0f, m_aspectRatio, 1.0f, 250.0f);
@@ -800,6 +800,8 @@ VOID Engine::CreateRtvAndDsvDescriptorHeaps()
 // Update frame-based values.
 void Engine::OnUpdate(const ScaldTimer& st)
 {
+    Super::OnUpdate(st);
+
     OnKeyboardInput(st);
     m_camera->Update(st.DeltaTime());
     

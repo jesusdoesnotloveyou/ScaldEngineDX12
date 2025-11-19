@@ -119,7 +119,7 @@ protected:
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12Device2> m_device;
 
-    ComPtr<IDXGIAdapter1> m_hardwareAdapter;
+    ComPtr<IDXGIAdapter3> m_hardwareAdapter;
 
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
@@ -139,6 +139,7 @@ protected:
 
 private:
     BOOL UMA = FALSE;
+    float TimeStep = 0.0f;
 
     // Root assets path.
     std::wstring m_assetsPath;

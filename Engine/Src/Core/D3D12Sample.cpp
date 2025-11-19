@@ -65,6 +65,31 @@ int D3D12Sample::Run()
     return static_cast<char>(msg.wParam);
 }
 
+void D3D12Sample::OnUpdate(const ScaldTimer& st)
+{
+#if defined(DEBUG) || defined(_DEBUG)
+    TimeStep += st.DeltaTime();
+    // Print GPU Memory usage info every 1 sec
+    if (TimeStep > 1.0f)
+    {
+        TimeStep = 0.0f;
+        // To check how much memory app is using from two pools: DXGI_MEMORY_SEGMENT_GROUP_LOCAL (L1) and DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL (L0)
+        DXGI_QUERY_VIDEO_MEMORY_INFO videoMemoryInfo;
+        UINT nodeIndex = 0u; // Single-GPU
+        if (SUCCEEDED(m_hardwareAdapter->QueryVideoMemoryInfo(nodeIndex, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &videoMemoryInfo)))
+        {
+            std::wstring text = L"***VideoMemoryInfo***";
+            text += L"\n\tBudget: " + std::to_wstring(BYTE_TO_MB(videoMemoryInfo.Budget));
+            text += L"\n\tCurrentUsage: " + std::to_wstring(BYTE_TO_MB(videoMemoryInfo.CurrentUsage));
+            text += L"\n\tAvailableForReservation: " + std::to_wstring(BYTE_TO_MB(videoMemoryInfo.AvailableForReservation));
+            text += L"\n\tCurrentReservation: " + std::to_wstring(BYTE_TO_MB(videoMemoryInfo.CurrentReservation));
+            text += L"\n";
+            OutputDebugString(text.c_str());
+        }
+    }
+#endif
+}
+
 bool D3D12Sample::Get4xMsaaState() const
 {
     return m_is4xMsaaState;
@@ -263,12 +288,17 @@ VOID D3D12Sample::CreateDevice()
     }
     else
     {
-        GetHardwareAdapter(m_factory.Get(), &m_hardwareAdapter);
-
+        ComPtr<IDXGIAdapter1> hardwareAdapter;
+        GetHardwareAdapter(m_factory.Get(), &hardwareAdapter);
+     
+        ThrowIfFailed(hardwareAdapter.As(&m_hardwareAdapter));
+        
         ThrowIfFailed(D3D12CreateDevice(m_hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
     }
 
+#if defined(DEBUG) || defined(_DEBUG)
     CheckFeatureSupport();
+#endif
 }
 
 void D3D12Sample::CheckFeatureSupport()
@@ -278,15 +308,11 @@ void D3D12Sample::CheckFeatureSupport()
     {
         UMA = architectureInfo.UMA;
 
-        std::wstring text = L"***D3D12_FEATURE_ARCHITECTURE:";
-        text += L"\n\tNodeIndex ";
-        text += std::to_wstring(architectureInfo.NodeIndex);
-        text += L"\n\tTileBasedRenderer ";
-        text += std::to_wstring(architectureInfo.TileBasedRenderer);
-        text += L"\n\tUMA ";
-        text += std::to_wstring(architectureInfo.UMA);
-        text += L"\n\tCacheCoherentUMA ";
-        text += std::to_wstring(architectureInfo.CacheCoherentUMA);
+        std::wstring text = L"***D3D12_FEATURE_ARCHITECTURE***";
+        text += L"\n\tNodeIndex: " + std::to_wstring(architectureInfo.NodeIndex);
+        text += L"\n\tTileBasedRenderer " + std::to_wstring(architectureInfo.TileBasedRenderer);
+        text += L"\n\tUMA " + std::to_wstring(architectureInfo.UMA);
+        text += L"\n\tCacheCoherentUMA " + std::to_wstring(architectureInfo.CacheCoherentUMA);
         text += L"\n";
         OutputDebugString(text.c_str());
     }
