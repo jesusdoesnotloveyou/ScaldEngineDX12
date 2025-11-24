@@ -103,7 +103,6 @@ ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList(ID3D12CommandAll
 }
 
 // Execute a command list.
-// Returns the fence value to wait for for this command list.
 void CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> commandList)
 {
     commandList->Close();

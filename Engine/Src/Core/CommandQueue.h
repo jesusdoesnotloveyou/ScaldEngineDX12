@@ -16,7 +16,6 @@ public:
     ComPtr<ID3D12GraphicsCommandList2> GetCommandList(ID3D12CommandAllocator* pCommandList);
 
     // Execute a command list.
-    // Returns the fence value to wait for for this command list.
     void ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> cmdList);
 
     UINT64 Signal();
