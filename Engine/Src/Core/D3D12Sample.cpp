@@ -326,6 +326,8 @@ VOID D3D12Sample::CreateCommandObjectsAndInternalFence()
     m_commandQueue = std::make_shared<CommandQueue>(m_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
 
     m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
+    m_device->CreateCommandList(0u, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandCommandList));
+    m_commandCommandList->Close();
 }
 
 VOID D3D12Sample::CreateRtvAndDsvDescriptorHeaps()
@@ -397,7 +399,9 @@ VOID D3D12Sample::Reset()
     // Before making any changes
     m_commandQueue->Flush();
 
-    auto commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get());
+    //auto commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get());
+    m_commandCommandList->Reset(m_commandAllocator.Get(), nullptr);
+    auto commandList = m_commandCommandList.Get();
 
     for (UINT i = 0; i < SwapChainFrameCount; i++)
     {
@@ -466,7 +470,7 @@ VOID D3D12Sample::Reset()
         m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvDesc, dsvHandle);
         m_depthStencilBuffer->SetName(L"DepthStencilBuffer");
     }
-
+    
     // Transition the resource from its initial state to be used as a depth buffer.
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 

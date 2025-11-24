@@ -107,15 +107,10 @@ ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList(ID3D12CommandAll
 void CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> commandList)
 {
     commandList->Close();
-
     ID3D12CommandList* const ppCommandLists[] = { commandList.Get() };
-
     m_commandQueue->ExecuteCommandLists(1u, ppCommandLists);
-    //UINT64 fenceValue = Signal();
 
     m_commandListQueue.push(commandList);
-
-    //return fenceValue;
 }
 
 ComPtr<ID3D12CommandQueue> CommandQueue::GetCommandQueue() const

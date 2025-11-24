@@ -58,9 +58,8 @@ VOID Engine::LoadDeferredRenderingResources()
 // Load the sample assets.
 VOID Engine::LoadAssets()
 {
-    auto commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get()); 
-    //ThrowIfFailed(commandList->Reset(m_commandAllocator.Get(), nullptr));
-    
+    auto commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get());
+
     LoadScene();
     LoadTextures(commandList.Get());
     CreateGeometry(commandList.Get());
@@ -832,6 +831,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
 void Engine::OnRender(const ScaldTimer& st)
 {
     auto currCmdAlloc = m_currFrameResource->commandAllocator.Get();
+    currCmdAlloc->Reset();
     
 #if defined(DEBUG) || defined(_DEBUG)
     wchar_t name[32] = {};
@@ -850,7 +850,7 @@ void Engine::OnRender(const ScaldTimer& st)
     PopulateCommandList(commandList.Get());
 
     // Execute the command list.
-    /*UINT64 fenceValue = */m_commandQueue->ExecuteCommandList(commandList);
+    m_commandQueue->ExecuteCommandList(commandList);
 
     Present();
 
