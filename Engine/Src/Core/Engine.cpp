@@ -74,6 +74,7 @@ VOID Engine::LoadAssets()
     CreatePSO();
 
     m_commandQueue->ExecuteCommandList(commandList);
+    m_commandQueue->Flush();
 }
 
 VOID Engine::CreateRootSignature()
@@ -849,11 +850,9 @@ void Engine::OnRender(const ScaldTimer& st)
     PopulateCommandList(commandList.Get());
 
     // Execute the command list.
-    m_commandQueue->ExecuteCommandList(commandList);
+    /*UINT64 fenceValue = */m_commandQueue->ExecuteCommandList(commandList);
 
     Present();
-
-    m_currBackBuffer = (m_currBackBuffer + 1u) % SwapChainFrameCount;
 
     // Advance the fence value to mark commands up to this fence point.
     m_currFrameResource->Fence = m_commandQueue->Signal();

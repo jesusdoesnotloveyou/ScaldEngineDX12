@@ -495,6 +495,8 @@ VOID D3D12Sample::Present()
     UINT presentFlags = m_IsTearingSupported && !m_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;*/
     // Present the frame.
     ThrowIfFailed(m_swapChain->Present(1u, 0u));
+
+    m_currBackBuffer = (m_currBackBuffer + 1u) % SwapChainFrameCount;
 }
 
 // Helper function for parsing any supplied command line args.
