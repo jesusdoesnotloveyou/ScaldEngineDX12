@@ -126,7 +126,6 @@ protected:
     std::shared_ptr<CommandQueue> m_commandQueue = nullptr;
     // Temporary allocator that is needed only for initialization stage (but could be used for smth else)
     ComPtr<ID3D12CommandAllocator> m_commandAllocator = nullptr;
-    ComPtr<ID3D12GraphicsCommandList2> m_commandCommandList = nullptr;
 
     ComPtr<ID3D12Resource> m_renderTargets[SwapChainFrameCount];
     ComPtr<ID3D12Resource> m_depthStencilBuffer;
