@@ -496,7 +496,7 @@ VOID D3D12Sample::Present()
     // Present the frame.
     ThrowIfFailed(m_swapChain->Present(1u, 0u));
 
-    m_currBackBuffer = (m_currBackBuffer + 1u) % SwapChainFrameCount;
+    m_currBackBuffer = m_swapChain->GetCurrentBackBufferIndex();
 }
 
 // Helper function for parsing any supplied command line args.

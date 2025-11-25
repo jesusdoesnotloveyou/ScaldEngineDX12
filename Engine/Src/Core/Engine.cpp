@@ -165,7 +165,6 @@ VOID Engine::CreatePSO()
 
 #pragma region CascadeShadowsDepthPass
     D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = defaultPsoDesc;
-    cascadeShadowPsoDesc.pRootSignature = m_rootSignature->Get();
     cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferPointer()),
@@ -660,26 +659,6 @@ VOID Engine::CreateFrameResources()
 
 VOID Engine::CreateDescriptorHeaps()
 {
-#if 0
-#pragma region CBV
-    UINT sceneObjCount = (UINT)m_renderItems.size();
-
-    // All cbv descriptor for each object for each frame resource + descriptors for render pass cbv (gNumFrameResources because for each frame resource)
-    UINT descriptorsCount = sceneObjCount * gNumFrameResources + gNumFrameResources;
-    
-    m_passCbvOffset = sceneObjCount * gNumFrameResources;
-
-    // Create descriptor heaps.
-    // Descriptor heap has to be created for every GPU resource
-    D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-    cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    cbvHeapDesc.NumDescriptors = descriptorsCount;
-    cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    cbvHeapDesc.NodeMask = 0u;
-    ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
-#pragma endregion CBV
-#endif
-
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
