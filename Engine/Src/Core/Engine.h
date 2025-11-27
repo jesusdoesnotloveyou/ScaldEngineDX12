@@ -39,7 +39,7 @@ struct Material
     // Index into constant/structured buffer corresponding to this material (to map with render item).
     int MatBufferIndex = -1;
 
-    // Index into SRV heap for diffuse texture. Index of corresponding texture in Texture2D[n] 
+    // Index into SRV heap for diffuse texture. Index of corresponding texture in Texture2D[n]
     int DiffuseSrvHeapIndex = -1;
 
     // Index into SRV heap for normal texture.
@@ -198,9 +198,6 @@ private:
     
     std::shared_ptr<RootSignature> m_rootSignature;
 
-    ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
-    ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
-   
     std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
 
