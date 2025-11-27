@@ -91,13 +91,16 @@ ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList(ID3D12CommandAll
     {
         commandList = m_commandListQueue.front();
         m_commandListQueue.pop();
-
-        ThrowIfFailed(commandList->Reset(pCommandAllocator, nullptr));
     }
     else
     {
         commandList = CreateCommandList(pCommandAllocator);
+        // We've created command list, so it needs to be closed before reset
+        ThrowIfFailed(commandList->Close());
     }
+    // Command list allocators can only be reset when the associated command lists have finished execution on the GPU;
+    // apps should use fences to determine GPU execution progress.
+    ThrowIfFailed(commandList->Reset(pCommandAllocator, nullptr));
 
     return commandList;
 }
@@ -105,7 +108,7 @@ ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList(ID3D12CommandAll
 // Execute a command list.
 void CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> commandList)
 {
-    commandList->Close();
+    ThrowIfFailed(commandList->Close());
     ID3D12CommandList* const ppCommandLists[] = { commandList.Get() };
     m_commandQueue->ExecuteCommandLists(1u, ppCommandLists);
 
