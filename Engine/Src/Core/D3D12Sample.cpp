@@ -2,7 +2,56 @@
 #include "D3D12Sample.h"
 #include "CommandQueue.h"
 
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
+
 using namespace Microsoft::WRL;
+
+// Simple free list based allocator
+struct ExampleDescriptorHeapAllocator
+{
+    ID3D12DescriptorHeap* Heap = nullptr;
+    D3D12_DESCRIPTOR_HEAP_TYPE  HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+    D3D12_CPU_DESCRIPTOR_HANDLE HeapStartCpu;
+    D3D12_GPU_DESCRIPTOR_HANDLE HeapStartGpu;
+    UINT                        HeapHandleIncrement;
+    ImVector<int>               FreeIndices;
+
+    void Create(ID3D12Device* device, ID3D12DescriptorHeap* heap)
+    {
+        IM_ASSERT(Heap == nullptr && FreeIndices.empty());
+        Heap = heap;
+        D3D12_DESCRIPTOR_HEAP_DESC desc = heap->GetDesc();
+        HeapType = desc.Type;
+        HeapStartCpu = Heap->GetCPUDescriptorHandleForHeapStart();
+        HeapStartGpu = Heap->GetGPUDescriptorHandleForHeapStart();
+        HeapHandleIncrement = device->GetDescriptorHandleIncrementSize(HeapType);
+        FreeIndices.reserve((int)desc.NumDescriptors);
+        for (int n = desc.NumDescriptors; n > 0; n--)
+            FreeIndices.push_back(n - 1);
+    }
+    void Destroy()
+    {
+        Heap = nullptr;
+        FreeIndices.clear();
+    }
+    void Alloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle)
+    {
+        IM_ASSERT(FreeIndices.Size > 0);
+        int idx = FreeIndices.back();
+        FreeIndices.pop_back();
+        out_cpu_desc_handle->ptr = HeapStartCpu.ptr + (idx * HeapHandleIncrement);
+        out_gpu_desc_handle->ptr = HeapStartGpu.ptr + (idx * HeapHandleIncrement);
+    }
+    void Free(D3D12_CPU_DESCRIPTOR_HANDLE out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE out_gpu_desc_handle)
+    {
+        int cpu_idx = (int)((out_cpu_desc_handle.ptr - HeapStartCpu.ptr) / HeapHandleIncrement);
+        int gpu_idx = (int)((out_gpu_desc_handle.ptr - HeapStartGpu.ptr) / HeapHandleIncrement);
+        IM_ASSERT(cpu_idx == gpu_idx);
+        FreeIndices.push_back(cpu_idx);
+    }
+};
 
 D3D12Sample::D3D12Sample(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
     :
@@ -27,8 +76,25 @@ D3D12Sample::~D3D12Sample()
 {
 }
 
+//static ExampleDescriptorHeapAllocator srvHeapAlloc;
+
 int D3D12Sample::Run()
 {
+    //srvHeapAlloc.Create(m_device.Get(), m_srvHeap.Get());
+
+    //// Setup Platform/Renderer backends
+    //ImGui_ImplDX12_InitInfo init_info = {};
+    //init_info.Device = m_device.Get();
+    //init_info.CommandQueue = m_commandQueue->GetCommandQueue().Get();
+    //init_info.NumFramesInFlight = 2u;
+    //init_info.RTVFormat = BackBufferFormat;
+    //init_info.DSVFormat = DepthStencilFormat;
+
+    //init_info.SrvDescriptorHeap = m_srvHeap.Get();
+    //init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return srvHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
+    //init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return srvHeapAlloc.Free(cpu_handle, gpu_handle); };
+    //ImGui_ImplDX12_Init(&init_info);
+
     // Main sample loop.
     MSG msg = { 0 };
 
@@ -49,6 +115,16 @@ int D3D12Sample::Run()
             if (!m_appPaused)
             {
                 CalculateFrameStats();
+
+                // Start the Dear ImGui frame
+                //ImGui_ImplDX12_NewFrame();
+                //ImGui_ImplWin32_NewFrame();
+                //ImGui::NewFrame();
+                //ImGui::ShowDemoWindow();
+                //
+                //// Rendering
+                //ImGui::Render();
+                
                 OnUpdate(m_timer);
                 OnRender(m_timer);
             }
@@ -59,7 +135,12 @@ int D3D12Sample::Run()
         }
     }
 
+    /*ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();*/
+
     OnDestroy();
+    //srvHeapAlloc.Destroy();
 
     // Return this part of the WM_QUIT message to Windows.
     return static_cast<char>(msg.wParam);
@@ -68,11 +149,12 @@ int D3D12Sample::Run()
 void D3D12Sample::OnUpdate(const ScaldTimer& st)
 {
 #if defined(DEBUG) || defined(_DEBUG)
-    TimeStep += st.DeltaTime();
+    static float timeStep = 0.0f;
+
     // Print GPU Memory usage info every 1 sec
-    if (TimeStep > 1.0f)
+    if (timeStep > 1.0f)
     {
-        TimeStep = 0.0f;
+        timeStep = 0.0f;
         // To check how much memory app is using from two pools: DXGI_MEMORY_SEGMENT_GROUP_LOCAL (L1) and DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL (L0)
         DXGI_QUERY_VIDEO_MEMORY_INFO videoMemoryInfo;
         UINT nodeIndex = 0u; // Single-GPU
@@ -86,6 +168,7 @@ void D3D12Sample::OnUpdate(const ScaldTimer& st)
             text += L"\n";
             OutputDebugString(text.c_str());
         }
+        timeStep += st.DeltaTime();
     }
 #endif
 }
@@ -269,6 +352,10 @@ VOID D3D12Sample::CreateDebugLayer()
     {
         debugController->EnableDebugLayer();
 
+        ComPtr<ID3D12Debug1> debugController1;
+        ThrowIfFailed(debugController->QueryInterface(IID_PPV_ARGS(&debugController1)));
+        debugController1->SetEnableGPUBasedValidation(true);
+
         // Enable additional debug layers.
         m_dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
     }
@@ -295,6 +382,8 @@ VOID D3D12Sample::CreateDevice()
         
         ThrowIfFailed(D3D12CreateDevice(m_hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
     }
+
+    SCALD_NAME_D3D12_OBJECT(m_device, L"Graphics Device");
 
 #if defined(DEBUG) || defined(_DEBUG)
     CheckFeatureSupport();

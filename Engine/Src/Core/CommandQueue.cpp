@@ -3,10 +3,10 @@
 #include "stdafx.h"
 #include "CommandQueue.h"
 
-CommandQueue::CommandQueue(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type)
-    : m_fenceValue((UINT64)0u)
+CommandQueue::CommandQueue(const ComPtr<ID3D12Device2>& device, D3D12_COMMAND_LIST_TYPE type)
+    : m_device(device)
+    , m_fenceValue((UINT64)0u)
     , m_commandListType(type)
-    , m_device(device)
 {
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = type;
@@ -15,10 +15,12 @@ CommandQueue::CommandQueue(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE
     queueDesc.NodeMask = 0u;
 
     ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+    SCALD_NAME_D3D12_OBJECT(m_commandQueue, L"Command Queue");
 
     ThrowIfFailed(m_device->CreateFence(m_fenceValue, 
         /*D3D12_FENCE_FLAG_SHARED | D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER,*/
         D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
+    SCALD_NAME_D3D12_OBJECT(m_fence, L"Fence");
 
     m_fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     //assert(m_fenceEvent && "Failed to create fence event handle.");

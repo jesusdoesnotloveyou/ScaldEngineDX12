@@ -39,7 +39,7 @@ struct Material
     // Index into constant/structured buffer corresponding to this material (to map with render item).
     int MatBufferIndex = -1;
 
-    // Index into SRV heap for diffuse texture. Index of corresponding texture in Texture2D[n] 
+    // Index into SRV heap for diffuse texture. Index of corresponding texture in Texture2D[n]
     int DiffuseSrvHeapIndex = -1;
 
     // Index into SRV heap for normal texture.
@@ -184,7 +184,6 @@ private:
 
     void DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
     void DrawInstancedRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
-    void DrawQuad(ID3D12GraphicsCommandList* pCommandList);
 
 private:
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
@@ -198,9 +197,6 @@ private:
     
     std::shared_ptr<RootSignature> m_rootSignature;
 
-    ComPtr<ID3D12DescriptorHeap> m_cbvHeap; // Heap for constant buffer views
-    ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for textures
-   
     std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
 
@@ -222,7 +218,6 @@ private:
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
-    std::unique_ptr<ShadowMap> m_cascadeShadowMap;
     std::shared_ptr<Scald::Scene> m_scene;
 
 #pragma region DeferredShading
@@ -231,6 +226,7 @@ private:
 #pragma endregion DeferredShading
 
 #pragma region CascadedShadows
+    std::unique_ptr<ShadowMap> m_cascadeShadowMap;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
 #pragma endregion CascadedShadows
 

@@ -9,7 +9,7 @@
 class CommandQueue
 {
 public:
-    CommandQueue(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type);
+    CommandQueue(const ComPtr<ID3D12Device2>& device, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
     /*virtual */~CommandQueue(); // gfx, compute, copy
 
     // Get an available command list from the command queue.

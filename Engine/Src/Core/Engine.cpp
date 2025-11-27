@@ -5,6 +5,7 @@
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
 #include "CommandQueue.h"
+#include <imgui_impl_dx12.h>
 
 extern const int gNumFrameResources;
 
@@ -453,15 +454,8 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
     solarSystem->DrawArgs["mars"] = createSubmeshWithParams(sphereMesh, marsIndexOffset, marsVertexOffset);
     solarSystem->DrawArgs["plane"] = createSubmeshWithParams(gridMesh, planeIndexOffset, planeVertexOffset);
 
-    auto fullQuad = std::make_unique<MeshGeometry>("fullQuad");
-    std::vector<VertexPosition> fullQuadVertices(4, VertexPosition{}); // SV_VertexID in DeferredDirLightVS
-                                                                       // we don't need any other data besides vertex position,
-                                                                       // so there is actually no input layout for that shader
     solarSystem->CreateGPUBuffers(m_device.Get(), pCommandList, vertices, indices);
-    fullQuad->CreateGPUBuffers(m_device.Get(), pCommandList, fullQuadVertices);
-
     m_geometries[solarSystem->Name] = std::move(solarSystem);
-    m_geometries[fullQuad->Name] = std::move(fullQuad);
 }
 
 VOID Engine::CreateGeometryMaterials()
@@ -652,8 +646,7 @@ VOID Engine::CreateFrameResources()
     {
         m_frameResources.push_back(std::make_unique<FrameResource>(
             m_device.Get(), 
-            static_cast<UINT>(EPassType::NumPasses), 
-            (UINT)m_renderItems.size(), (UINT)m_materials.size(), MaxPointLights));
+            static_cast<UINT>(EPassType::NumPasses), (UINT)m_renderItems.size(), (UINT)m_materials.size(), MaxPointLights));
     }
 }
 
@@ -662,8 +655,8 @@ VOID Engine::CreateDescriptorHeaps()
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-                                            // textures + csm + GBuffer
-    srvHeapDesc.NumDescriptors = (UINT)m_textures.size() + 1u + 5u;
+                                            // imgui stuff + textures + csm + GBuffer
+    srvHeapDesc.NumDescriptors = /*1u +*/(UINT)m_textures.size() + 1u + 5u;
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     srvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
@@ -671,6 +664,8 @@ VOID Engine::CreateDescriptorHeaps()
     m_cbvSrvUavDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     
     CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+    //!!!!!! to set imgui stuff at zero index in srvHeap
+    //handle.Offset(1, m_cbvSrvUavDescriptorSize);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     ZeroMemory(&srvDesc, sizeof(srvDesc));
@@ -823,6 +818,7 @@ void Engine::OnRender(const ScaldTimer& st)
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList(commandList.Get());
 
+    //ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
     // Execute the command list.
     m_commandQueue->ExecuteCommandList(commandList);
 
@@ -1227,7 +1223,8 @@ void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandLis
 #pragma endregion BypassResources
 
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredDirectional).Get());
-    DrawQuad(pCommandList);
+    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    pCommandList->DrawInstanced(4u, 1u, 0u, 0u);
 }
 
 void Engine::DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList)
@@ -1300,16 +1297,6 @@ void Engine::DrawInstancedRenderItems(ID3D12GraphicsCommandList* pCommandList, s
 
         pCommandList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
     }
-}
-
-void Engine::DrawQuad(ID3D12GraphicsCommandList* pCommandList)
-{
-    auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();
-
-    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    pCommandList->IASetVertexBuffers(0u, 1u, &m_geometries.at("fullQuad")->VertexBufferView());
-
-    pCommandList->DrawInstanced(4u, 1u, 0u, 0u);
 }
 
 std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, const float farZ)

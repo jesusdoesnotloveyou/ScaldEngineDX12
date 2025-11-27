@@ -2,10 +2,20 @@
 #include "Win32App.h"
 #include "D3D12Sample.h"
 
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
+
 HWND Win32App::m_hwnd = nullptr;
+
+extern "C++" IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 int Win32App::Run(D3D12Sample* pSample, HINSTANCE hInstance, int nCmdShow)
 {
+    // Make process DPI aware and obtain main monitor scale
+    /*ImGui_ImplWin32_EnableDpiAwareness();
+    float main_scale = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));*/
+
     // Parse the command line parameters
     int argc;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -43,6 +53,26 @@ int Win32App::Run(D3D12Sample* pSample, HINSTANCE hInstance, int nCmdShow)
     pSample->OnInit();
 
     ShowWindow(m_hwnd, nCmdShow /* The same as SW_SHOW */);
+    
+    // Setup Dear ImGui
+    //IMGUI_CHECKVERSION();
+    //ImGui::CreateContext();
+    //ImGui::StyleColorsDark();
+    //ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+    // Setup Dear ImGui style
+    //ImGui::StyleColorsDark();
+    //ImGui::StyleColorsLight();
+
+    // Setup scaling
+    //ImGuiStyle& style = ImGui::GetStyle();
+    //style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
+    //style.FontScaleDpi = main_scale;        // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+
+    // Setup Platform/Renderer backends
+    //ImGui_ImplWin32_Init(m_hwnd);
 
     return pSample->Run();
 }
@@ -50,6 +80,8 @@ int Win32App::Run(D3D12Sample* pSample, HINSTANCE hInstance, int nCmdShow)
 // Main message handler for the sample.
 LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    //if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam)) return true;
+
     D3D12Sample* pSample = reinterpret_cast<D3D12Sample*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
     switch (message)
