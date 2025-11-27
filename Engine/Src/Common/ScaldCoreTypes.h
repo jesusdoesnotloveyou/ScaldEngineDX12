@@ -21,14 +21,14 @@ using MeshID = ID_TYPE;
 using ModelID = ID_TYPE;
 using TextureID = ID_TYPE;
 
-enum class EPassType : uint8_t
+enum class EPassType : UINT
 {
 	// ComputePass
 	// ZPrePass
-	DepthShadow = 0,
+	DepthShadow = 0,  // first element in pass cbv contains data for depth pass
 	// SSAO
-	DeferredGeometry,
-	DeferredLighting,
+	DeferredGeometry, // second element in pass cbv contains data for geometry pass
+	DeferredLighting, // third element in pass cbv contains data for color/light pass
 	NumPasses = 3
 };
 

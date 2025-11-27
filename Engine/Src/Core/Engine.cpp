@@ -810,7 +810,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
 void Engine::OnRender(const ScaldTimer& st)
 {
     auto currCmdAlloc = m_currFrameResource->commandAllocator.Get();
-    currCmdAlloc->Reset();
+    ThrowIfFailed(currCmdAlloc->Reset());
     
 #if defined(DEBUG) || defined(_DEBUG)
     wchar_t name[32] = {};
@@ -819,12 +819,7 @@ void Engine::OnRender(const ScaldTimer& st)
 #endif
 
     auto commandList = m_commandQueue->GetCommandList(currCmdAlloc);
-    // We could get new created command list, so it needs to be closed before reset
-    commandList->Close();
-    // Command list allocators can only be reset when the associated command lists have finished execution on the GPU;
-    // apps should use fences to determine GPU execution progress.
-    ThrowIfFailed(commandList->Reset(currCmdAlloc, nullptr));
-    //
+
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList(commandList.Get());
 
@@ -1110,6 +1105,8 @@ VOID Engine::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList)
 
 void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList)
 {
+    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
     pCommandList->RSSetViewports(1u, &m_cascadeShadowMap->GetViewport());
     pCommandList->RSSetScissorRects(1u, &m_cascadeShadowMap->GetScissorRect());
 
@@ -1117,8 +1114,11 @@ void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList)
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     pCommandList->ResourceBarrier(1u, &transition);
 
+#pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress()); //cause shadow pass data lies in the first element
+    auto currFrameGPUVirtualAddress = ScaldUtil::GetGPUVirtualAddress(currFramePassCB->GetGPUVirtualAddress(), passCBByteSize, static_cast<UINT>(EPassType::DepthShadow));
+    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFrameGPUVirtualAddress);
+#pragma endregion BypassResources
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_cascadeShadowMap->GetDsv());
     pCommandList->OMSetRenderTargets(0u, nullptr, TRUE, &dsvHandle);
@@ -1149,6 +1149,7 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
+    auto currFrameGPUVirtualAddress = ScaldUtil::GetGPUVirtualAddress(currFramePassCB->GetGPUVirtualAddress(), passCBByteSize, static_cast<UINT>(EPassType::DeferredGeometry));
     pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); // second element contains data for geometry pass
 
     // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
@@ -1162,14 +1163,6 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
     
     // start of the GBuffer rtvs in rtvHeap
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount, m_rtvDescriptorSize);
-
-    // Before. I left it here just for clarification, the approach above more preferable
-    /*D3D12_CPU_DESCRIPTOR_HANDLE* rtvs[] = {
-        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::DIFFUSE_ALBEDO),
-        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION),
-        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL),
-        &m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR),
-    };*/
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH));
     pCommandList->OMSetRenderTargets(GBuffer::EGBufferLayer::DEPTH, &rtvHandle, TRUE, &dsvHandle);
@@ -1223,7 +1216,8 @@ void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandLis
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
+    auto currFrameGPUVirtualAddress = ScaldUtil::GetGPUVirtualAddress(currFramePassCB->GetGPUVirtualAddress(), passCBByteSize, static_cast<UINT>(EPassType::DeferredLighting));
+    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFrameGPUVirtualAddress);
 
     // Set shaadow map texture for main pass
     pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
@@ -1241,7 +1235,8 @@ void Engine::DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList)
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + 2u * passCBByteSize); // third element contains data for color/light pass
+    auto currFrameGPUVirtualAddress = ScaldUtil::GetGPUVirtualAddress(currFramePassCB->GetGPUVirtualAddress(), passCBByteSize, static_cast<UINT>(EPassType::DeferredLighting));
+    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFrameGPUVirtualAddress);
 
     // Bind GBuffer textures
     pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
@@ -1277,7 +1272,7 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vecto
         pCommandList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
         pCommandList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 
-        D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = currFrameObjCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
+        D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = ScaldUtil::GetGPUVirtualAddress(currFrameObjCB->GetGPUVirtualAddress(), objCBByteSize, ri->ObjCBIndex);
 
         // now we set only objects' cbv per item, material data is set per pass
         // we get material data by index from structured buffer
