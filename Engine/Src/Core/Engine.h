@@ -184,7 +184,6 @@ private:
 
     void DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
     void DrawInstancedRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
-    void DrawQuad(ID3D12GraphicsCommandList* pCommandList);
 
 private:
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
@@ -219,7 +218,6 @@ private:
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
-    std::unique_ptr<ShadowMap> m_cascadeShadowMap;
     std::shared_ptr<Scald::Scene> m_scene;
 
 #pragma region DeferredShading
@@ -228,6 +226,7 @@ private:
 #pragma endregion DeferredShading
 
 #pragma region CascadedShadows
+    std::unique_ptr<ShadowMap> m_cascadeShadowMap;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
 #pragma endregion CascadedShadows
 

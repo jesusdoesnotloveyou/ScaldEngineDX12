@@ -149,11 +149,12 @@ int D3D12Sample::Run()
 void D3D12Sample::OnUpdate(const ScaldTimer& st)
 {
 #if defined(DEBUG) || defined(_DEBUG)
-    TimeStep += st.DeltaTime();
+    static float timeStep = 0.0f;
+
     // Print GPU Memory usage info every 1 sec
-    if (TimeStep > 1.0f)
+    if (timeStep > 1.0f)
     {
-        TimeStep = 0.0f;
+        timeStep = 0.0f;
         // To check how much memory app is using from two pools: DXGI_MEMORY_SEGMENT_GROUP_LOCAL (L1) and DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL (L0)
         DXGI_QUERY_VIDEO_MEMORY_INFO videoMemoryInfo;
         UINT nodeIndex = 0u; // Single-GPU
@@ -167,6 +168,7 @@ void D3D12Sample::OnUpdate(const ScaldTimer& st)
             text += L"\n";
             OutputDebugString(text.c_str());
         }
+        timeStep += st.DeltaTime();
     }
 #endif
 }
@@ -350,6 +352,10 @@ VOID D3D12Sample::CreateDebugLayer()
     {
         debugController->EnableDebugLayer();
 
+        ComPtr<ID3D12Debug1> debugController1;
+        ThrowIfFailed(debugController->QueryInterface(IID_PPV_ARGS(&debugController1)));
+        debugController1->SetEnableGPUBasedValidation(true);
+
         // Enable additional debug layers.
         m_dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
     }
@@ -376,6 +382,8 @@ VOID D3D12Sample::CreateDevice()
         
         ThrowIfFailed(D3D12CreateDevice(m_hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
     }
+
+    SCALD_NAME_D3D12_OBJECT(m_device, L"Graphics Device");
 
 #if defined(DEBUG) || defined(_DEBUG)
     CheckFeatureSupport();

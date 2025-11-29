@@ -139,7 +139,6 @@ protected:
 
 private:
     BOOL UMA = FALSE;
-    float TimeStep = 0.0f;
 
     // Root assets path.
     std::wstring m_assetsPath;
