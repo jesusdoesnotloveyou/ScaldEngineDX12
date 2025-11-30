@@ -461,8 +461,8 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
 VOID Engine::CreateGeometryMaterials()
 {
     // Should probably be global scene variables
-    int MaterialBufferIndex = 1;
-    int DiffuseSrvHeapIndex = 1;
+    int MaterialBufferIndex = 0;
+    int DiffuseSrvHeapIndex = 0;
 
     // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
     auto flame0 = std::make_unique<Material>("flame0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
@@ -656,7 +656,7 @@ VOID Engine::CreateDescriptorHeaps()
     ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
                                             // imgui stuff + textures + csm + GBuffer
-    srvHeapDesc.NumDescriptors = 1u + (UINT)m_textures.size() + 1u + 5u;
+    srvHeapDesc.NumDescriptors = /*1u +*/(UINT)m_textures.size() + 1u + 5u;
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     srvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
@@ -665,7 +665,7 @@ VOID Engine::CreateDescriptorHeaps()
     
     CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
     //!!!!!! to set imgui stuff at zero index in srvHeap
-    handle.Offset(1, m_cbvSrvUavDescriptorSize);
+    //handle.Offset(1, m_cbvSrvUavDescriptorSize);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     ZeroMemory(&srvDesc, sizeof(srvDesc));
