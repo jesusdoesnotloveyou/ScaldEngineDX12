@@ -14,6 +14,7 @@ struct GBuffer
     float4 AmbientOcclusion  : SV_Target1;
     float4 Normal            : SV_Target2; // could be used only 2 components instead of 4
     float4 Specular          : SV_Target3;
+    float2 MotionVectors     : SV_Target4;
 };
 
 [earlydepthstencil]
@@ -32,8 +33,9 @@ GBuffer main(PSInput input)
     
     output.DiffuseAlbedo = diffuseAlbedo;
     output.AmbientOcclusion = float4(input.iPosW, 0.0f); // temporary
-    output.Specular = float4(fresnelR0, log2(1.0f - roughness) / 10.5f);
     output.Normal = float4(input.iNormalW, 0.0f);
+    output.Specular = float4(fresnelR0, log2(1.0f - roughness) / 10.5f);
+    output.MotionVectors;
     
     return output;
 }

@@ -19,9 +19,9 @@ public:
 		AMBIENT_OCCLUSION,
 		NORMAL,
 		SPECULAR,
-		DEPTH,	// must be the last texture
-
-		MAX = 5
+		MOTION_VECTORS,
+		DEPTH,			// must be the last texture
+		MAX = 6u
 	};
 public:
 	GBuffer(ID3D12Device* device, UINT width, UINT height);
@@ -65,6 +65,7 @@ private:
 		DXGI_FORMAT_R8G8B8A8_UNORM,			//AMBIENT_OCCLUSION
 		DXGI_FORMAT_R32G32B32A32_FLOAT,		//NORMAL
 		DXGI_FORMAT_R8G8B8A8_UNORM,			//SPECULAR
+		DXGI_FORMAT_R16G16_FLOAT,			//MOTION_VECTORS
 		DXGI_FORMAT_D24_UNORM_S8_UINT		//DEPTH. Format for DSV (SRV demands R24...)
 	};
 

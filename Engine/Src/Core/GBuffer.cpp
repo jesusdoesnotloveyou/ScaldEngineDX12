@@ -130,11 +130,11 @@ void GBuffer::CreateResources()
         
         optClear.Format = texDesc.Format;
         
-        if (i == EGBufferLayer::DIFFUSE_ALBEDO)
-            // To clear background at desirable color
+        if (i == EGBufferLayer::DIFFUSE_ALBEDO) // To clear background at desirable color
             memcpy(&optClear.Color[0], &Colors::LightSteelBlue, sizeof(optClear.Color));
-        else
-            // To clear to zero
+        else if (i == EGBufferLayer::MOTION_VECTORS)
+            memcpy(&optClear.Color[0], &Colors::Yellow, sizeof(optClear.Color));
+        else // To clear to zero
             memcpy(&optClear.Color[0], &m_optimizedClearColor[0], sizeof(optClear.Color));
     
         ThrowIfFailed(m_device->CreateCommittedResource(
@@ -162,4 +162,11 @@ void GBuffer::CreateResources()
         D3D12_RESOURCE_STATE_GENERIC_READ,
         &optClear,
         IID_PPV_ARGS(&m_buffer[depthIndex].m_resource)));
+
+    SCALD_NAME_D3D12_OBJECT(m_buffer[DIFFUSE_ALBEDO].m_resource, L"Diffuse Albedo");
+    SCALD_NAME_D3D12_OBJECT(m_buffer[AMBIENT_OCCLUSION].m_resource, L"World Position"); // SSAO will be
+    SCALD_NAME_D3D12_OBJECT(m_buffer[NORMAL].m_resource, L"Normal");
+    SCALD_NAME_D3D12_OBJECT(m_buffer[SPECULAR].m_resource, L"Specular");
+    SCALD_NAME_D3D12_OBJECT(m_buffer[MOTION_VECTORS].m_resource, L"Motion Vectors");
+    SCALD_NAME_D3D12_OBJECT(m_buffer[DEPTH].m_resource, L"Depth");
 }
