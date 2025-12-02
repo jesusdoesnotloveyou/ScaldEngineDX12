@@ -11,26 +11,28 @@
 #define NUM_SPOT_LIGHTS 0
 #endif
 
-
 #define MaxCascades 4
 
 // Deferred Rendering
-#define GBufferSize 5 // should be sync with GBuffer class
+#define GBufferSize 6 // should be sync with GBuffer class
 
-#ifndef DIFFUSE_ALBEDO
+#ifndef G_DIFF_ALBEDO
     #define G_DIFF_ALBEDO 0
 #endif
-#ifndef AMBIENT_OCCLUSION
+#ifndef G_AMB_OCCL
     #define G_AMB_OCCL 1
 #endif
-#ifndef NORMAL
+#ifndef G_NORMAL
     #define G_NORMAL 2
 #endif
-#ifndef SPECULAR
+#ifndef G_SPECULAR
     #define G_SPECULAR 3
 #endif
-#ifndef DEPTH
-    #define G_DEPTH 4
+#ifndef G_MOTION_VEC
+    #define G_MOTION_VEC 4
+#endif
+#ifndef G_DEPTH
+    #define G_DEPTH 5
 #endif
 
 #include "LightUtil.hlsl"
@@ -88,7 +90,7 @@ cbuffer cbPerPass : register(b1)
 
 StructuredBuffer<InstanceData/*Light*/> gPointLights : register(t0, space1);
 StructuredBuffer<InstanceData/*Light*/> gSpotLights : register(t1, space1);
-Texture2D gGBuffer[GBufferSize] : register(t2, space1); // t2, t3, t4, t5, t6 in space1
+Texture2D gGBuffer[GBufferSize] : register(t2, space1); // t2, t3, t4, t5, t6, t7 in space1
 
 Texture2DArray gShadowMaps : register(t0);
 StructuredBuffer<MaterialData> gMaterialData : register(t1);

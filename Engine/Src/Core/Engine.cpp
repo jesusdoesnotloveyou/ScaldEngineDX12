@@ -202,6 +202,7 @@ VOID Engine::CreatePSO()
     GBufferPsoDesc.RTVFormats[1] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION);
     GBufferPsoDesc.RTVFormats[2] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::NORMAL);
     GBufferPsoDesc.RTVFormats[3] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::SPECULAR);
+    GBufferPsoDesc.RTVFormats[4] = m_GBuffer->GetBufferTextureFormat(GBuffer::EGBufferLayer::MOTION_VECTORS);
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&GBufferPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::DeferredGeometry])));
 
 #pragma region DeferredDirectional
@@ -656,7 +657,7 @@ VOID Engine::CreateDescriptorHeaps()
     ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
                                             // imgui stuff + textures + csm + GBuffer
-    srvHeapDesc.NumDescriptors = /*1u +*/(UINT)m_textures.size() + 1u + 5u;
+    srvHeapDesc.NumDescriptors = /*1u +*/(UINT)m_textures.size() + 1u + GBuffer::EGBufferLayer::MAX;
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     srvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
@@ -1168,6 +1169,7 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::AMBIENT_OCCLUSION), clearColor, 0u, nullptr);
     pCommandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::NORMAL), clearColor, 0u, nullptr);
     pCommandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::SPECULAR), clearColor, 0u, nullptr);
+    pCommandList->ClearRenderTargetView(m_GBuffer->GetRtv(GBuffer::EGBufferLayer::MOTION_VECTORS), Colors::Yellow, 0u, nullptr);
     pCommandList->ClearDepthStencilView(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
 
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredGeometry).Get());

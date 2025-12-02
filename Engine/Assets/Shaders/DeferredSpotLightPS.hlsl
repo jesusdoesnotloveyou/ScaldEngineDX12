@@ -8,5 +8,5 @@ struct PSInput
 float4 main(PSInput input) : SV_TARGET
 {
     // look at the DeferredPointLightPS.hlsl, they are almost identical (in terms of deferred shading logic)
-    return 1.0f;
+    return 1.0f.rrrr;
 }
