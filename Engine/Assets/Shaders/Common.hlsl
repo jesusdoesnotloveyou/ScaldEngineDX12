@@ -13,6 +13,8 @@
 
 #define MaxCascades 4
 
+#define TexturesCount 6
+
 // Deferred Rendering
 #define GBufferSize 6 // should be sync with GBuffer class
 
@@ -94,7 +96,8 @@ Texture2D gGBuffer[GBufferSize] : register(t2, space1); // t2, t3, t4, t5, t6, t
 
 Texture2DArray gShadowMaps : register(t0);
 StructuredBuffer<MaterialData> gMaterialData : register(t1);
-Texture2D gDiffuseMap[6/*magic hardcode*/] : register(t2); // t2, t3, t4, t5, t6, t7 in space0
+TextureCube gCubeMap : register(t2);
+Texture2D gDiffuseMap[TexturesCount] : register(t3); // t3, t4, t5, t6, t7, t8 in space0
 
 SamplerState gSamplerPointWrap : register(s0);
 SamplerState gSamplerLinearWrap : register(s1);

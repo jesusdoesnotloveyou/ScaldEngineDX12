@@ -99,10 +99,11 @@ public:
         PointLightsDataSB,
         SpotLightsDataSB,
         CascadedShadowMaps,
-        Textures,
         GBufferTextures,
+        SkyBox,
+        Textures,
 
-        NumRootParameters = 8u
+        NumRootParameters = 9u
     };
 
     enum EPsoType : UINT
@@ -119,8 +120,9 @@ public:
         DeferredSpot,
 
         Transparency,
+        Sky,
         
-        NumPipelineStates = 9u
+        NumPipelineStates = 10u
     };
 
     enum EShaderType : UINT
@@ -139,8 +141,10 @@ public:
         DeferredLightVolumesVS,
         DeferredPointPS,
         DeferredSpotPS,
+        SkyBoxVS,
+        SkyBoxPS,
 
-        NumShaders = 11U
+        NumShaders = 13U
     };
 
 public:
@@ -175,13 +179,17 @@ private:
 #pragma region DeferredShading
     void RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderLightingPass(ID3D12GraphicsCommandList* pCommandList);
-    void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
 
     void DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandList);
     void DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList);
     void DeferredSpotLightPass(ID3D12GraphicsCommandList* pCommandList);
-#pragma endregion DeferredShading
 
+    void RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList);
+    void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
+#pragma endregion DeferredShading
+    void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
+
+    void DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& renderItem);
     void DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
     void DrawInstancedRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
 
@@ -213,6 +221,8 @@ private:
     std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
 
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
+    std::unique_ptr<RenderItem> m_skyRenderItem;
+
     std::vector<Scald::SObject> m_sceneObjects;
     std::vector<std::unique_ptr<RenderItem>> m_pointLights;
     std::vector<RenderItem*> m_opaqueItems;
@@ -229,6 +239,13 @@ private:
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
 #pragma endregion CascadedShadows
+
+#pragma region TexturesAndSky
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_skyCubeSrv;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_texturesSrv;
+#pragma endregion TexturesAndSky
+
+
 
 private:
     VOID LoadPipeline() override;
