@@ -105,6 +105,14 @@ SamplerState gSamplerAnisotropicWrap : register(s2);
 SamplerState gShadowSamplerLinearBorder : register(s3);
 SamplerComparisonState gShadowSamplerComparisonLinearBorder : register(s4);
 
+// Add in specular reflections.
+float3 ComputeSpecularReflections(float3 toEyeW, float3 normalW, Material mat)
+{
+    float3 r = reflect(-toEyeW, normalW);
+    float4 reflectionColor = gCubeMap.Sample(gSamplerAnisotropicWrap, r);
+    float3 fresnelFactor = SchlickApproximation(mat.FresnelR0, normalW, r);
+    return (mat.Shininess * fresnelFactor * reflectionColor.rgb);
+}
 
 float3 ComputeWorldPos(float3 texcoord)
 {
