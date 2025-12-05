@@ -33,6 +33,12 @@ void Engine::OnInit()
     LoadAssets();
 }
 
+void Engine::TransitionResource(ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
+{
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(pResource, stateBefore, stateAfter);
+    pCommandList->ResourceBarrier(1u, &transition);
+}
+
 // Load the rendering pipeline dependencies.
 VOID Engine::LoadPipeline()
 {
@@ -342,6 +348,7 @@ VOID Engine::CreatePSO()
     // Otherwise, the normalized depth values at z = 1 (NDC) will 
     // fail the depth test if the depth buffer was cleared to 1.
     skyPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    skyPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // Disable writing explicitly (Depth still enable)
     skyPsoDesc.InputLayout = VertexPosition::InputLayout;
     skyPsoDesc.VS =
     {
@@ -622,8 +629,8 @@ VOID Engine::CreateGeometryMaterials()
     // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
     auto flame0 = std::make_unique<Material>("flame0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //flame0->DiffuseAlbedo = XMFLOAT4(Colors::Gold);
-    flame0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
-    flame0->Roughness = 0.2f;
+    flame0->FresnelR0 = XMFLOAT3(0.01f, 0.01, 0.01f);
+    flame0->Roughness = 0.7f;
     flame0->MatTransform = XMMatrixIdentity();
 
     auto sand0 = std::make_unique<Material>("sand0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
@@ -635,23 +642,23 @@ VOID Engine::CreateGeometryMaterials()
     auto stone0 = std::make_unique<Material>("stone0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //stone0->DiffuseAlbedo = XMFLOAT4(Colors::Orchid);
     stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-    stone0->Roughness = 0.3f;
+    stone0->Roughness = 0.5f;
     stone0->MatTransform = XMMatrixIdentity();
 
     auto ground0 = std::make_unique<Material>("ground0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
     //ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
-    ground0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+    ground0->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
     ground0->Roughness = 0.3f;
     ground0->MatTransform = XMMatrixIdentity();
 
-    auto wood0 = std::make_unique<Material>("wood0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
-    wood0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-    wood0->Roughness = 0.5f;
-    wood0->MatTransform = XMMatrixIdentity();
+    auto ice0 = std::make_unique<Material>("ice0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
+    ice0->FresnelR0 = XMFLOAT3(0.6f, 0.6f, 0.6f);
+    ice0->Roughness = 0.08f;
+    ice0->MatTransform = XMMatrixIdentity();
 
     auto iron0 = std::make_unique<Material>("iron0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
-    iron0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-    iron0->Roughness = 0.1f;
+    iron0->FresnelR0 = XMFLOAT3(0.3f, 0.3f, 0.3f);
+    iron0->Roughness = 0.05f;
     iron0->MatTransform = XMMatrixIdentity();
 
     auto sky0 = std::make_unique<Material>("sky0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
@@ -663,7 +670,7 @@ VOID Engine::CreateGeometryMaterials()
     m_materials["stone0"] = std::move(stone0);
     m_materials["ground0"] = std::move(ground0);
     m_materials["iron0"] = std::move(iron0);
-    m_materials["wood0"] = std::move(wood0);
+    m_materials["ice0"] = std::move(ice0);
     m_materials["sky0"] = std::move(sky0);
 }
 
@@ -732,7 +739,7 @@ VOID Engine::CreateRenderItems()
     planeRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, -1.5f, 0.0f);
     planeRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
     planeRenderItem->Geo = m_geometries.at("solarSystem").get();
-    planeRenderItem->Mat = m_materials.at("wood0").get();
+    planeRenderItem->Mat = m_materials.at("ice0").get();
     planeRenderItem->IndexCount = planeRenderItem->Geo->DrawArgs.at("plane").IndexCount;
     planeRenderItem->StartIndexLocation = planeRenderItem->Geo->DrawArgs.at("plane").StartIndexLocation;
     planeRenderItem->BaseVertexLocation = planeRenderItem->Geo->DrawArgs.at("plane").BaseVertexLocation;
@@ -1196,11 +1203,6 @@ VOID Engine::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList)
     RenderGeometryPass(pCommandList);
     RenderLightingPass(pCommandList);
     RenderForwardPasses(pCommandList);
-
-    // Close accumulation buffer, that was opened in the light pass
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    // Indicate that the back buffer will now be used to present.
-    pCommandList->ResourceBarrier(1u, &transition);
 }
 
 void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList)
@@ -1211,8 +1213,7 @@ void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->RSSetScissorRects(1u, &m_cascadeShadowMap->GetScissorRect());
 
     // change to depth write state
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    pCommandList->ResourceBarrier(1u, &transition);
+    TransitionResource(pCommandList, m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
@@ -1227,8 +1228,7 @@ void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::CascadedShadowsOpaque).Get());
     DrawRenderItems(pCommandList, m_renderItems);
 
-    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
-    pCommandList->ResourceBarrier(1u, &transition);
+    TransitionResource(pCommandList, m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
 void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
@@ -1241,11 +1241,9 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
     // barrier
     for (unsigned i = 0; i < GBuffer::EGBufferLayer::MAX - 1u; i++)
     {
-        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(i), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        pCommandList->ResourceBarrier(1u, &transition);
+        TransitionResource(pCommandList, m_GBuffer->Get(i), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    pCommandList->ResourceBarrier(1u, &transition);
+    TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
@@ -1263,7 +1261,6 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
     
     // start of the GBuffer rtvs in rtvHeap
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount, m_rtvDescriptorSize);
-
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_GBuffer->GetDsv(GBuffer::EGBufferLayer::DEPTH));
     pCommandList->OMSetRenderTargets(GBuffer::EGBufferLayer::DEPTH, &rtvHandle, TRUE, &dsvHandle);
 
@@ -1280,14 +1277,12 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
 
     for (unsigned i = 0; i < GBuffer::EGBufferLayer::MAX - 1u; i++)
     {
-        auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
-        pCommandList->ResourceBarrier(1u, &transition);
+        TransitionResource(pCommandList, m_GBuffer->Get(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
     }
-
-    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
-    pCommandList->ResourceBarrier(1u, &transition);
+    TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
+// lighting pass (including all subpasses) uses the same render target
 void Engine::RenderLightingPass(ID3D12GraphicsCommandList* pCommandList)
 {
     DeferredDirectionalLightPass(pCommandList);
@@ -1298,10 +1293,8 @@ void Engine::RenderLightingPass(ID3D12GraphicsCommandList* pCommandList)
 void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandList)
 {
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     // Indicate that the back buffer will be used as a render target.
-    pCommandList->ResourceBarrier(1u, &transition);
+    TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // The viewport needs to be reset whenever the command list is reset.
     pCommandList->RSSetViewports(1u, &m_viewport);
@@ -1319,12 +1312,12 @@ void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandLis
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
     auto currFrameGPUVirtualAddress = ScaldUtil::GetGPUVirtualAddress(currFramePassCB->GetGPUVirtualAddress(), passCBByteSize, static_cast<UINT>(EPassType::DeferredLighting));
     pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFrameGPUVirtualAddress);
-
     // Set shaadow map texture for main pass
     pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
-
     // Bind GBuffer textures
     pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
+    // Bind SkyBox for sky reflections
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::SkyBox, m_skyCubeSrv);
 #pragma endregion BypassResources
 
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredDirectional).Get());
@@ -1362,6 +1355,9 @@ void Engine::RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList)
     // forward-like
     // RenderTransparencyPass(pCommandList);
     RenderSkyBoxPass(pCommandList);
+
+    // Close accumulation buffer, that was opened in the light pass and indicate that the back buffer will now be used to present.
+    TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void Engine::RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList)
@@ -1372,8 +1368,8 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
 {
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    pCommandList->ResourceBarrier(1u, &transition);
+    // Set GBuffer depth for read to properly draw sky box
+    TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_READ);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currBackBuffer, m_rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), 2, m_dsvDescriptorSize);
@@ -1388,8 +1384,7 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::Sky).Get());
     DrawRenderItem(pCommandList, m_skyRenderItem);
     
-    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
-    pCommandList->ResourceBarrier(1u, &transition);
+    TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
 void Engine::DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& ri)
