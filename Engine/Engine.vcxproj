@@ -48,6 +48,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Src\Core\CommandQueue.cpp" />
+    <ClCompile Include="Src\Core\DescriptorHeap.cpp" />
+    <ClCompile Include="Src\Core\DescriptorHeapAllocationManager.cpp" />
     <ClCompile Include="Src\Core\RootSignature.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
@@ -92,8 +94,12 @@
     <ClInclude Include="External\imgui\imstb_truetype.h" />
     <ClInclude Include="External\imgui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="External\imgui\misc\single_file\imgui_single_file.h" />
+    <ClInclude Include="Src\Common\ScaldCoreDefines.h" />
     <ClInclude Include="Src\Common\VertexTypes.h" />
     <ClInclude Include="Src\Core\CommandQueue.h" />
+    <ClInclude Include="Src\Core\DescriptorHeap.h" />
+    <ClInclude Include="Src\Core\DescriptorHeapAllocation.h" />
+    <ClInclude Include="Src\Core\DescriptorHeapAllocationManager.h" />
     <ClInclude Include="Src\Core\RootSignature.h" />
     <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
@@ -312,6 +318,10 @@
       <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <FxCompile>
+      <EnableUnboundedDescriptorTables>true</EnableUnboundedDescriptorTables>
+      <ShaderModel>5.1</ShaderModel>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>

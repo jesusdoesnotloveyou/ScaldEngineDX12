@@ -7,6 +7,7 @@
 #include "d3dx12.h"
 #include "DDSTextureLoader.h"
 #include "ScaldCoreTypes.h"
+#include "ScaldCoreDefines.h"
 
 #include <unordered_map>
 #include <unordered_set>
