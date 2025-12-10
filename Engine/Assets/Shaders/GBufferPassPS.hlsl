@@ -35,6 +35,7 @@ GBuffer main(PSInput input)
     output.AmbientOcclusion = float4(input.iPosW, 0.0f); // temporary
     output.Normal = float4(input.iNormalW, 0.0f);
     output.Specular = float4(fresnelR0, log2(1.0f - roughness) / 10.5f);
+    // TO DO: prev and curr frames camera diffs
     output.MotionVectors;
     
     return output;

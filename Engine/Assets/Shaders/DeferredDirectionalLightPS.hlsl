@@ -63,7 +63,7 @@ float4 main(PSInput input) : SV_TARGET
     float4 ambientOcclusion = gGBuffer[G_AMB_OCCL].Load(input.iPosH.xyz);
     float4 normalTex = gGBuffer[G_NORMAL].Load(input.iPosH.xyz);
     float4 specularTex = gGBuffer[G_SPECULAR].Load(input.iPosH.xyz);
-    float2 motionVectorsTex = gGBuffer[G_MOTION_VEC].Load(input.iPosH.xyz);
+    float2 motionVectorsTex = gGBuffer[G_MOTION_VEC].Load(input.iPosH.xyz).xy;
     float3 posW = ComputeWorldPos(float3(texCoord, 0.0f));
     
     float3 fresnelR0 = specularTex.xyz;
