@@ -26,10 +26,11 @@ struct Material
     {
     }
 
-    Material(const char* name, int materialBufferIndex, int diffuseSrvHeapIndex)
+    Material(const char* name, int materialBufferIndex, int diffuseSrvHeapIndex, int normalSrvHeapIndex = -1)
         : Name(std::string(name))
         , MatBufferIndex(materialBufferIndex)
         , DiffuseSrvHeapIndex(diffuseSrvHeapIndex)
+        , NormalSrvHeapIndex(normalSrvHeapIndex)
     {
 
     }
@@ -101,9 +102,10 @@ public:
         CascadedShadowMaps,
         GBufferTextures,
         SkyBox,
-        Textures,
+        DiffuseTextures,
+        NormalTextures,
 
-        NumRootParameters = 9u
+        NumRootParameters = 10u
     };
 
     enum EPsoType : UINT
@@ -200,7 +202,7 @@ private:
 
     UINT m_passCbvOffset = 0u;
 
-    float m_sunPhi = XM_PIDIV4;
+    float m_sunPhi = XM_PI / 3;
     float m_sunTheta = 1.25f * XM_PI;
     
     std::shared_ptr<RootSignature> m_rootSignature;
@@ -218,7 +220,10 @@ private:
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
     std::unordered_map<std::string, std::unique_ptr<Material>> m_materials;
-    std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
+
+    std::unordered_map<std::string, std::unique_ptr<Texture>> m_diffuseTextures;
+    std::unordered_map<std::string, std::unique_ptr<Texture>> m_normalTextures;
+    std::unordered_map<std::string, std::unique_ptr<Texture>> m_skyTextures;
 
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::unique_ptr<RenderItem> m_skyRenderItem;
@@ -232,17 +237,18 @@ private:
 
 #pragma region DeferredShading
     std::unique_ptr<GBuffer> m_GBuffer;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_GBufferTexturesSrv;
+    UINT m_GBufferTexturesSrvHeapStartIndex = 0u;
 #pragma endregion DeferredShading
 
 #pragma region CascadedShadows
+    UINT m_cascadesShadowSrvHeapStartIndex = 0;
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_cascadeShadowSrv;
 #pragma endregion CascadedShadows
 
 #pragma region TexturesAndSky
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_skyCubeSrv;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_texturesSrv;
+    UINT m_skyCubeSrvHeapStartIndex = 0u;
+    UINT m_diffuseSrvHeapStartIndex = 0u;
+    UINT m_normalSrvHeapStartIndex = 0u;
 #pragma endregion TexturesAndSky
 
     void TransitionResource(ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
@@ -254,7 +260,7 @@ private:
     VOID LoadDeferredRenderingResources();
     
     VOID Reset() override;
-    VOID CreateRtvAndDsvDescriptorHeaps() override;
+    VVOID CreateRtvAndDsvDescriptorHeaps() override;
     
     VOID LoadAssets();
     VOID CreateRootSignature();
@@ -273,7 +279,7 @@ private:
     VOID CreatePointLights(ID3D12GraphicsCommandList* pCommandList);
     VOID CreateFrameResources();
     // Heaps are created if there are root descriptor tables in root signature 
-    VOID CreateDescriptorHeaps();
+    VOID CreateSrvAndSamplerDescriptorHeaps();
 
     VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
 
