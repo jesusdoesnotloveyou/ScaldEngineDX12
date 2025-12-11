@@ -88,37 +88,31 @@ VOID Engine::CreateRootSignature()
     m_rootSignature = std::make_shared<RootSignature>();
 
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
-    cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u, REGISTER_SPACE_1);
+    cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, SHADER_REGISTER(0u), REGISTER_SPACE_1);
     
     CD3DX12_DESCRIPTOR_RANGE gBufferTable;
-    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, 1u, REGISTER_SPACE_1);
+    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, SHADER_REGISTER(1u), REGISTER_SPACE_1);
     
     CD3DX12_DESCRIPTOR_RANGE skyBoxTable;
-    skyBoxTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_skyTextures.size(), 7u, REGISTER_SPACE_1);
+    skyBoxTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_skyTextures.size(), SHADER_REGISTER(7u), REGISTER_SPACE_1);
     
-    CD3DX12_DESCRIPTOR_RANGE diffuseTable;
-    diffuseTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_diffuseTextures.size(), 8u, REGISTER_SPACE_1);
+    // Bindless unbound textures
+    CD3DX12_DESCRIPTOR_RANGE textureTable;
+    textureTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)-1, SHADER_REGISTER(8u), REGISTER_SPACE_1);
 
-    CD3DX12_DESCRIPTOR_RANGE normalMapTable;
-    normalMapTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_normalTextures.size(), 8u + TextureMapsMaxCount, REGISTER_SPACE_1);
-
-    // there is a possible approach to make textures binding more convinient: every descriptor range object uses m_texturesMaps.size() as a num of descriptors,
-    // same base shader register, and just specifies 'offsetInDescriptorsFromTableStart' that points to the first element in m_texturesMaps for every kind of texture
-    
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[ERootParameter::NumRootParameters];
     
     // Perfomance TIP: Order from most frequent to least frequent.
-    slotRootParameter[ERootParameter::PerObjectDataCB   ].InitAsConstantBufferView(0u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */);  // a root descriptor for objects' CBVs.
-    slotRootParameter[ERootParameter::PerPassDataCB     ].InitAsConstantBufferView(1u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL);                                            // a root descriptor for Pass CBV.
-    slotRootParameter[ERootParameter::MaterialDataSB    ].InitAsShaderResourceView(0u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
-    slotRootParameter[ERootParameter::PointLightsDataSB ].InitAsShaderResourceView(1u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gPointLights used in both shaders */);    // a srv for structured buffer with point lights' data
-    slotRootParameter[ERootParameter::SpotLightsDataSB  ].InitAsShaderResourceView(2u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gSpotLights used in both shaders */);     // a srv for structured buffer with spot lights' data
+    slotRootParameter[ERootParameter::PerObjectDataCB   ].InitAsConstantBufferView(SHADER_REGISTER(0u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */);  // a root descriptor for objects' CBVs.
+    slotRootParameter[ERootParameter::PerPassDataCB     ].InitAsConstantBufferView(SHADER_REGISTER(1u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL);                                            // a root descriptor for Pass CBV.
+    slotRootParameter[ERootParameter::MaterialDataSB    ].InitAsShaderResourceView(SHADER_REGISTER(0u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::PointLightsDataSB ].InitAsShaderResourceView(SHADER_REGISTER(1u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gPointLights used in both shaders */);    // a srv for structured buffer with point lights' data
+    slotRootParameter[ERootParameter::SpotLightsDataSB  ].InitAsShaderResourceView(SHADER_REGISTER(2u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gSpotLights used in both shaders */);     // a srv for structured buffer with spot lights' data
     slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                              // a descriptor table for shadow maps TextureArray.
     slotRootParameter[ERootParameter::GBufferTextures   ].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                  // a descriptor table for GBuffer
     slotRootParameter[ERootParameter::SkyBox            ].InitAsDescriptorTable(1u, &skyBoxTable, D3D12_SHADER_VISIBILITY_PIXEL);                                   // a descriptor table for sky
-    slotRootParameter[ERootParameter::DiffuseTextures   ].InitAsDescriptorTable(1u, &diffuseTable, D3D12_SHADER_VISIBILITY_PIXEL);                                  // a descriptor table for diffuse textures
-    slotRootParameter[ERootParameter::NormalTextures    ].InitAsDescriptorTable(1u, &normalMapTable, D3D12_SHADER_VISIBILITY_PIXEL);                                // a descriptor table for normal textures
+    slotRootParameter[ERootParameter::Textures          ].InitAsDescriptorTable(1u, &textureTable, D3D12_SHADER_VISIBILITY_PIXEL);                                  // a descriptor table for diffuse textures
 
     m_rootSignature->Create(m_device.Get(), ARRAYSIZE(slotRootParameter), slotRootParameter, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 }
@@ -575,6 +569,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
@@ -582,6 +577,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
@@ -589,6 +585,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
@@ -596,6 +593,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
@@ -603,6 +601,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < gridMesh.LODVertices[0].size(); ++i, ++k)
@@ -610,6 +609,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = gridMesh.LODVertices[0][i].position;
         vertices[k].normal = gridMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = gridMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = gridMesh.LODVertices[0][i].tangent;
     }
 
     std::vector<uint16_t> indices;
@@ -654,42 +654,42 @@ VOID Engine::CreateGeometryMaterials()
     int NormalSrvHeapIndex = 0;
 
     // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
-    auto flame0 = std::make_unique<Material>("flame0", MatBufferIndex++, DiffuseSrvHeapIndex++);
-    flame0->FresnelR0 = XMFLOAT3(0.01f, 0.01, 0.01f);
-    flame0->Roughness = 0.7f;
-    flame0->MatTransform = XMMatrixIdentity();
-
-    auto sand0 = std::make_unique<Material>("sand0", MatBufferIndex++, DiffuseSrvHeapIndex++);
-    sand0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
-    sand0->Roughness = 0.1f;
-    sand0->MatTransform = XMMatrixIdentity();
-
-    auto stone0 = std::make_unique<Material>("stone0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
-    stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-    stone0->Roughness = 0.5f;
+    auto stone0 = std::make_unique<Material>("stone0", MatBufferIndex++, DiffuseSrvHeapIndex++);
+    stone0->FresnelR0 = XMFLOAT3(0.01f, 0.01, 0.01f);
+    stone0->Roughness = 0.7f;
     stone0->MatTransform = XMMatrixIdentity();
 
-    auto ground0 = std::make_unique<Material>("ground0", MatBufferIndex++, DiffuseSrvHeapIndex++);
-    ground0->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-    ground0->Roughness = 0.3f;
-    ground0->MatTransform = XMMatrixIdentity();
+    auto brick0 = std::make_unique<Material>("brick0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
+    brick0->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
+    brick0->Roughness = 0.1f;
+    brick0->MatTransform = XMMatrixIdentity();
 
-    auto iron0 = std::make_unique<Material>("iron0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
-    iron0->FresnelR0 = XMFLOAT3(0.3f, 0.3f, 0.3f);
-    iron0->Roughness = 0.05f;
-    iron0->MatTransform = XMMatrixIdentity();
+    auto grass0 = std::make_unique<Material>("grass0", MatBufferIndex++, DiffuseSrvHeapIndex++);
+    grass0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+    grass0->Roughness = 0.5f;
+    grass0->MatTransform = XMMatrixIdentity();
+
+    auto planks0 = std::make_unique<Material>("planks0", MatBufferIndex++, DiffuseSrvHeapIndex++);
+    planks0->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+    planks0->Roughness = 0.3f;
+    planks0->MatTransform = XMMatrixIdentity();
+
+    auto tile0 = std::make_unique<Material>("tile0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
+    tile0->FresnelR0 = XMFLOAT3(0.3f, 0.3f, 0.3f);
+    tile0->Roughness = 0.05f;
+    tile0->MatTransform = XMMatrixIdentity();
     
     auto ice0 = std::make_unique<Material>("ice0", MatBufferIndex++, DiffuseSrvHeapIndex++);
-    ice0->FresnelR0 = XMFLOAT3(0.6f, 0.6f, 0.6f);
+    ice0->FresnelR0 = XMFLOAT3(0.4f, 0.4f, 0.4f);
     ice0->Roughness = 0.08f;
     ice0->MatTransform = XMMatrixIdentity();
 
-    m_materials["flame0"] = std::move(flame0);
-    m_materials["sand0"] = std::move(sand0);
-    m_materials["stone0"] = std::move(stone0);
-    m_materials["ground0"] = std::move(ground0);
-    m_materials["ice0"] = std::move(ice0);
-    m_materials["iron0"] = std::move(iron0);
+    m_materials[stone0->Name] = std::move(stone0);
+    m_materials[brick0->Name] = std::move(brick0);
+    m_materials[grass0->Name] = std::move(grass0);
+    m_materials[planks0->Name] = std::move(planks0);
+    m_materials[ice0->Name] = std::move(ice0);
+    m_materials[tile0->Name] = std::move(tile0);
 }
 
 VOID Engine::CreateSceneObjects()
@@ -705,19 +705,20 @@ VOID Engine::CreateRenderItems()
     int ObjectCBIndex = 0;
 
     auto sunRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
-    sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+    sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f);
     sunRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     sunRenderItem->Geo = m_geometries.at("solarSystem").get();
-    sunRenderItem->Mat = m_materials.at("flame0").get();
+    sunRenderItem->Mat = m_materials.at("stone0").get();
     sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs.at("sun").IndexCount;
     sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs.at("sun").StartIndexLocation;
     sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs.at("sun").BaseVertexLocation;
     sunRenderItem->Bounds = sunRenderItem->Geo->DrawArgs.at("sun").Bounds;
 
     auto mercuryRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
-    mercuryRenderItem->World = XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(2.0f, 0.0f, 0.0f);
+    mercuryRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 5.0f);
+    mercuryRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);;
     mercuryRenderItem->Geo = m_geometries.at("solarSystem").get();
-    mercuryRenderItem->Mat = m_materials.at("sand0").get();
+    mercuryRenderItem->Mat = m_materials.at("brick0").get();
     mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs.at("mercury").IndexCount;
     mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").StartIndexLocation;
     mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").BaseVertexLocation;
@@ -727,7 +728,7 @@ VOID Engine::CreateRenderItems()
     venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
     venusRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     venusRenderItem->Geo = m_geometries.at("solarSystem").get();
-    venusRenderItem->Mat = m_materials.at("stone0").get();
+    venusRenderItem->Mat = m_materials.at("grass0").get();
     venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs.at("venus").IndexCount;
     venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs.at("venus").StartIndexLocation;
     venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs.at("venus").BaseVertexLocation;
@@ -737,17 +738,17 @@ VOID Engine::CreateRenderItems()
     earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
     earthRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
     earthRenderItem->Geo = m_geometries.at("solarSystem").get();
-    earthRenderItem->Mat = m_materials.at("ground0").get();
+    earthRenderItem->Mat = m_materials.at("planks0").get();
     earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs.at("earth").IndexCount;
     earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs.at("earth").StartIndexLocation;
     earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs.at("earth").BaseVertexLocation;
     earthRenderItem->Bounds = earthRenderItem->Geo->DrawArgs.at("earth").Bounds;
 
     auto marsRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
-    marsRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(5.0f, 0.0f, 5.0f);
+    marsRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(8.0f, 0.0f, 8.0f);
     marsRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     marsRenderItem->Geo = m_geometries.at("solarSystem").get();
-    marsRenderItem->Mat = m_materials.at("iron0").get();
+    marsRenderItem->Mat = m_materials.at("tile0").get();
     marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs.at("mars").IndexCount;
     marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs.at("mars").StartIndexLocation;
     marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs.at("mars").BaseVertexLocation;
@@ -1277,8 +1278,8 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
 
     // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
     // The root signature knows how many descriptors are expected in the table.
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::DiffuseTextures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_diffuseSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::NormalTextures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_normalSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_diffuseSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
+    //pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::NormalTextures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_normalSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
 #pragma endregion BypassResources
     
     // start of the GBuffer rtvs in rtvHeap

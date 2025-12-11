@@ -102,10 +102,9 @@ public:
         CascadedShadowMaps,
         GBufferTextures,
         SkyBox,
-        DiffuseTextures,
-        NormalTextures,
+        Textures,
 
-        NumRootParameters = 10u
+        NumRootParameters = 9u
     };
 
     enum EPsoType : UINT
