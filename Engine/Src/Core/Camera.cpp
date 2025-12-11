@@ -3,7 +3,7 @@
 #include "Common/ScaldMath.h"
 
 Camera::Camera()
-	: m_nearZ(1.0f)
+	: m_nearZ(0.1f)
 	, m_farZ(1000.0f)
 	, m_fovYRad(0.0f)
 	, m_aspectRatio(0.0f)

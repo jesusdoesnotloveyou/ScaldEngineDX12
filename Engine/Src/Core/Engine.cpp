@@ -88,29 +88,32 @@ VOID Engine::CreateRootSignature()
     m_rootSignature = std::make_shared<RootSignature>();
 
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
-    cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
+    cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u, REGISTER_SPACE_1);
     
     CD3DX12_DESCRIPTOR_RANGE gBufferTable;
-    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, 2u, 1u);
+    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, 1u, REGISTER_SPACE_1);
     
     CD3DX12_DESCRIPTOR_RANGE skyBoxTable;
-    skyBoxTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_skyTextures.size(), 2u, 0u);
+    skyBoxTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_skyTextures.size(), 7u, REGISTER_SPACE_1);
     
     CD3DX12_DESCRIPTOR_RANGE diffuseTable;
-    diffuseTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_diffuseTextures.size(), 3u, 0u);
+    diffuseTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_diffuseTextures.size(), 8u, REGISTER_SPACE_1);
 
     CD3DX12_DESCRIPTOR_RANGE normalMapTable;
-    normalMapTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_normalTextures.size(), 3u + TextureMapsMaxCount, 0u);
+    normalMapTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_normalTextures.size(), 8u + TextureMapsMaxCount, REGISTER_SPACE_1);
+
+    // there is a possible approach to make textures binding more convinient: every descriptor range object uses m_texturesMaps.size() as a num of descriptors,
+    // same base shader register, and just specifies 'offsetInDescriptorsFromTableStart' that points to the first element in m_texturesMaps for every kind of texture
     
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[ERootParameter::NumRootParameters];
     
     // Perfomance TIP: Order from most frequent to least frequent.
-    slotRootParameter[ERootParameter::PerObjectDataCB   ].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */);  // a root descriptor for objects' CBVs.
-    slotRootParameter[ERootParameter::PerPassDataCB     ].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);                                            // a root descriptor for Pass CBV.
-    slotRootParameter[ERootParameter::MaterialDataSB    ].InitAsShaderResourceView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
-    slotRootParameter[ERootParameter::PointLightsDataSB ].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gPointLights used in both shaders */);    // a srv for structured buffer with point lights' data
-    slotRootParameter[ERootParameter::SpotLightsDataSB  ].InitAsShaderResourceView(1u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gSpotLights used in both shaders */);     // a srv for structured buffer with spot lights' data
+    slotRootParameter[ERootParameter::PerObjectDataCB   ].InitAsConstantBufferView(0u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */);  // a root descriptor for objects' CBVs.
+    slotRootParameter[ERootParameter::PerPassDataCB     ].InitAsConstantBufferView(1u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL);                                            // a root descriptor for Pass CBV.
+    slotRootParameter[ERootParameter::MaterialDataSB    ].InitAsShaderResourceView(0u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::PointLightsDataSB ].InitAsShaderResourceView(1u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gPointLights used in both shaders */);    // a srv for structured buffer with point lights' data
+    slotRootParameter[ERootParameter::SpotLightsDataSB  ].InitAsShaderResourceView(2u, REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gSpotLights used in both shaders */);     // a srv for structured buffer with spot lights' data
     slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                              // a descriptor table for shadow maps TextureArray.
     slotRootParameter[ERootParameter::GBufferTextures   ].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                  // a descriptor table for GBuffer
     slotRootParameter[ERootParameter::SkyBox            ].InitAsDescriptorTable(1u, &skyBoxTable, D3D12_SHADER_VISIBILITY_PIXEL);                                   // a descriptor table for sky
@@ -849,7 +852,7 @@ VOID Engine::Reset()
     Super::Reset();
 
     // Init/Reinit camera
-    m_camera->Reset(75.0f, m_aspectRatio, 1.0f, 250.0f);
+    m_camera->Reset(75.0f, m_aspectRatio, 0.1f, 250.0f);
     // need tests
     //m_cascadeShadowMap->OnResize(m_width, m_height);
     //m_GBuffer->OnResize(m_width, m_height);
