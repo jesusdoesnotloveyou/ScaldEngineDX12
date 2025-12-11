@@ -9,6 +9,8 @@
 </br>
 ![](Screenshots/final_scene4.png)
 </br>
+![](Screenshots/final_scene5.png)
+</br>
 
 # Features
 
@@ -29,4 +31,5 @@
   - Point Lights (Instancing)
 - Textures
   - Bindless
-  - SkySphere 
+  - SkySphere
+  - Normal Mapping
