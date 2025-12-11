@@ -67,15 +67,13 @@ float4 main(PSInput input) : SV_TARGET
     float3 posW = ComputeWorldPos(float3(texCoord, 0.0f));
     
     float3 fresnelR0 = specularTex.xyz;
-    float shininess = exp2(specularTex.a * 10.5f);
+    const float shininess = exp2(specularTex.a * 10.5f) * normalTex.a;
     
     Material mat = { diffuseAlbedo, fresnelR0, shininess };
     
 #ifdef ALPHA_TEST
     clip(diffuseAlbedo.a - 0.1f);
 #endif
-    
-    float3 N = normalize(normalTex.xyz);
     
     float3 toEye = gEyePos - posW;
     float distToEye = length(toEye);
@@ -111,7 +109,7 @@ float4 main(PSInput input) : SV_TARGET
 #endif
     
     float shadowFactor = GetShadowFactor(posW, layer);
-    float3 dirLight = CalcDirLight(gDirLight, N, viewDir, mat, shadowFactor);
+    float3 dirLight = CalcDirLight(gDirLight, normalTex.xyz, viewDir, mat, shadowFactor);
     litColor += float4(dirLight, 0.0f);
     
     // linear fog
@@ -120,7 +118,7 @@ float4 main(PSInput input) : SV_TARGET
     litColor = (1-fogAmount) * litColor + fogAmount * gFogColor;
 #endif
     
-    litColor.rgb += ComputeSpecularReflections(toEye, N, mat);
+    litColor.rgb += ComputeSpecularReflections(toEye, normalTex.xyz, mat);
     
     // set the alpha channel of the diffuse material of the object itself
     litColor.a = diffuseAlbedo.a;

@@ -1,5 +1,9 @@
 // Defaults for number of lights.
 
+#ifndef INVALID_INDEX
+    #define INVALID_INDEX 4294967295
+#endif
+
 // Forward Rendering
 #ifndef NUM_DIR_LIGHTS
 #define NUM_DIR_LIGHTS 0
@@ -95,7 +99,7 @@ StructuredBuffer<InstanceData/*Light*/> gSpotLights : register(t2);
 Texture2DArray gShadowMaps : register(t0, space1);
 Texture2D gGBuffer[GBufferSize] : register(t1, space1); // t1, t2, t3, t4, t5, t6 in space1
 TextureCube gCubeMap : register(t7, space1);
-Texture2D gDiffuseMap[] : register(t8, space1); // Bindless textures: t8 - inf
+Texture2D gTextures[] : register(t8, space1); // Bindless textures: t8 - inf
 
 SamplerState gSamplerPointWrap : register(s0);
 SamplerState gSamplerLinearWrap : register(s1);
@@ -121,4 +125,22 @@ float3 ComputeWorldPos(float3 texcoord)
     float4 worldPos = mul(ndc, gInvViewProj);
     worldPos.xyz /= worldPos.w;
     return worldPos.xyz;
+}
+
+float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, float3 tangentW)
+{
+	// Uncompress each component from [0,1] to [-1,1].
+    float3 normalT = 2.0f * normalMapSample - 1.0f;
+
+	// Build orthonormal basis.
+    float3 N = unitNormalW;
+    float3 T = normalize(tangentW - dot(tangentW, N) * N);
+    float3 B = cross(N, T);
+
+    float3x3 TBN = float3x3(T, B, N);
+
+	// Transform from tangent space to world space.
+    float3 bumpedNormalW = mul(normalT, TBN);
+
+    return bumpedNormalW;
 }
