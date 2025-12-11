@@ -67,7 +67,7 @@ struct MeshGeometry
 
 	D3D12_VERTEX_BUFFER_VIEW VertexBufferView()const
 	{
-		D3D12_VERTEX_BUFFER_VIEW vbv;
+		D3D12_VERTEX_BUFFER_VIEW vbv = {};
 		vbv.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();
 		vbv.StrideInBytes = VertexByteStride;
 		vbv.SizeInBytes = VertexBufferByteSize;
@@ -77,7 +77,7 @@ struct MeshGeometry
 
 	D3D12_INDEX_BUFFER_VIEW IndexBufferView()const
 	{
-		D3D12_INDEX_BUFFER_VIEW ibv;
+		D3D12_INDEX_BUFFER_VIEW ibv = {};
 		ibv.BufferLocation = IndexBufferGPU->GetGPUVirtualAddress();
 		ibv.Format = IndexFormat;
 		ibv.SizeInBytes = IndexBufferByteSize;
@@ -128,14 +128,29 @@ struct MeshGeometry
 
 struct Texture
 {
+	enum class TextureType : UINT
+	{
+		NONE = 0,
+		SKYCUBE,
+		ALBEDO,
+		NORMAL,
+		ROUGHNESS,
+		METALNESS,
+		AO,
+		MAX = 7
+	};
+
 	Texture() {}
 
-	Texture(const char* name, const wchar_t* fileName, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
+	Texture(const char* name, const wchar_t* fileName, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, TextureType type = TextureType::ALBEDO)
 		: Name(std::string(name))
 		, Filename(std::wstring(fileName))
+		, Type(type)
 	{
 		ThrowIfFailed(CreateDDSTextureFromFile12(device, cmdList, Filename.c_str(), Resource, UploadHeap));
 	}
+
+	TextureType Type = TextureType::NONE;
 	// Unique material name for lookup.
 	std::string Name;
 

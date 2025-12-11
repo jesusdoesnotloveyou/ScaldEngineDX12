@@ -55,7 +55,7 @@ ComPtr<ID3DBlob> ScaldUtil::CompileShader(const std::wstring& fileName, const D3
 {
 #if defined(_DEBUG) | defined(DEBUG)
     // Enable better shader debugging with the graphics debugging tools.
-    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
 #else
     UINT compileFlags = 0;
 #endif

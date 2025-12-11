@@ -62,7 +62,7 @@ float4 main(PSInput input) : SV_TARGET
     uint diffuseTexIndex = matData.DiffuseMapIndex;
     
     // Sample diff albedo from texture and multiply by material diffuse albedo for some tweak if we need one (gDiffuseAlbedo = (1, 1, 1, 1) by default).
-    diffuseAlbedo *= gDiffuseMap[diffuseTexIndex].Sample(gSamplerAnisotropicWrap, input.iTexC);
+    diffuseAlbedo *= gTextures[diffuseTexIndex].Sample(gSamplerAnisotropicWrap, input.iTexC);
     
     // To reject pixel as early as possible if it is completely transparent
 #ifdef ALPHA_TEST
