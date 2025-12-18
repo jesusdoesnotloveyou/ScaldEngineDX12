@@ -29,6 +29,32 @@ struct Material
     float Shininess; // 1 - roughness
 };
 
+// PBR utils
+
+float3 CalcSchlickFresnelReflectance(float3 viewDir, float3 halfVec, float3 specular)
+{
+    return specular + (1.0f - specular) * pow(1.0f - dot(halfVec, viewDir), 5.0f);
+
+}
+
+float CalculateSmithGGXGeometryTerm(float roughness, float nDotL, float nDotV)
+{
+    float roughnessActual = roughness * roughness;
+    float3 viewGeoTerm = nDotV + sqrt((nDotV - nDotV * roughnessActual) * nDotV + roughnessActual);
+    float3 lightGeoTerm = nDotL + sqrt((nDotL - nDotL * roughnessActual) * nDotL + roughnessActual);
+ 
+    return rcp(viewGeoTerm * lightGeoTerm);
+}
+
+float CalculateNormalDistributionTrowReitz(float roughness, float3 surfaceN, float3 microfacetN)
+{
+    float PI = 3.14159265f;
+    float roughnessActual = roughness*roughness;
+    return pow(roughnessActual, 2.0f) / (PI * pow(pow(dot(surfaceN, microfacetN), 2.0f)
+                                        * (pow(roughnessActual, 2.0f) - 1.0f) + 1.0f, 2.0f));
+
+}
+
 float3 SchlickApproximation(float3 fresnelR0, float3 halfVec, float3 lightDir)
 {
     float cosIncidentAngle = saturate(dot(halfVec, lightDir)); // clamp between [0, 1] -> [0, 90] degrees
