@@ -429,7 +429,7 @@ VOID Engine::CreateSrvAndSamplerDescriptorHeaps()
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     ZeroMemory(&srvDesc, sizeof(srvDesc));
 
-    m_cascadesShadowSrvHeapStartIndex = 0u;
+    m_cascadesShadowSrvHeapStartIndex = 1u;
     // configuring srv for shadow maps texture2Darray in the srv heap
     srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -935,7 +935,6 @@ void Engine::OnRender(const ScaldTimer& st)
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList(commandList.Get());
 
-    //ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
     // Execute the command list.
     m_commandQueue->ExecuteCommandList(commandList);
 
@@ -1382,6 +1381,7 @@ void Engine::RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList)
     // forward-like
     // RenderTransparencyPass(pCommandList);
     RenderSkyBoxPass(pCommandList);
+    RenderUI(pCommandList);
 
     // Close accumulation buffer, that was opened in the light pass and indicate that the back buffer will now be used to present.
     TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -1412,6 +1412,11 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
     DrawRenderItem(pCommandList, m_skyRenderItem);
     
     TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ);
+}
+
+void Engine::RenderUI(ID3D12GraphicsCommandList* pCommandList)
+{
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
 }
 
 void Engine::DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& ri)
