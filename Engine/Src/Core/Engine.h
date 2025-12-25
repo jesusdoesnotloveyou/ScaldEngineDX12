@@ -189,6 +189,7 @@ private:
     void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
 #pragma endregion DeferredShading
     void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderUI(ID3D12GraphicsCommandList* pCommandList);
 
     void DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& renderItem);
     void DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
@@ -246,7 +247,7 @@ private:
 
 #pragma region TexturesAndSky
     UINT m_skyCubeSrvHeapStartIndex = 0u;
-    UINT m_diffuseSrvHeapStartIndex = 0u;
+    UINT m_texturesSrvHeapStartIndex = 0u;
     UINT m_normalSrvHeapStartIndex = 0u;
 #pragma endregion TexturesAndSky
 

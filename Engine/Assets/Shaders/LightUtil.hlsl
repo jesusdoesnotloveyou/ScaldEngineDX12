@@ -37,7 +37,7 @@ float3 CalcSchlickFresnelReflectance(float3 viewDir, float3 halfVec, float3 spec
 
 }
 
-float CalculateSmithGGXGeometryTerm(float roughness, float nDotL, float nDotV)
+float3 CalculateSmithGGXGeometryTerm(float roughness, float nDotL, float nDotV)
 {
     float roughnessActual = roughness * roughness;
     float3 viewGeoTerm = nDotV + sqrt((nDotV - nDotV * roughnessActual) * nDotV + roughnessActual);

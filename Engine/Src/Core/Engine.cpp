@@ -385,9 +385,16 @@ VOID Engine::LoadTextures(ID3D12GraphicsCommandList* pCommandList)
     auto brickNTex = std::make_unique<Texture>("brickNTex", L"./Assets/Textures/bricks_nmap.dds", m_device.Get(), pCommandList, Texture::TextureType::NORMAL);
     
     auto grassTex = std::make_unique<Texture>("grassTex", L"./Assets/Textures/grass.dds", m_device.Get(), pCommandList);
+    //auto grassNTex = std::make_unique<Texture>("grassNTex", L"./Assets/Textures/grass_nmap.dds", m_device.Get(), pCommandList);
+
     auto iceTex = std::make_unique<Texture>("iceTex", L"./Assets/Textures/ice.dds", m_device.Get(), pCommandList);
+    //auto iceNTex = std::make_unique<Texture>("iceNTex", L"./Assets/Textures/ice_nmap.dds", m_device.Get(), pCommandList);
+    
     auto stoneTex = std::make_unique<Texture>("stoneTex", L"./Assets/Textures/stone.dds", m_device.Get(), pCommandList);
+    //auto stoneNTex = std::make_unique<Texture>("stoneNTex", L"./Assets/Textures/stone_nmap.dds", m_device.Get(), pCommandList);
+    
     auto planksTex = std::make_unique<Texture>("planksTex", L"./Assets/Textures/planks.dds", m_device.Get(), pCommandList);
+    //auto planksNTex = std::make_unique<Texture>("planksNTex", L"./Assets/Textures/planks_nmap.dds", m_device.Get(), pCommandList);
     
     auto tileTex = std::make_unique<Texture>("tileTex", L"./Assets/Textures/tile.dds", m_device.Get(), pCommandList);
     auto tileNTex = std::make_unique<Texture>("tileNTex", L"./Assets/Textures/tile_nmap.dds", m_device.Get(), pCommandList, Texture::TextureType::NORMAL);
@@ -401,8 +408,12 @@ VOID Engine::LoadTextures(ID3D12GraphicsCommandList* pCommandList)
     m_diffuseTextures[tileTex->Name] = std::move(tileTex);
     m_diffuseTextures[iceTex->Name] = std::move(iceTex);
 
+    //m_normalTextures[stoneNTex->Name] = std::move(stoneNTex);
     m_normalTextures[brickNTex->Name] = std::move(brickNTex);
+    //m_normalTextures[grassNTex->Name] = std::move(grassNTex);
+    //m_normalTextures[planksNTex->Name] = std::move(planksNTex);
     m_normalTextures[tileNTex->Name] = std::move(tileNTex);
+    //m_normalTextures[iceNTex->Name] = std::move(iceNTex);
 
     m_skyTextures[skyTex->Name] = std::move(skyTex);
 }
@@ -429,7 +440,7 @@ VOID Engine::CreateSrvAndSamplerDescriptorHeaps()
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     ZeroMemory(&srvDesc, sizeof(srvDesc));
 
-    m_cascadesShadowSrvHeapStartIndex = 0u;
+    m_cascadesShadowSrvHeapStartIndex = 1u;
     // configuring srv for shadow maps texture2Darray in the srv heap
     srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -483,8 +494,8 @@ VOID Engine::CreateSrvAndSamplerDescriptorHeaps()
         localHandle.Offset(1, m_cbvSrvUavDescriptorSize);
     }
 
-    m_diffuseSrvHeapStartIndex = m_skyCubeSrvHeapStartIndex + (UINT)m_skyTextures.size();
-    localHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_diffuseSrvHeapStartIndex, m_cbvSrvUavDescriptorSize);
+    m_texturesSrvHeapStartIndex = m_skyCubeSrvHeapStartIndex + (UINT)m_skyTextures.size();
+    localHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_texturesSrvHeapStartIndex, m_cbvSrvUavDescriptorSize);
     for (auto& e : m_diffuseTextures)
     {
         auto& texD3DResource = e.second->Resource;
@@ -500,7 +511,7 @@ VOID Engine::CreateSrvAndSamplerDescriptorHeaps()
         localHandle.Offset(1, m_cbvSrvUavDescriptorSize);
     }
 
-    m_normalSrvHeapStartIndex = m_diffuseSrvHeapStartIndex + TextureMapsMaxCount;
+    m_normalSrvHeapStartIndex = m_texturesSrvHeapStartIndex + TextureMapsMaxCount;
     localHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_normalSrvHeapStartIndex, m_cbvSrvUavDescriptorSize);
     for (auto& e : m_normalTextures)
     {
@@ -658,32 +669,32 @@ VOID Engine::CreateGeometryMaterials()
     int NormalSrvHeapIndex = 0;
 
     // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
-    auto stone0 = std::make_unique<Material>("stone0", MatBufferIndex++, DiffuseSrvHeapIndex++);
-    stone0->FresnelR0 = XMFLOAT3(0.01f, 0.01, 0.01f);
-    stone0->Roughness = 0.7f;
+    auto stone0 = std::make_unique<Material>("stone0", MatBufferIndex++, DiffuseSrvHeapIndex++/*, NormalSrvHeapIndex++*/);
+    stone0->FresnelR0 = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    stone0->Roughness = 1.0f;
     stone0->MatTransform = XMMatrixIdentity();
 
     auto brick0 = std::make_unique<Material>("brick0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
     brick0->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
-    brick0->Roughness = 0.8f;
+    brick0->Roughness = 0.95f;
     brick0->MatTransform = XMMatrixIdentity();
 
-    auto grass0 = std::make_unique<Material>("grass0", MatBufferIndex++, DiffuseSrvHeapIndex++);
-    grass0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-    grass0->Roughness = 0.5f;
+    auto grass0 = std::make_unique<Material>("grass0", MatBufferIndex++, DiffuseSrvHeapIndex++/*, NormalSrvHeapIndex++*/);
+    grass0->FresnelR0 = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    grass0->Roughness = 1.0f;
     grass0->MatTransform = XMMatrixIdentity();
 
-    auto planks0 = std::make_unique<Material>("planks0", MatBufferIndex++, DiffuseSrvHeapIndex++);
-    planks0->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-    planks0->Roughness = 0.3f;
+    auto planks0 = std::make_unique<Material>("planks0", MatBufferIndex++, DiffuseSrvHeapIndex++/*, NormalSrvHeapIndex++*/);
+    planks0->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
+    planks0->Roughness = 0.8f;
     planks0->MatTransform = XMMatrixIdentity();
 
     auto tile0 = std::make_unique<Material>("tile0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
     tile0->FresnelR0 = XMFLOAT3(0.3f, 0.3f, 0.3f);
     tile0->Roughness = 0.4f;
     tile0->MatTransform = XMMatrixIdentity();
-    
-    auto ice0 = std::make_unique<Material>("ice0", MatBufferIndex++, DiffuseSrvHeapIndex++);
+
+    auto ice0 = std::make_unique<Material>("ice0", MatBufferIndex++, DiffuseSrvHeapIndex++/*, NormalSrvHeapIndex++*/);
     ice0->FresnelR0 = XMFLOAT3(0.4f, 0.4f, 0.4f);
     ice0->Roughness = 0.08f;
     ice0->MatTransform = XMMatrixIdentity();
@@ -692,8 +703,8 @@ VOID Engine::CreateGeometryMaterials()
     m_materials[brick0->Name] = std::move(brick0);
     m_materials[grass0->Name] = std::move(grass0);
     m_materials[planks0->Name] = std::move(planks0);
-    m_materials[ice0->Name] = std::move(ice0);
     m_materials[tile0->Name] = std::move(tile0);
+    m_materials[ice0->Name] = std::move(ice0);
 }
 
 VOID Engine::CreateSceneObjects()
@@ -935,7 +946,6 @@ void Engine::OnRender(const ScaldTimer& st)
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList(commandList.Get());
 
-    //ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
     // Execute the command list.
     m_commandQueue->ExecuteCommandList(commandList);
 
@@ -1284,7 +1294,7 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
 
     // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
     // The root signature knows how many descriptors are expected in the table.
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_diffuseSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_texturesSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
     //pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::NormalTextures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_normalSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
 #pragma endregion BypassResources
     
@@ -1382,6 +1392,7 @@ void Engine::RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList)
     // forward-like
     // RenderTransparencyPass(pCommandList);
     RenderSkyBoxPass(pCommandList);
+    RenderUI(pCommandList);
 
     // Close accumulation buffer, that was opened in the light pass and indicate that the back buffer will now be used to present.
     TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -1412,6 +1423,11 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
     DrawRenderItem(pCommandList, m_skyRenderItem);
     
     TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ);
+}
+
+void Engine::RenderUI(ID3D12GraphicsCommandList* pCommandList)
+{
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
 }
 
 void Engine::DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& ri)

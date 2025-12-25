@@ -43,7 +43,7 @@ GBuffer main(PSInput input)
     
     if (normalMapIndex != INVALID_INDEX)
     {
-        float4 normalMapSample = gTextures[512 + normalMapIndex].Sample(gSamplerAnisotropicWrap, input.iTexC);
+        float4 normalMapSample = gTextures[128 + normalMapIndex].Sample(gSamplerAnisotropicWrap, input.iTexC);
         output.Normal.xyz = NormalSampleToWorldSpace(normalMapSample.rgb, input.iNormalW, input.iTangentW);
         output.Normal.a = normalMapSample.a;
     }
