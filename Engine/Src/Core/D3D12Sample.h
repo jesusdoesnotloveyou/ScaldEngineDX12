@@ -3,6 +3,7 @@
 #include "Common/DXHelper.h"
 #include "Common/ScaldTimer.h"
 #include "Win32App.h"
+//#include "DescriptorHeaps.h"
 
 // target_link_libraries(${PROJECT_NAME} PRIVATE DirectXTK d3dcompiler dxguid dxgi d3d11 assimp)
 //#pragma comment(lib, "d3dcompiler.lib")
@@ -120,6 +121,7 @@ protected:
 
     ComPtr<IDXGIAdapter3> m_hardwareAdapter;
 
+    //DescriptorHeaps
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for shader resources

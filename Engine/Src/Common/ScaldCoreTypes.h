@@ -3,27 +3,6 @@
 #include "VertexTypes.h"
 #include <DirectXColors.h>
 
-#ifndef FORCEINLINE
-#define FORCEINLINE __forceinline
-#endif
-
-#ifndef VVOID
-#define VVOID virtual void
-#endif
-
-#define BYTE_TO_MB(x) ((x) / (1024 * 1024))
-#define BYTE_TO_KB(x) (x / 1024)
-
-#if defined(DEBUG) || defined(_DEBUG)
-	#define SCALD_NAME_D3D12_OBJECT(obj, name)					\
-				obj->SetName(name);								\
-				OutputDebugString(L"::D3D12 Object Created: "); \
-				OutputDebugString(name);						\
-				OutputDebugString(L"\n");
-#else
-	#define SCALD_NAME_D3D12_OBJECT(obj, name)
-#endif
-
 constexpr int INVALID_ID = -1;
 using ID_TYPE = int;
 
@@ -140,8 +119,8 @@ struct MaterialData
 	XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
 	float Roughness = 0.25f;
 	XMFLOAT4X4 MatTransform;
-	UINT DiffusseMapIndex = 0u;
-	UINT matPad0 = 0u;
+	UINT DiffuseMapIndex = 0u;
+	UINT NormalMapIndex = 0u;
 	UINT matPad1 = 0u;
 	UINT matPad2 = 0u;
 };
