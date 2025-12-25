@@ -246,6 +246,26 @@
   <ItemGroup>
     <Natvis Include="External\imgui\misc\debuggers\imgui.natvis" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Assets\Shaders\SkyBox.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
+    <None Include="External\imgui\.editorconfig" />
+    <None Include="External\imgui\.gitattributes" />
+    <None Include="External\imgui\.gitignore" />
+    <None Include="External\imgui\examples\example_glfw_wgpu\web\index.html" />
+    <None Include="External\imgui\examples\libs\emscripten\shell_minimal.html" />
+    <None Include="External\imgui\misc\debuggers\imgui.gdb" />
+    <None Include="External\imgui\misc\debuggers\imgui.natstepfilter" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="External\imgui\misc\debuggers\README.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="External\imgui\misc\debuggers\imgui.natvis" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

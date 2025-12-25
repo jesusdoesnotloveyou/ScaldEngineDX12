@@ -30,5 +30,8 @@ float4 main(PSInput input) : SV_TARGET
     float3 viewDir = toEye / length(toEye);
     
     float3 pointLight = CalcPointLight(instData.gLight, N, posW, viewDir, mat);
+    // Does not work properly
+    //pointLight += ComputeSpecularReflections(toEye, N, mat);
+    
     return float4(pointLight, 1.0f);
 }

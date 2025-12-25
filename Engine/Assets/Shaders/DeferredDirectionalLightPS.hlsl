@@ -120,6 +120,8 @@ float4 main(PSInput input) : SV_TARGET
     litColor = (1-fogAmount) * litColor + fogAmount * gFogColor;
 #endif
     
+    litColor.rgb += ComputeSpecularReflections(toEye, N, mat);
+    
     // set the alpha channel of the diffuse material of the object itself
     litColor.a = diffuseAlbedo.a;
 
