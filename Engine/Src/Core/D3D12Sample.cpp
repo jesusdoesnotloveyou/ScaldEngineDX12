@@ -576,6 +576,8 @@ VOID D3D12Sample::Reset()
     m_scissorRect.top = 0L;
     m_scissorRect.right = static_cast<LONG>(m_width);
     m_scissorRect.bottom = static_cast<LONG>(m_height);
+
+    m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
 }
 
 VOID D3D12Sample::Present()

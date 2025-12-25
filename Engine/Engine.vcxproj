@@ -48,8 +48,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Src\Core\CommandQueue.cpp" />
-    <ClCompile Include="Src\Core\DescriptorHeap.cpp" />
-    <ClCompile Include="Src\Core\DescriptorHeapAllocationManager.cpp" />
     <ClCompile Include="Src\Core\RootSignature.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
@@ -97,9 +95,6 @@
     <ClInclude Include="Src\Common\ScaldCoreDefines.h" />
     <ClInclude Include="Src\Common\VertexTypes.h" />
     <ClInclude Include="Src\Core\CommandQueue.h" />
-    <ClInclude Include="Src\Core\DescriptorHeap.h" />
-    <ClInclude Include="Src\Core\DescriptorHeapAllocation.h" />
-    <ClInclude Include="Src\Core\DescriptorHeapAllocationManager.h" />
     <ClInclude Include="Src\Core\RootSignature.h" />
     <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
@@ -193,7 +188,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
     </None>
-    <None Include="Assets\Shaders\GeometryShader.hlsl">
+    <None Include="Assets\Shaders\CascadesShadowGS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Geometry</ShaderType>
@@ -220,7 +215,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
     </None>
-    <None Include="Assets\Shaders\ShadowVertexShader.hlsl">
+    <None Include="Assets\Shaders\ShadowVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>

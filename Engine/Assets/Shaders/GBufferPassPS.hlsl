@@ -39,7 +39,7 @@ GBuffer main(PSInput input)
 
     output.AmbientOcclusion = float4(input.iPosW, 0.0f); // temporary
 
-    output.Normal = float4(input.iNormalW, 0.0f);
+    output.Normal = float4(input.iNormalW, 1.0f);
     
     if (normalMapIndex != INVALID_INDEX)
     {

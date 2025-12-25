@@ -49,6 +49,8 @@ VOID Engine::LoadGraphicsFeatures()
 {
     LoadCSMResources();
     LoadDeferredRenderingResources();
+
+    m_bIsGraphicsFeaturesLoaded = true;
 }
 
 VOID Engine::LoadCSMResources()
@@ -90,8 +92,8 @@ VOID Engine::CreateRootSignature()
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
     cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, SHADER_REGISTER(0u), REGISTER_SPACE_1);
     
-    CD3DX12_DESCRIPTOR_RANGE gBufferTable;
-    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, SHADER_REGISTER(1u), REGISTER_SPACE_1);
+    CD3DX12_DESCRIPTOR_RANGE GBufferTable;
+    GBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, SHADER_REGISTER(1u), REGISTER_SPACE_1);
     
     CD3DX12_DESCRIPTOR_RANGE skyBoxTable;
     skyBoxTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_skyTextures.size(), SHADER_REGISTER(7u), REGISTER_SPACE_1);
@@ -104,15 +106,17 @@ VOID Engine::CreateRootSignature()
     CD3DX12_ROOT_PARAMETER slotRootParameter[ERootParameter::NumRootParameters];
     
     // Perfomance TIP: Order from most frequent to least frequent.
-    slotRootParameter[ERootParameter::PerObjectDataCB   ].InitAsConstantBufferView(SHADER_REGISTER(0u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */);  // a root descriptor for objects' CBVs.
-    slotRootParameter[ERootParameter::PerPassDataCB     ].InitAsConstantBufferView(SHADER_REGISTER(1u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL);                                            // a root descriptor for Pass CBV.
-    slotRootParameter[ERootParameter::MaterialDataSB    ].InitAsShaderResourceView(SHADER_REGISTER(0u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
-    slotRootParameter[ERootParameter::PointLightsDataSB ].InitAsShaderResourceView(SHADER_REGISTER(1u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gPointLights used in both shaders */);    // a srv for structured buffer with point lights' data
-    slotRootParameter[ERootParameter::SpotLightsDataSB  ].InitAsShaderResourceView(SHADER_REGISTER(2u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gSpotLights used in both shaders */);     // a srv for structured buffer with spot lights' data
-    slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                              // a descriptor table for shadow maps TextureArray.
-    slotRootParameter[ERootParameter::GBufferTextures   ].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                  // a descriptor table for GBuffer
-    slotRootParameter[ERootParameter::SkyBox            ].InitAsDescriptorTable(1u, &skyBoxTable, D3D12_SHADER_VISIBILITY_PIXEL);                                   // a descriptor table for sky
-    slotRootParameter[ERootParameter::Textures          ].InitAsDescriptorTable(1u, &textureTable, D3D12_SHADER_VISIBILITY_PIXEL);                                  // a descriptor table for diffuse textures
+    slotRootParameter[ERootParameter::PerObjectDataCB   ].InitAsConstantBufferView(SHADER_REGISTER(0u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */); // a root descriptor for objects' CBVs.
+    slotRootParameter[ERootParameter::PerPassDataCB     ].InitAsConstantBufferView(SHADER_REGISTER(1u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL);                                           // a root descriptor for Pass CBV.
+                                                                                                                                                                                                  
+    slotRootParameter[ERootParameter::MaterialDataSB    ].InitAsShaderResourceView(SHADER_REGISTER(0u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);  // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::PointLightsDataSB ].InitAsShaderResourceView(SHADER_REGISTER(1u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gPointLights used in both shaders */);   // a srv for structured buffer with point lights' data
+    slotRootParameter[ERootParameter::SpotLightsDataSB  ].InitAsShaderResourceView(SHADER_REGISTER(2u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gSpotLights used in both shaders */);    // a srv for structured buffer with spot lights' data
+    
+    slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL); // a descriptor table for shadow maps TextureArray.
+    slotRootParameter[ERootParameter::GBufferTextures   ].InitAsDescriptorTable(1u, &GBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);     // a descriptor table for GBuffer
+    slotRootParameter[ERootParameter::SkyBox            ].InitAsDescriptorTable(1u, &skyBoxTable, D3D12_SHADER_VISIBILITY_PIXEL);      // a descriptor table for sky
+    slotRootParameter[ERootParameter::Textures          ].InitAsDescriptorTable(1u, &textureTable, D3D12_SHADER_VISIBILITY_PIXEL);     // a descriptor table for diffuse textures
 
     m_rootSignature->Create(m_device.Get(), ARRAYSIZE(slotRootParameter), slotRootParameter, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 }
@@ -143,8 +147,8 @@ VOID Engine::CreateShaders()
     m_shaders[EShaderType::DefaultVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
     m_shaders[EShaderType::DefaultOpaquePS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
 
-    m_shaders[EShaderType::CascadedShadowsVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders[EShaderType::CascadedShadowsGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
+    m_shaders[EShaderType::CascadedShadowsVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::CascadedShadowsGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/CascadesShadowGS.hlsl", nullptr, "main", "gs_5_1");
 
 #pragma region DeferredShading
     m_shaders[EShaderType::DeferredGeometryVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
@@ -661,7 +665,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto brick0 = std::make_unique<Material>("brick0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
     brick0->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
-    brick0->Roughness = 0.1f;
+    brick0->Roughness = 0.8f;
     brick0->MatTransform = XMMatrixIdentity();
 
     auto grass0 = std::make_unique<Material>("grass0", MatBufferIndex++, DiffuseSrvHeapIndex++);
@@ -676,7 +680,7 @@ VOID Engine::CreateGeometryMaterials()
 
     auto tile0 = std::make_unique<Material>("tile0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
     tile0->FresnelR0 = XMFLOAT3(0.3f, 0.3f, 0.3f);
-    tile0->Roughness = 0.05f;
+    tile0->Roughness = 0.4f;
     tile0->MatTransform = XMMatrixIdentity();
     
     auto ice0 = std::make_unique<Material>("ice0", MatBufferIndex++, DiffuseSrvHeapIndex++);
@@ -854,9 +858,11 @@ VOID Engine::Reset()
 
     // Init/Reinit camera
     m_camera->Reset(75.0f, m_aspectRatio, 0.1f, 250.0f);
-    // need tests
-    //m_cascadeShadowMap->OnResize(m_width, m_height);
-    //m_GBuffer->OnResize(m_width, m_height);
+    
+    if (!m_bIsGraphicsFeaturesLoaded) return;
+
+    m_GBuffer->OnResize(m_width, m_height);
+    m_cascadeShadowMap->OnResize(2048u, 2048u);
 }
 
 VOID Engine::CreateRtvAndDsvDescriptorHeaps()
