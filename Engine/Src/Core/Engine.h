@@ -247,7 +247,7 @@ private:
 
 #pragma region TexturesAndSky
     UINT m_skyCubeSrvHeapStartIndex = 0u;
-    UINT m_diffuseSrvHeapStartIndex = 0u;
+    UINT m_texturesSrvHeapStartIndex = 0u;
     UINT m_normalSrvHeapStartIndex = 0u;
 #pragma endregion TexturesAndSky
 
