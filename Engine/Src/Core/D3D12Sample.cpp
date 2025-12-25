@@ -86,7 +86,7 @@ int D3D12Sample::Run()
     ImGui_ImplDX12_InitInfo init_info = {};
     init_info.Device = m_device.Get();
     init_info.CommandQueue = m_commandQueue->GetCommandQueue().Get();
-    init_info.NumFramesInFlight = 2u;
+    init_info.NumFramesInFlight = 3u;
     init_info.RTVFormat = BackBufferFormat;
     init_info.DSVFormat = DepthStencilFormat;
 
