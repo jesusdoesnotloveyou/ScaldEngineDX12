@@ -274,6 +274,9 @@ private:
     VOID CreateFrameResources();
     // Heaps are created if there are root descriptor tables in root signature 
     VOID CreateDescriptorHeaps();
+    VOID CreateCPUDescriptorHeap();
+    VOID CreateGPUDescriptorHeap();
+    VOID BuildGPUDescriptorHeap();
 
     VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
 

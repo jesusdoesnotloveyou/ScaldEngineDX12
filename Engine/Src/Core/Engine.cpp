@@ -494,6 +494,21 @@ VOID Engine::CreateDescriptorHeaps()
     m_device->CreateShaderResourceView(texD3DResource.Get(), &srvDesc, handle);
 }
 
+VOID Engine::CreateCPUDescriptorHeap()
+{
+    return VOID();
+}
+
+VOID Engine::CreateGPUDescriptorHeap()
+{
+    return VOID();
+}
+
+VOID Engine::BuildGPUDescriptorHeap()
+{
+    return VOID();
+}
+
 VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
 {
     auto sphereMesh = m_scene->GetBuiltInMesh(Scald::EBuiltInMeshes::SPHERE);
