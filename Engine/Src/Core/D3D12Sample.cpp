@@ -76,24 +76,24 @@ D3D12Sample::~D3D12Sample()
 {
 }
 
-//static ExampleDescriptorHeapAllocator srvHeapAlloc;
+static ExampleDescriptorHeapAllocator srvHeapAlloc;
 
 int D3D12Sample::Run()
 {
-    //srvHeapAlloc.Create(m_device.Get(), m_srvHeap.Get());
+    srvHeapAlloc.Create(m_device.Get(), m_srvHeapGPUVisible.Get());
 
-    //// Setup Platform/Renderer backends
-    //ImGui_ImplDX12_InitInfo init_info = {};
-    //init_info.Device = m_device.Get();
-    //init_info.CommandQueue = m_commandQueue->GetCommandQueue().Get();
-    //init_info.NumFramesInFlight = 2u;
-    //init_info.RTVFormat = BackBufferFormat;
-    //init_info.DSVFormat = DepthStencilFormat;
+    // Setup Platform/Renderer backends
+    ImGui_ImplDX12_InitInfo init_info = {};
+    init_info.Device = m_device.Get();
+    init_info.CommandQueue = m_commandQueue->GetCommandQueue().Get();
+    init_info.NumFramesInFlight = 3u;
+    init_info.RTVFormat = BackBufferFormat;
+    init_info.DSVFormat = DepthStencilFormat;
 
-    //init_info.SrvDescriptorHeap = m_srvHeap.Get();
-    //init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return srvHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
-    //init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return srvHeapAlloc.Free(cpu_handle, gpu_handle); };
-    //ImGui_ImplDX12_Init(&init_info);
+    init_info.SrvDescriptorHeap = m_srvHeapGPUVisible.Get();
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return srvHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
+    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return srvHeapAlloc.Free(cpu_handle, gpu_handle); };
+    ImGui_ImplDX12_Init(&init_info);
 
     // Main sample loop.
     MSG msg = { 0 };
@@ -117,13 +117,12 @@ int D3D12Sample::Run()
                 CalculateFrameStats();
 
                 // Start the Dear ImGui frame
-                //ImGui_ImplDX12_NewFrame();
-                //ImGui_ImplWin32_NewFrame();
-                //ImGui::NewFrame();
-                //ImGui::ShowDemoWindow();
-                //
-                //// Rendering
-                //ImGui::Render();
+                ImGui_ImplDX12_NewFrame();
+                ImGui_ImplWin32_NewFrame();
+                ImGui::NewFrame();
+                ImGui::ShowDemoWindow();
+                // Rendering
+                ImGui::Render();
                 
                 OnUpdate(m_timer);
                 OnRender(m_timer);
@@ -135,12 +134,12 @@ int D3D12Sample::Run()
         }
     }
 
-    /*ImGui_ImplDX12_Shutdown();
+    ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();*/
+    ImGui::DestroyContext();
 
     OnDestroy();
-    //srvHeapAlloc.Destroy();
+    srvHeapAlloc.Destroy();
 
     // Return this part of the WM_QUIT message to Windows.
     return static_cast<char>(msg.wParam);
@@ -576,6 +575,8 @@ VOID D3D12Sample::Reset()
     m_scissorRect.top = 0L;
     m_scissorRect.right = static_cast<LONG>(m_width);
     m_scissorRect.bottom = static_cast<LONG>(m_height);
+
+    m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
 }
 
 VOID D3D12Sample::Present()

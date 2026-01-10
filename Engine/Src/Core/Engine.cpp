@@ -49,6 +49,8 @@ VOID Engine::LoadGraphicsFeatures()
 {
     LoadCSMResources();
     LoadDeferredRenderingResources();
+
+    m_bIsGraphicsFeaturesLoaded = true;
 }
 
 VOID Engine::LoadCSMResources()
@@ -69,7 +71,7 @@ VOID Engine::LoadAssets()
 
     LoadScene();
     LoadTextures(commandList.Get());
-    CreateDescriptorHeaps();
+    CreateSrvAndSamplerDescriptorHeaps();
     CreateGeometry(commandList.Get());
     CreateGeometryMaterials();
     CreateRenderItems();
@@ -88,30 +90,33 @@ VOID Engine::CreateRootSignature()
     m_rootSignature = std::make_shared<RootSignature>();
 
     CD3DX12_DESCRIPTOR_RANGE cascadeShadowSrv;
-    cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
+    cascadeShadowSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, SHADER_REGISTER(0u), REGISTER_SPACE_1);
+    
+    CD3DX12_DESCRIPTOR_RANGE GBufferTable;
+    GBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, SHADER_REGISTER(1u), REGISTER_SPACE_1);
     
     CD3DX12_DESCRIPTOR_RANGE skyBoxTable;
-    skyBoxTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*skyBox texture*/1u, 2u);
+    skyBoxTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_skyTextures.size(), SHADER_REGISTER(7u), REGISTER_SPACE_1);
     
-    CD3DX12_DESCRIPTOR_RANGE texTable;
-    texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /* number of textures2D without skyBox */(UINT)m_textures.size() - 1u, 3u, 0u);
-
-    CD3DX12_DESCRIPTOR_RANGE gBufferTable;
-    gBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, 2u, 1u);
+    // Bindless unbound textures
+    CD3DX12_DESCRIPTOR_RANGE textureTable;
+    textureTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)-1, SHADER_REGISTER(8u), REGISTER_SPACE_1);
 
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[ERootParameter::NumRootParameters];
     
     // Perfomance TIP: Order from most frequent to least frequent.
-    slotRootParameter[ERootParameter::PerObjectDataCB].InitAsConstantBufferView(0u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */); // a root descriptor for objects' CBVs.
-    slotRootParameter[ERootParameter::PerPassDataCB].InitAsConstantBufferView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL);                                             // a root descriptor for Pass CBV.
-    slotRootParameter[ERootParameter::MaterialDataSB].InitAsShaderResourceView(1u, 0u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
-    slotRootParameter[ERootParameter::PointLightsDataSB].InitAsShaderResourceView(0u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
-    slotRootParameter[ERootParameter::SpotLightsDataSB].InitAsShaderResourceView(1u, 1u, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);   // a srv for structured buffer with materials' data
-    slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL);                          // a descriptor table for shadow maps array.
-    slotRootParameter[ERootParameter::GBufferTextures].InitAsDescriptorTable(1u, &gBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);                                 // a descriptor table for GBuffer
-    slotRootParameter[ERootParameter::SkyBox].InitAsDescriptorTable(1u, &skyBoxTable, D3D12_SHADER_VISIBILITY_PIXEL);                                            // a descriptor table for textures
-    slotRootParameter[ERootParameter::Textures].InitAsDescriptorTable(1u, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);                                            // a descriptor table for textures
+    slotRootParameter[ERootParameter::PerObjectDataCB   ].InitAsConstantBufferView(SHADER_REGISTER(0u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialIndex used in both shaders */); // a root descriptor for objects' CBVs.
+    slotRootParameter[ERootParameter::PerPassDataCB     ].InitAsConstantBufferView(SHADER_REGISTER(1u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL);                                           // a root descriptor for Pass CBV.
+                                                                                                                                                                                                  
+    slotRootParameter[ERootParameter::MaterialDataSB    ].InitAsShaderResourceView(SHADER_REGISTER(0u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gMaterialData used in both shaders */);  // a srv for structured buffer with materials' data
+    slotRootParameter[ERootParameter::PointLightsDataSB ].InitAsShaderResourceView(SHADER_REGISTER(1u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gPointLights used in both shaders */);   // a srv for structured buffer with point lights' data
+    slotRootParameter[ERootParameter::SpotLightsDataSB  ].InitAsShaderResourceView(SHADER_REGISTER(2u), REGISTER_SPACE_0, D3D12_SHADER_VISIBILITY_ALL /* gSpotLights used in both shaders */);    // a srv for structured buffer with spot lights' data
+    
+    slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL); // a descriptor table for shadow maps TextureArray.
+    slotRootParameter[ERootParameter::GBufferTextures   ].InitAsDescriptorTable(1u, &GBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);     // a descriptor table for GBuffer
+    slotRootParameter[ERootParameter::SkyBox            ].InitAsDescriptorTable(1u, &skyBoxTable, D3D12_SHADER_VISIBILITY_PIXEL);      // a descriptor table for sky
+    slotRootParameter[ERootParameter::Textures          ].InitAsDescriptorTable(1u, &textureTable, D3D12_SHADER_VISIBILITY_PIXEL);     // a descriptor table for diffuse textures
 
     m_rootSignature->Create(m_device.Get(), ARRAYSIZE(slotRootParameter), slotRootParameter, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 }
@@ -142,8 +147,8 @@ VOID Engine::CreateShaders()
     m_shaders[EShaderType::DefaultVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
     m_shaders[EShaderType::DefaultOpaquePS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
 
-    m_shaders[EShaderType::CascadedShadowsVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVertexShader.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders[EShaderType::CascadedShadowsGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GeometryShader.hlsl", nullptr, "main", "gs_5_1");
+    m_shaders[EShaderType::CascadedShadowsVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVS.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::CascadedShadowsGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/CascadesShadowGS.hlsl", nullptr, "main", "gs_5_1");
 
 #pragma region DeferredShading
     m_shaders[EShaderType::DeferredGeometryVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
@@ -372,45 +377,77 @@ VOID Engine::LoadScene()
 
 VOID Engine::LoadTextures(ID3D12GraphicsCommandList* pCommandList)
 {
+    m_skyTextures.reserve(1); // only one cube map for now
+    m_diffuseTextures.reserve(TextureMapsMaxCount);
+    m_normalTextures.reserve(TextureMapsMaxCount);
+
     auto brickTex = std::make_unique<Texture>("brickTex", L"./Assets/Textures/bricks.dds", m_device.Get(), pCommandList);
-    auto grassTex = std::make_unique<Texture>("grassTex", L"./Assets/Textures/grass.dds", m_device.Get(), pCommandList);
-    auto iceTex = std::make_unique<Texture>("iceTex", L"./Assets/Textures/ice.dds", m_device.Get(), pCommandList);
-    auto stoneTex = std::make_unique<Texture>("stoneTex", L"./Assets/Textures/stone.dds", m_device.Get(), pCommandList);
-    auto tileTex = std::make_unique<Texture>("tileTex", L"./Assets/Textures/tile.dds", m_device.Get(), pCommandList);
-    auto planksTex = std::make_unique<Texture>("planksTex", L"./Assets/Textures/planks.dds", m_device.Get(), pCommandList);
+    auto brickNTex = std::make_unique<Texture>("brickNTex", L"./Assets/Textures/bricks_nmap.dds", m_device.Get(), pCommandList, Texture::TextureType::NORMAL);
     
+    auto grassTex = std::make_unique<Texture>("grassTex", L"./Assets/Textures/grass.dds", m_device.Get(), pCommandList);
+    //auto grassNTex = std::make_unique<Texture>("grassNTex", L"./Assets/Textures/grass_nmap.dds", m_device.Get(), pCommandList);
+
+    auto iceTex = std::make_unique<Texture>("iceTex", L"./Assets/Textures/ice.dds", m_device.Get(), pCommandList);
+    //auto iceNTex = std::make_unique<Texture>("iceNTex", L"./Assets/Textures/ice_nmap.dds", m_device.Get(), pCommandList);
+    
+    auto stoneTex = std::make_unique<Texture>("stoneTex", L"./Assets/Textures/stone.dds", m_device.Get(), pCommandList);
+    //auto stoneNTex = std::make_unique<Texture>("stoneNTex", L"./Assets/Textures/stone_nmap.dds", m_device.Get(), pCommandList);
+    
+    auto planksTex = std::make_unique<Texture>("planksTex", L"./Assets/Textures/planks.dds", m_device.Get(), pCommandList);
+    //auto planksNTex = std::make_unique<Texture>("planksNTex", L"./Assets/Textures/planks_nmap.dds", m_device.Get(), pCommandList);
+    
+    auto tileTex = std::make_unique<Texture>("tileTex", L"./Assets/Textures/tile.dds", m_device.Get(), pCommandList);
+    auto tileNTex = std::make_unique<Texture>("tileNTex", L"./Assets/Textures/tile_nmap.dds", m_device.Get(), pCommandList, Texture::TextureType::NORMAL);
+        
     auto skyTex = std::make_unique<Texture>("skyTex", L"./Assets/Textures/snowcube1024.dds", m_device.Get(), pCommandList);
 
-    m_textures[brickTex->Name] = std::move(brickTex);
-    m_textures[grassTex->Name] = std::move(grassTex);
-    m_textures[iceTex->Name] = std::move(iceTex);
-    m_textures[stoneTex->Name] = std::move(stoneTex);
-    m_textures[tileTex->Name] = std::move(tileTex);
-    m_textures[planksTex->Name] = std::move(planksTex);
-    m_textures[skyTex->Name] = std::move(skyTex);
+    m_diffuseTextures[stoneTex->Name] = std::move(stoneTex);
+    m_diffuseTextures[brickTex->Name] = std::move(brickTex);
+    m_diffuseTextures[grassTex->Name] = std::move(grassTex);
+    m_diffuseTextures[planksTex->Name] = std::move(planksTex);
+    m_diffuseTextures[tileTex->Name] = std::move(tileTex);
+    m_diffuseTextures[iceTex->Name] = std::move(iceTex);
+
+    //m_normalTextures[stoneNTex->Name] = std::move(stoneNTex);
+    m_normalTextures[brickNTex->Name] = std::move(brickNTex);
+    //m_normalTextures[grassNTex->Name] = std::move(grassNTex);
+    //m_normalTextures[planksNTex->Name] = std::move(planksNTex);
+    m_normalTextures[tileNTex->Name] = std::move(tileNTex);
+    //m_normalTextures[iceNTex->Name] = std::move(iceNTex);
+
+    m_skyTextures[skyTex->Name] = std::move(skyTex);
 }
 
-VOID Engine::CreateDescriptorHeaps()
+VOID Engine::CreateSrvAndSamplerDescriptorHeaps()
 {
+    CreateGPUDescriptorHeap();
+    CreateCPUDescriptorHeap(); // All textures
+}
+
+VOID Engine::CreateGPUDescriptorHeap()
+{
+    // Fill the GPU descriptor heap with descriptors that never change at init time
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    // imgui stuff + csm + GBuffer                     + textures(including skyBox)
-    srvHeapDesc.NumDescriptors = /*1u +*/         1u + GBuffer::EGBufferLayer::MAX + (UINT)m_textures.size();
+    srvHeapDesc.NumDescriptors = 1024u;
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    srvHeapDesc.NodeMask = 0u;
-    ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
+    srvHeapDesc.NodeMask = 0u; // multi adapter stuff
+    ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeapGPUVisible.GetAddressOf())));
 
     m_cbvSrvUavDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-    //!!!!!! to set imgui stuff at zero index in srvHeap
-    //handle.Offset(1, m_cbvSrvUavDescriptorSize);
+    auto srvGpuStart = m_srvHeapGPUVisible->GetGPUDescriptorHandleForHeapStart();
+    auto srvCpuStart = m_srvHeapGPUVisible->GetCPUDescriptorHandleForHeapStart();
+    auto dsvCpuStart = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+    auto rtvCpuStart = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+
+    // THE FIRST DESCRIPTOR (AT ZERO INDEX) WAS ALLOCATED FOR DearImGui STUFF
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     ZeroMemory(&srvDesc, sizeof(srvDesc));
 
-    auto m_cascadeShadowMapHeapIndex = 0u;
+    m_cascadesShadowSrvHeapStartIndex = 1u;
     // configuring srv for shadow maps texture2Darray in the srv heap
     srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -421,51 +458,75 @@ VOID Engine::CreateDescriptorHeaps()
     srvDesc.Texture2DArray.ArraySize = m_cascadeShadowMap->Get()->GetDesc().DepthOrArraySize;
     srvDesc.Texture2DArray.PlaneSlice = 0u;
     srvDesc.Texture2DArray.ResourceMinLODClamp = 0.0f;
-    m_device->CreateShaderResourceView(nullptr, &srvDesc, handle);
-
-    // to offset from csm handle to next free
-    handle.Offset(1, m_cbvSrvUavDescriptorSize);
-
-    auto srvGpuStart = m_srvHeap->GetGPUDescriptorHandleForHeapStart();
-    auto srvCpuStart = m_srvHeap->GetCPUDescriptorHandleForHeapStart();
-    auto dsvCpuStart = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-    auto rtvCpuStart = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
-
-    m_cascadeShadowSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_cascadeShadowMapHeapIndex, m_cbvSrvUavDescriptorSize);
+    m_device->CreateShaderResourceView(nullptr, &srvDesc, srvCpuStart); // set shadow srv to first element of srvHeap
 
     m_cascadeShadowMap->CreateDescriptors(
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_cascadeShadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
-        CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_cascadeShadowMapHeapIndex, m_cbvSrvUavDescriptorSize),
+        CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_cascadesShadowSrvHeapStartIndex, m_cbvSrvUavDescriptorSize),
+        CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_cascadesShadowSrvHeapStartIndex, m_cbvSrvUavDescriptorSize),
         CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, m_dsvDescriptorSize));
 
-    auto GBufferHeapIndex = ++m_cascadeShadowMapHeapIndex;
-    m_GBufferTexturesSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize);
-
+    m_GBufferTexturesSrvHeapStartIndex = m_cascadesShadowSrvHeapStartIndex + 1u;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE localHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_GBufferTexturesSrvHeapStartIndex, m_cbvSrvUavDescriptorSize);
     for (auto i = 0u; i < GBuffer::EGBufferLayer::MAX; ++i)
     {
         srvDesc.Format = (i == GBuffer::EGBufferLayer::DEPTH) ? DXGI_FORMAT_R24_UNORM_X8_TYPELESS : m_GBuffer->GetBufferTextureFormat(i);
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        m_device->CreateShaderResourceView(nullptr, &srvDesc, handle);
+        m_device->CreateShaderResourceView(nullptr, &srvDesc, localHandle);
 
         auto cpuDsvRtvHandle = (i == GBuffer::EGBufferLayer::DEPTH) ? CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 2, m_dsvDescriptorSize)
             : CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvCpuStart, SwapChainFrameCount + i, m_rtvDescriptorSize);
 
-        m_GBuffer->SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize),
-            CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, GBufferHeapIndex, m_cbvSrvUavDescriptorSize),
+        m_GBuffer->SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_GBufferTexturesSrvHeapStartIndex + i, m_cbvSrvUavDescriptorSize),
+            CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_GBufferTexturesSrvHeapStartIndex + i, m_cbvSrvUavDescriptorSize),
             cpuDsvRtvHandle, i);
 
-        handle.Offset(1, m_cbvSrvUavDescriptorSize);
-        ++GBufferHeapIndex;
+        localHandle.Offset(1, m_cbvSrvUavDescriptorSize);
+    }
+    m_GBuffer->CreateDescriptors();
+
+    m_skyCubeSrvHeapStartIndex = m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::MAX;
+    localHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, m_skyCubeSrvHeapStartIndex, m_cbvSrvUavDescriptorSize);
+    for (auto& e : m_skyTextures)
+    {
+        auto& texD3DResource = e.second->Resource;
+        srvDesc.Format = texD3DResource->GetDesc().Format;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.TextureCube.MostDetailedMip = 0u;
+        srvDesc.TextureCube.MipLevels = texD3DResource->GetDesc().MipLevels;
+        srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+        m_device->CreateShaderResourceView(texD3DResource.Get(), &srvDesc, localHandle);
+
+        localHandle.Offset(1, m_cbvSrvUavDescriptorSize);
     }
 
-    m_GBuffer->CreateDescriptors();
-    auto TexturesHeapIndex = GBufferHeapIndex;
-    m_texturesSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, TexturesHeapIndex, m_cbvSrvUavDescriptorSize);
+    // For Root Signature and descriptors copying from cpu heap to gpu heap in runtime
+    m_texturesSrvHeapStartIndex = m_skyCubeSrvHeapStartIndex + (UINT)m_skyTextures.size();
+    m_normalSrvHeapStartIndex = m_texturesSrvHeapStartIndex + TextureMapsMaxCount;
+}
 
-    for (auto& e : m_textures)
+VOID Engine::CreateCPUDescriptorHeap()
+{
+    // Fill the CPU descriptor heap with textures descriptors
+    D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+    ZeroMemory(&srvHeapDesc, sizeof(srvHeapDesc));
+    srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    srvHeapDesc.NumDescriptors = 4096u;
+    srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    srvHeapDesc.NodeMask = 0u; // multi adapter stuff
+    ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_srvHeapCPUOnly.GetAddressOf())));
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE localHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeapCPUOnly->GetCPUDescriptorHandleForHeapStart());
+    
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    ZeroMemory(&srvDesc, sizeof(srvDesc));
+
+    UINT cpuIndex = 0u;
+
+    for (auto& e : m_diffuseTextures)
     {
-        if (e.first == "skyTex") continue;
+        e.second->CPUDescHeapIndex = cpuIndex++;
         auto& texD3DResource = e.second->Resource;
         srvDesc.Format = texD3DResource->GetDesc().Format;
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -474,39 +535,31 @@ VOID Engine::CreateDescriptorHeaps()
         srvDesc.Texture2D.MipLevels = texD3DResource->GetDesc().MipLevels;
         srvDesc.Texture2D.PlaneSlice;
         srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+        m_device->CreateShaderResourceView(texD3DResource.Get(), &srvDesc, localHandle);
 
-        m_device->CreateShaderResourceView(texD3DResource.Get(), &srvDesc, handle);
-
-        handle.Offset(1, m_cbvSrvUavDescriptorSize);
-        ++TexturesHeapIndex;
+        localHandle.Offset(1, m_cbvSrvUavDescriptorSize);
     }
 
-    auto skyCubeHeapIndex = TexturesHeapIndex;
-    m_skyCubeSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, skyCubeHeapIndex, m_cbvSrvUavDescriptorSize);
+    for (auto& e : m_normalTextures)
+    {
+        e.second->CPUDescHeapIndex = cpuIndex++;
+        auto& texD3DResource = e.second->Resource;
+        srvDesc.Format = texD3DResource->GetDesc().Format;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Texture2D.MostDetailedMip = 0u;
+        srvDesc.Texture2D.MipLevels = texD3DResource->GetDesc().MipLevels;
+        srvDesc.Texture2D.PlaneSlice;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+        m_device->CreateShaderResourceView(texD3DResource.Get(), &srvDesc, localHandle);
 
-    auto& texD3DResource = m_textures.at("skyTex")->Resource;
-    srvDesc.Format = texD3DResource->GetDesc().Format;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.TextureCube.MostDetailedMip = 0u;
-    srvDesc.TextureCube.MipLevels = texD3DResource->GetDesc().MipLevels;
-    srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-    m_device->CreateShaderResourceView(texD3DResource.Get(), &srvDesc, handle);
-}
-
-VOID Engine::CreateCPUDescriptorHeap()
-{
-    return VOID();
-}
-
-VOID Engine::CreateGPUDescriptorHeap()
-{
-    return VOID();
+        localHandle.Offset(1, m_cbvSrvUavDescriptorSize);
+    }
 }
 
 VOID Engine::BuildGPUDescriptorHeap()
 {
-    return VOID();
+    
 }
 
 VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
@@ -564,6 +617,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
@@ -571,6 +625,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
@@ -578,6 +633,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
@@ -585,6 +641,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < sphereMesh.LODVertices[0].size(); ++i, ++k)
@@ -592,6 +649,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = sphereMesh.LODVertices[0][i].position;
         vertices[k].normal = sphereMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = sphereMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = sphereMesh.LODVertices[0][i].tangent;
     }
 
     for (size_t i = 0; i < gridMesh.LODVertices[0].size(); ++i, ++k)
@@ -599,6 +657,7 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
         vertices[k].position = gridMesh.LODVertices[0][i].position;
         vertices[k].normal = gridMesh.LODVertices[0][i].normal;
         vertices[k].texCoord = gridMesh.LODVertices[0][i].texCoord;
+        vertices[k].tangent = gridMesh.LODVertices[0][i].tangent;
     }
 
     std::vector<uint16_t> indices;
@@ -638,55 +697,47 @@ VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
 VOID Engine::CreateGeometryMaterials()
 {
     // Should probably be global scene variables
-    int MaterialBufferIndex = 0;
+    int MatBufferIndex = 0;
     int DiffuseSrvHeapIndex = 0;
+    int NormalSrvHeapIndex = 0;
 
     // DiffuseAlbedo in materials is set (1,1,1,1) by default to not affect texture diffuse albedo
-    auto flame0 = std::make_unique<Material>("flame0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
-    //flame0->DiffuseAlbedo = XMFLOAT4(Colors::Gold);
-    flame0->FresnelR0 = XMFLOAT3(0.01f, 0.01, 0.01f);
-    flame0->Roughness = 0.7f;
-    flame0->MatTransform = XMMatrixIdentity();
-
-    auto sand0 = std::make_unique<Material>("sand0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
-    //sand0->DiffuseAlbedo = XMFLOAT4(Colors::Brown);
-    sand0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
-    sand0->Roughness = 0.1f;
-    sand0->MatTransform = XMMatrixIdentity();
-
-    auto stone0 = std::make_unique<Material>("stone0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
-    //stone0->DiffuseAlbedo = XMFLOAT4(Colors::Orchid);
-    stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-    stone0->Roughness = 0.5f;
+    auto stone0 = std::make_unique<Material>("stone0", MatBufferIndex++, DiffuseSrvHeapIndex++/*, NormalSrvHeapIndex++*/);
+    stone0->FresnelR0 = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    stone0->Roughness = 1.0f;
     stone0->MatTransform = XMMatrixIdentity();
 
-    auto ground0 = std::make_unique<Material>("ground0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
-    //ground0->DiffuseAlbedo = XMFLOAT4(Colors::Green);
-    ground0->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-    ground0->Roughness = 0.3f;
-    ground0->MatTransform = XMMatrixIdentity();
+    auto brick0 = std::make_unique<Material>("brick0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
+    brick0->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
+    brick0->Roughness = 0.95f;
+    brick0->MatTransform = XMMatrixIdentity();
 
-    auto ice0 = std::make_unique<Material>("ice0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
-    ice0->FresnelR0 = XMFLOAT3(0.6f, 0.6f, 0.6f);
+    auto grass0 = std::make_unique<Material>("grass0", MatBufferIndex++, DiffuseSrvHeapIndex++/*, NormalSrvHeapIndex++*/);
+    grass0->FresnelR0 = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    grass0->Roughness = 1.0f;
+    grass0->MatTransform = XMMatrixIdentity();
+
+    auto planks0 = std::make_unique<Material>("planks0", MatBufferIndex++, DiffuseSrvHeapIndex++/*, NormalSrvHeapIndex++*/);
+    planks0->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
+    planks0->Roughness = 0.8f;
+    planks0->MatTransform = XMMatrixIdentity();
+
+    auto tile0 = std::make_unique<Material>("tile0", MatBufferIndex++, DiffuseSrvHeapIndex++, NormalSrvHeapIndex++);
+    tile0->FresnelR0 = XMFLOAT3(0.3f, 0.3f, 0.3f);
+    tile0->Roughness = 0.4f;
+    tile0->MatTransform = XMMatrixIdentity();
+
+    auto ice0 = std::make_unique<Material>("ice0", MatBufferIndex++, DiffuseSrvHeapIndex++/*, NormalSrvHeapIndex++*/);
+    ice0->FresnelR0 = XMFLOAT3(0.4f, 0.4f, 0.4f);
     ice0->Roughness = 0.08f;
     ice0->MatTransform = XMMatrixIdentity();
 
-    auto iron0 = std::make_unique<Material>("iron0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
-    iron0->FresnelR0 = XMFLOAT3(0.3f, 0.3f, 0.3f);
-    iron0->Roughness = 0.05f;
-    iron0->MatTransform = XMMatrixIdentity();
-
-    auto sky0 = std::make_unique<Material>("sky0", MaterialBufferIndex++, DiffuseSrvHeapIndex++);
-    sky0->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
-    sky0->Roughness = 1.0f;
-
-    m_materials["flame0"] = std::move(flame0);
-    m_materials["sand0"] = std::move(sand0);
-    m_materials["stone0"] = std::move(stone0);
-    m_materials["ground0"] = std::move(ground0);
-    m_materials["iron0"] = std::move(iron0);
-    m_materials["ice0"] = std::move(ice0);
-    m_materials["sky0"] = std::move(sky0);
+    m_materials[stone0->Name] = std::move(stone0);
+    m_materials[brick0->Name] = std::move(brick0);
+    m_materials[grass0->Name] = std::move(grass0);
+    m_materials[planks0->Name] = std::move(planks0);
+    m_materials[tile0->Name] = std::move(tile0);
+    m_materials[ice0->Name] = std::move(ice0);
 }
 
 VOID Engine::CreateSceneObjects()
@@ -702,19 +753,20 @@ VOID Engine::CreateRenderItems()
     int ObjectCBIndex = 0;
 
     auto sunRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
-    sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+    sunRenderItem->World = XMMatrixScaling(1.5f, 1.5f, 1.5f);
     sunRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     sunRenderItem->Geo = m_geometries.at("solarSystem").get();
-    sunRenderItem->Mat = m_materials.at("flame0").get();
+    sunRenderItem->Mat = m_materials.at("stone0").get();
     sunRenderItem->IndexCount = sunRenderItem->Geo->DrawArgs.at("sun").IndexCount;
     sunRenderItem->StartIndexLocation = sunRenderItem->Geo->DrawArgs.at("sun").StartIndexLocation;
     sunRenderItem->BaseVertexLocation = sunRenderItem->Geo->DrawArgs.at("sun").BaseVertexLocation;
     sunRenderItem->Bounds = sunRenderItem->Geo->DrawArgs.at("sun").Bounds;
 
     auto mercuryRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
-    mercuryRenderItem->World = XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(2.0f, 0.0f, 0.0f);
+    mercuryRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 5.0f);
+    mercuryRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);;
     mercuryRenderItem->Geo = m_geometries.at("solarSystem").get();
-    mercuryRenderItem->Mat = m_materials.at("sand0").get();
+    mercuryRenderItem->Mat = m_materials.at("brick0").get();
     mercuryRenderItem->IndexCount = mercuryRenderItem->Geo->DrawArgs.at("mercury").IndexCount;
     mercuryRenderItem->StartIndexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").StartIndexLocation;
     mercuryRenderItem->BaseVertexLocation = mercuryRenderItem->Geo->DrawArgs.at("mercury").BaseVertexLocation;
@@ -724,7 +776,7 @@ VOID Engine::CreateRenderItems()
     venusRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(3.0f, 0.0f, 3.0f);
     venusRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     venusRenderItem->Geo = m_geometries.at("solarSystem").get();
-    venusRenderItem->Mat = m_materials.at("stone0").get();
+    venusRenderItem->Mat = m_materials.at("grass0").get();
     venusRenderItem->IndexCount = venusRenderItem->Geo->DrawArgs.at("venus").IndexCount;
     venusRenderItem->StartIndexLocation = venusRenderItem->Geo->DrawArgs.at("venus").StartIndexLocation;
     venusRenderItem->BaseVertexLocation = venusRenderItem->Geo->DrawArgs.at("venus").BaseVertexLocation;
@@ -734,17 +786,17 @@ VOID Engine::CreateRenderItems()
     earthRenderItem->World = XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(4.0f, 0.0f, 4.0f);
     earthRenderItem->TexTransform = XMMatrixScaling(8.0f, 8.0f, 1.0f);
     earthRenderItem->Geo = m_geometries.at("solarSystem").get();
-    earthRenderItem->Mat = m_materials.at("ground0").get();
+    earthRenderItem->Mat = m_materials.at("planks0").get();
     earthRenderItem->IndexCount = earthRenderItem->Geo->DrawArgs.at("earth").IndexCount;
     earthRenderItem->StartIndexLocation = earthRenderItem->Geo->DrawArgs.at("earth").StartIndexLocation;
     earthRenderItem->BaseVertexLocation = earthRenderItem->Geo->DrawArgs.at("earth").BaseVertexLocation;
     earthRenderItem->Bounds = earthRenderItem->Geo->DrawArgs.at("earth").Bounds;
 
     auto marsRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
-    marsRenderItem->World = XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(5.0f, 0.0f, 5.0f);
+    marsRenderItem->World = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(8.0f, 0.0f, 8.0f);
     marsRenderItem->TexTransform = XMMatrixScaling(4.0f, 4.0f, 1.0f);
     marsRenderItem->Geo = m_geometries.at("solarSystem").get();
-    marsRenderItem->Mat = m_materials.at("iron0").get();
+    marsRenderItem->Mat = m_materials.at("tile0").get();
     marsRenderItem->IndexCount = marsRenderItem->Geo->DrawArgs.at("mars").IndexCount;
     marsRenderItem->StartIndexLocation = marsRenderItem->Geo->DrawArgs.at("mars").StartIndexLocation;
     marsRenderItem->BaseVertexLocation = marsRenderItem->Geo->DrawArgs.at("mars").BaseVertexLocation;
@@ -764,7 +816,7 @@ VOID Engine::CreateRenderItems()
     m_skyRenderItem = std::make_unique<RenderItem>(ObjectCBIndex++);
     m_skyRenderItem->World = XMMatrixScaling(5000.0f, 5000.0f, 5000.0f);
     m_skyRenderItem->TexTransform = XMMatrixIdentity();
-    m_skyRenderItem->Mat = m_materials.at("sky0").get();
+    //m_skyRenderItem->Mat = m_materials.at("sky0").get();
     m_skyRenderItem->Geo = m_geometries["skySphere"].get();
 
     m_skyRenderItem->IndexCount = (UINT)sphereMesh.LODIndices[0].size();
@@ -849,10 +901,12 @@ VOID Engine::Reset()
     Super::Reset();
 
     // Init/Reinit camera
-    m_camera->Reset(75.0f, m_aspectRatio, 1.0f, 250.0f);
-    // need tests
-    //m_cascadeShadowMap->OnResize(m_width, m_height);
-    //m_GBuffer->OnResize(m_width, m_height);
+    m_camera->Reset(75.0f, m_aspectRatio, 0.1f, 250.0f);
+    
+    if (!m_bIsGraphicsFeaturesLoaded) return;
+
+    m_GBuffer->OnResize(m_width, m_height);
+    m_cascadeShadowMap->OnResize(2048u, 2048u);
 }
 
 VOID Engine::CreateRtvAndDsvDescriptorHeaps()
@@ -925,7 +979,6 @@ void Engine::OnRender(const ScaldTimer& st)
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList(commandList.Get());
 
-    //ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
     // Execute the command list.
     m_commandQueue->ExecuteCommandList(commandList);
 
@@ -979,26 +1032,29 @@ void Engine::OnKeyUp(UINT8 key)
 void Engine::OnKeyboardInput(const ScaldTimer& st)
 {
     const float dt = st.DeltaTime();
+    auto cameraSpeed = 10.0f;
 
 #pragma region CameraMovement
+    if (GetAsyncKeyState(VK_LSHIFT) & 0x8000)
+        cameraSpeed *= 2.5f;
 
     if (GetAsyncKeyState('W') & 0x8000)
-        m_camera->MoveForward(10.0f * dt);
+        m_camera->MoveForward(cameraSpeed * dt);
     
     if (GetAsyncKeyState('S') & 0x8000)
-        m_camera->MoveForward(-10.0f * dt);
+        m_camera->MoveForward(-cameraSpeed * dt);
 
     if (GetAsyncKeyState('A') & 0x8000)
-        m_camera->MoveRight(-10.0f * dt);
+        m_camera->MoveRight(-cameraSpeed * dt);
 
     if (GetAsyncKeyState('D') & 0x8000)
-        m_camera->MoveRight(10.0f * dt);
+        m_camera->MoveRight(cameraSpeed * dt);
 
     if (GetAsyncKeyState('Q') & 0x8000)
-        m_camera->MoveUp(-8.f * dt);
+        m_camera->MoveUp(-cameraSpeed * dt);
 
     if (GetAsyncKeyState('E') & 0x8000)
-        m_camera->MoveUp(8.f * dt);
+        m_camera->MoveUp(cameraSpeed * dt);
 
 #pragma endregion CameraMovement
 
@@ -1058,7 +1114,6 @@ void Engine::UpdateObjectsCB(const ScaldTimer& st)
         XMStoreFloat4x4(&m_perObjectCBData.World, transposeWorld);
         XMStoreFloat4x4(&m_perObjectCBData.InvTransposeWorld, XMMatrixTranspose(XMMatrixInverse(&det, transposeWorld)));
         XMStoreFloat4x4(&m_perObjectCBData.TexTransform, XMMatrixTranspose(m_skyRenderItem->TexTransform));
-        m_perObjectCBData.MaterialIndex = m_skyRenderItem->Mat->MatBufferIndex;
 
         objectCB->CopyData(m_skyRenderItem->ObjCBIndex, m_perObjectCBData);
         m_skyRenderItem->NumFramesDirty--;
@@ -1078,7 +1133,8 @@ void Engine::UpdateMaterialBuffer(const ScaldTimer& st)
             m_perMaterialSBData.FresnelR0 = mat->FresnelR0;
             m_perMaterialSBData.Roughness = mat->Roughness;
             XMStoreFloat4x4(&m_perMaterialSBData.MatTransform, XMMatrixTranspose(mat->MatTransform));
-            m_perMaterialSBData.DiffusseMapIndex = mat->DiffuseSrvHeapIndex;
+            m_perMaterialSBData.DiffuseMapIndex = mat->DiffuseSrvHeapIndex;
+            m_perMaterialSBData.NormalMapIndex = mat->NormalSrvHeapIndex;
 
             currMaterialDataSB->CopyData(mat->MatBufferIndex, m_perMaterialSBData);
 
@@ -1211,7 +1267,7 @@ VOID Engine::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->SetGraphicsRootSignature(m_rootSignature->Get());
 
     // Access for setting and using root descriptor table
-    ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeap.Get() };
+    ID3D12DescriptorHeap* descriptorHeaps[] = { m_srvHeapGPUVisible.Get() };
     pCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
     RenderDepthOnlyPass(pCommandList);
@@ -1263,7 +1319,7 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
     auto currFrameGPUVirtualAddress = ScaldUtil::GetGPUVirtualAddress(currFramePassCB->GetGPUVirtualAddress(), passCBByteSize, static_cast<UINT>(EPassType::DeferredGeometry));
-    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFramePassCB->GetGPUVirtualAddress() + passCBByteSize); // second element contains data for geometry pass
+    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFrameGPUVirtualAddress);
 
     // Bind all the materials used in this scene. For structured buffers, we can bypass the heap and set as a root descriptor.
     auto matBuffer = m_currFrameResource->MaterialSB->Get();
@@ -1271,7 +1327,8 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
 
     // Bind all the textures used in this scene. Observe that we only have to specify the first descriptor in the table.  
     // The root signature knows how many descriptors are expected in the table.
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, m_texturesSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::Textures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeapGPUVisible->GetGPUDescriptorHandleForHeapStart(), m_texturesSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
+    //pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::NormalTextures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_normalSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
 #pragma endregion BypassResources
     
     // start of the GBuffer rtvs in rtvHeap
@@ -1327,12 +1384,14 @@ void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandLis
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
     auto currFrameGPUVirtualAddress = ScaldUtil::GetGPUVirtualAddress(currFramePassCB->GetGPUVirtualAddress(), passCBByteSize, static_cast<UINT>(EPassType::DeferredLighting));
     pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFrameGPUVirtualAddress);
+    
+    auto srvGpuStart = m_srvHeapGPUVisible->GetGPUDescriptorHandleForHeapStart();
     // Set shaadow map texture for main pass
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, m_cascadeShadowSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_cascadesShadowSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
     // Bind GBuffer textures
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_GBufferTexturesSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
     // Bind SkyBox for sky reflections
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::SkyBox, m_skyCubeSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::SkyBox, CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, m_skyCubeSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
 #pragma endregion BypassResources
 
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredDirectional).Get());
@@ -1349,15 +1408,11 @@ void Engine::DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFrameGPUVirtualAddress);
 
     // Bind GBuffer textures
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, m_GBufferTexturesSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeapGPUVisible->GetGPUDescriptorHandleForHeapStart(), m_GBufferTexturesSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
 
     // !!! HACK (TO DRAW EVEN IF FRUSTUM INTERSECTS LIGHT VOLUME)
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPointWithinFrustum).Get());
     DrawInstancedRenderItems(pCommandList, m_pointLights);
-
-    //auto transition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    //// Indicate that the back buffer will now be used to present.
-    //pCommandList->ResourceBarrier(1u, &transition);
 }
 
 void Engine::DeferredSpotLightPass(ID3D12GraphicsCommandList* pCommandList)
@@ -1370,6 +1425,7 @@ void Engine::RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList)
     // forward-like
     // RenderTransparencyPass(pCommandList);
     RenderSkyBoxPass(pCommandList);
+    RenderUI(pCommandList);
 
     // Close accumulation buffer, that was opened in the light pass and indicate that the back buffer will now be used to present.
     TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -1395,11 +1451,16 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFrameGPUVirtualAddress);
 
     // Bind SkyBox texture
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::SkyBox, m_skyCubeSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::SkyBox, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeapGPUVisible->GetGPUDescriptorHandleForHeapStart(), m_skyCubeSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::Sky).Get());
     DrawRenderItem(pCommandList, m_skyRenderItem);
     
     TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ);
+}
+
+void Engine::RenderUI(ID3D12GraphicsCommandList* pCommandList)
+{
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
 }
 
 void Engine::DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& ri)

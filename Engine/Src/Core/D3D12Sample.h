@@ -3,6 +3,7 @@
 #include "Common/DXHelper.h"
 #include "Common/ScaldTimer.h"
 #include "Win32App.h"
+//#include "DescriptorHeaps.h"
 
 // target_link_libraries(${PROJECT_NAME} PRIVATE DirectXTK d3dcompiler dxguid dxgi d3d11 assimp)
 //#pragma comment(lib, "d3dcompiler.lib")
@@ -120,9 +121,11 @@ protected:
 
     ComPtr<IDXGIAdapter3> m_hardwareAdapter;
 
+    //DescriptorHeaps
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for shader resources
+    ComPtr<ID3D12DescriptorHeap> m_srvHeapGPUVisible; // Heap for shader resources per frame
+    ComPtr<ID3D12DescriptorHeap> m_srvHeapCPUOnly; // Heap for shader resources
 
     std::shared_ptr<CommandQueue> m_commandQueue = nullptr;
     // Temporary allocator that is needed only for initialization stage (but could be used for smth else)
