@@ -116,15 +116,37 @@ float3 ComputeSpecularReflections(float3 toEyeW, float3 normalW, Material mat)
     return (mat.Shininess * fresnelFactor * reflectionColor.rgb);
 }
 
-float3 ComputeWorldPos(float3 texcoord)
+float3 ComputeWorldPos(float3 texCoord)
 {
-    float depth = gGBuffer[G_DEPTH].Load(int3(texcoord)).r;
+    float depth = gGBuffer[G_DEPTH].Load(int3(texCoord)).r;
 
-    float2 uv = texcoord.xy / gRTSize;
+    float2 uv = texCoord.xy / gRTSize;
     float4 ndc = float4(uv.x * 2.0f - 1.0f, 1.0f - 2.0f * uv.y, depth, 1.0f);
     float4 worldPos = mul(ndc, gInvViewProj);
     worldPos.xyz /= worldPos.w;
     return worldPos.xyz;
+}
+
+struct GBufferPixelData
+{
+    float4 diffuse;
+    float4 ao;
+    float4 normal;
+    float4 specular;
+    float2 motion;
+};
+
+GBufferPixelData FetchGBufferData(float4 posH)
+{
+    GBufferPixelData data = (GBufferPixelData) 0;
+    
+    data.diffuse = gGBuffer[G_DIFF_ALBEDO].Load(posH.xyz);
+    data.ao = gGBuffer[G_AMB_OCCL].Load(posH.xyz);
+    data.normal = gGBuffer[G_NORMAL].Load(posH.xyz);
+    data.specular = gGBuffer[G_SPECULAR].Load(posH.xyz);
+    data.motion = gGBuffer[G_MOTION_VEC].Load(posH.xyz);
+    
+    return data;
 }
 
 float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, float3 tangentW)
