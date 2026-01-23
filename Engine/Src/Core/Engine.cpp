@@ -1367,6 +1367,11 @@ void Engine::DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList)
 
     // !!! HACK (TO DRAW EVEN IF FRUSTUM INTERSECTS LIGHT VOLUME)
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPointWithinFrustum).Get());
+
+    // Set the instance buffer to use for this render-item.  For structured buffers, we can bypass the heap and set as a root descriptor.
+    auto instanceBuffer = m_currFrameResource->PointLightSB->Get();
+    pCommandList->SetGraphicsRootShaderResourceView(ERootParameter::PointLightsDataSB, instanceBuffer->GetGPUVirtualAddress());
+
     DrawInstancedRenderItem(pCommandList, m_pointLightItem);
 }
 
@@ -1462,15 +1467,6 @@ void Engine::DrawInstancedRenderItem(ID3D12GraphicsCommandList* pCommandList, co
     pCommandList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
     pCommandList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
     pCommandList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
-
-    // Set the instance buffer to use for this render-item.  For structured buffers, we can bypass 
-    // the heap and set as a root descriptor.
-    auto instanceBuffer = m_currFrameResource->PointLightSB->Get();
-
-    // now we set only objects' cbv per item, material data is set per pass
-    // we get material data by index from structured buffer
-    pCommandList->SetGraphicsRootShaderResourceView(ERootParameter::PointLightsDataSB, instanceBuffer->GetGPUVirtualAddress());
-
     pCommandList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
 }
 

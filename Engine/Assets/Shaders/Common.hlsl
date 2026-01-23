@@ -144,7 +144,7 @@ GBufferPixelData FetchGBufferData(float4 posH)
     data.ao = gGBuffer[G_AMB_OCCL].Load(posH.xyz);
     data.normal = gGBuffer[G_NORMAL].Load(posH.xyz);
     data.specular = gGBuffer[G_SPECULAR].Load(posH.xyz);
-    data.motion = gGBuffer[G_MOTION_VEC].Load(posH.xyz);
+    data.motion = gGBuffer[G_MOTION_VEC].Load(posH.xyz).xy;
     
     return data;
 }
