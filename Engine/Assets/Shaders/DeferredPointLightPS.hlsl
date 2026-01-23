@@ -13,22 +13,20 @@ float4 main(PSInput input) : SV_TARGET
     
     InstanceData instData = gPointLights[input.iInstanceID];
     
-    float4 diffuseAlbedo = gGBuffer[G_DIFF_ALBEDO].Load(input.iPosH.xyz);
-    float4 ambientOcclusion = gGBuffer[G_AMB_OCCL].Load(input.iPosH.xyz);
-    float4 normalTex = gGBuffer[G_NORMAL].Load(input.iPosH.xyz);
-    float4 specularTex = gGBuffer[G_SPECULAR].Load(input.iPosH.xyz);
-    float2 motionVectorsTex = gGBuffer[G_MOTION_VEC].Load(input.iPosH.xyz).xy;
+    GBufferPixelData gbuffer = FetchGBufferData(input.iPosH);
+    
     float3 posW = ComputeWorldPos(float3(texCoord, 0.0f));
     
-    float3 fresnelR0 = specularTex.xyz;
-    const float shininess = exp2(specularTex.a * 10.5f) * normalTex.a;
+    float3 fresnelR0 = gbuffer.specular.xyz;
+    const float shininess = exp2(gbuffer.specular.a * 10.5f) * gbuffer.normal.a;
     
-    Material mat = { diffuseAlbedo, fresnelR0, shininess };
+    Material mat = { gbuffer.diffuse, fresnelR0, shininess };
     
     float3 toEye = gEyePos - posW;
     float3 viewDir = toEye / length(toEye);
     
-    float3 pointLight = CalcPointLight(instData.gLight, normalTex.xyz, posW, viewDir, mat);
+    float3 pointLight = CalcPointLight(instData.gLight, gbuffer.normal.xyz, posW, viewDir, mat);
+    
     // Does not work properly
     //pointLight += ComputeSpecularReflections(toEye, N, mat);
     
