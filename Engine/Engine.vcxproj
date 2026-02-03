@@ -95,6 +95,7 @@
     <ClInclude Include="Src\Common\ScaldCoreDefines.h" />
     <ClInclude Include="Src\Common\VertexTypes.h" />
     <ClInclude Include="Src\Core\CommandQueue.h" />
+    <ClInclude Include="Src\Core\Mesh.h" />
     <ClInclude Include="Src\Core\RootSignature.h" />
     <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />

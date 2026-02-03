@@ -165,13 +165,16 @@ public:
 
 private:
     void OnKeyboardInput(const ScaldTimer& st);
+
     void UpdateObjectsCB(const ScaldTimer& st);
+
     void UpdateMaterialBuffer(const ScaldTimer& st);
     void UpdateLightsBuffer(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
+    
     void UpdateShadowPassCB(const ScaldTimer& st);
     void UpdateGeometryPassCB(const ScaldTimer& st);
-    void UpdateMainPassCB(const ScaldTimer& st);
+    void UpdateDeferredPassCB(const ScaldTimer& st);
     
 private:
 #pragma region Shadows
@@ -190,6 +193,10 @@ private:
 #pragma endregion DeferredShading
     void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderUI(ID3D12GraphicsCommandList* pCommandList);
+
+    void DrawMesh(ID3D12GraphicsCommandList* pCommandList);
+    void DrawMeshes(ID3D12GraphicsCommandList* pCommandList);
+    void DrawInstancedMeshes(ID3D12GraphicsCommandList* pCommandList);
 
     void DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& renderItem);
     void DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);

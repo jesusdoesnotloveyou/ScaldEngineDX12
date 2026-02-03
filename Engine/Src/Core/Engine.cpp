@@ -924,7 +924,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
     UpdateShadowPassCB(st); // pass
     
     UpdateGeometryPassCB(st); // pass
-    UpdateMainPassCB(st); // pass
+    UpdateDeferredPassCB(st); // pass
 }
 
 // Render the scene.
@@ -1190,7 +1190,7 @@ void Engine::UpdateGeometryPassCB(const ScaldTimer& st)
     currPassCB->CopyData(static_cast<int>(EPassType::DeferredGeometry), m_geometryPassCBData);
 }
 
-void Engine::UpdateMainPassCB(const ScaldTimer& st)
+void Engine::UpdateDeferredPassCB(const ScaldTimer& st)
 {
     XMMATRIX view = m_camera->GetViewMatrix();
     XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
@@ -1421,6 +1421,36 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
 void Engine::RenderUI(ID3D12GraphicsCommandList* pCommandList)
 {
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
+}
+
+void Engine::DrawMesh(ID3D12GraphicsCommandList* pCommandList, const Mesh& mesh)
+{
+    auto currIBV = mesh.IndexBufferView();
+    auto currVBV = mesh.VertexBufferView();
+
+    pCommandList->IASetPrimitiveTopology(mesh.PrimitiveTopologyType);
+    pCommandList->IASetVertexBuffers(0u, 1u, &currVBV);
+    pCommandList->IASetIndexBuffer(&currIBV);
+
+    //[likely]
+    if (currIBV)
+    {
+        pCommandList->DrawIndexedInstanced(mesh.IndexCount, 1u, 0u, 0, 0u);
+    }
+    else
+    {
+        pCommandList->DrawInstanced(mesh.VertexCount, 1u, 0u, 0u);
+    }
+
+}
+
+void Engine::DrawMeshes(ID3D12GraphicsCommandList* pCommandList)
+{
+    
+}
+
+void Engine::DrawInstancedMeshes(ID3D12GraphicsCommandList* pCommandList)
+{
 }
 
 void Engine::DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& ri)

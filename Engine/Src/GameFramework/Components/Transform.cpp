@@ -16,6 +16,11 @@ Scald::Transform::~Transform() noexcept
 
 void Scald::Transform::OnUpdate()
 {
+	if (!m_bIsDirty) return;
+
+	m_world = XMMatrixScaling()
+
+	m_bIsDirty = false;
 }
 
 void Scald::Transform::OnAttach()
