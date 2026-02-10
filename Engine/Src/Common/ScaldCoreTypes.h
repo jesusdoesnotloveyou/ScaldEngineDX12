@@ -24,8 +24,8 @@ enum class EPassType : UINT
 #define MaxCascades 4
 
 #define MaxDirLights 1u
-#define MaxPointLights 128u
-#define MaxSpotLights 128u
+#define MaxPointLights 2048u
+#define MaxSpotLights 2048u
 #define MaxLightsPool (MaxPointLights + MaxSpotLights)
 
 struct CascadesShadows
@@ -110,6 +110,26 @@ struct PassConstants
 	uint32_t NumPointLights = 0u;
 
 	LightData DirLight;
+};
+
+struct SSAOConstants
+{
+	XMFLOAT4X4 View;
+	XMFLOAT4X4 Proj;
+	XMFLOAT4X4 InvProj;
+	XMFLOAT4X4 ProjTex;
+	XMFLOAT4   OffsetVectors[14];
+
+	// For SSAOBlur.hlsl
+	XMFLOAT4 BlurWeights[3];
+
+	XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
+
+	// Coordinates given in view space.
+	float OcclusionRadius = 0.5f;
+	float OcclusionFadeStart = 0.2f;
+	float OcclusionFadeEnd = 2.0f;
+	float SurfaceEpsilon = 0.05f;
 };
 
 // Structured buffers
