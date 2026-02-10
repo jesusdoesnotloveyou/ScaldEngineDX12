@@ -114,8 +114,8 @@ public:
         
         DeferredGeometry,
         Wireframe,
-        ScreenSpaceAO,
-        ScreenSpaceAOBlur,
+        Ssao,
+        SsaoBlur,
 
         DeferredDirectional,
         DeferredPointWithinFrustum,
@@ -138,6 +138,11 @@ public:
         CascadedShadowsVS,
         CascadedShadowsGS,
 
+        SsaoVS,
+        SsaoPS,
+        SsaoBlurVS,
+        SsaoBlurPS,
+
         DeferredGeometryVS,
         DeferredGeometryPS,
         DeferredDirVS,
@@ -148,7 +153,7 @@ public:
         SkyBoxVS,
         SkyBoxPS,
 
-        NumShaders = 13U
+        NumShaders
     };
 
 public:
@@ -168,10 +173,14 @@ public:
 
 private:
     void OnKeyboardInput(const ScaldTimer& st);
+    
     void UpdateObjectsCB(const ScaldTimer& st);
     void UpdateMaterialBuffer(const ScaldTimer& st);
     void UpdateLightsBuffer(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
+
+    void UpdateSsaoCB(const ScaldTimer& st);
+
     void UpdateShadowPassCB(const ScaldTimer& st);
     void UpdateGeometryPassCB(const ScaldTimer& st);
     void UpdateMainPassCB(const ScaldTimer& st);

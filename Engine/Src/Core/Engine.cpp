@@ -47,10 +47,12 @@ VOID Engine::LoadPipeline()
 
 VOID Engine::LoadGraphicsFeatures()
 {
+    auto& commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get());
+
     LoadCSMResources();
     LoadDeferredRenderingResources();
 
-    m_SSAO = std::make_unique<SSAO>(m_device.Get(), m_width, m_height);
+    m_SSAO = std::make_unique<SSAO>(m_device.Get(), commandList.Get(), m_width, m_height);
 
     m_bIsGraphicsFeaturesLoaded = true;
 }
@@ -133,20 +135,24 @@ void Engine::CreateSsaoRootSignature()
 {
     m_ssaoRootSignature = std::make_shared<RootSignature>();
 
-    CD3DX12_DESCRIPTOR_RANGE texTable0;
-    texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
+    CD3DX12_DESCRIPTOR_RANGE normalMap;
+    normalMap.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, SHADER_REGISTER(0u), REGISTER_SPACE_0);
 
-    CD3DX12_DESCRIPTOR_RANGE texTable1;
-    texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+    CD3DX12_DESCRIPTOR_RANGE depthMap;
+    depthMap.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, SHADER_REGISTER(1u), REGISTER_SPACE_0);
+    
+    CD3DX12_DESCRIPTOR_RANGE ambientOrVectorMap;
+    ambientOrVectorMap.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, SHADER_REGISTER(2u), REGISTER_SPACE_0);
 
     // Root parameter can be a table, root descriptor or root constants.
-    CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+    CD3DX12_ROOT_PARAMETER slotRootParameter[5];
 
     // Perfomance TIP: Order from most frequent to least frequent.
     slotRootParameter[0].InitAsConstantBufferView(SHADER_REGISTER(0u));
     slotRootParameter[1].InitAsConstants(1u, SHADER_REGISTER(1u));
-    slotRootParameter[2].InitAsDescriptorTable(1u, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
-    slotRootParameter[3].InitAsDescriptorTable(1u, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
+    slotRootParameter[2].InitAsDescriptorTable(1u, &normalMap, D3D12_SHADER_VISIBILITY_PIXEL);
+    slotRootParameter[3].InitAsDescriptorTable(1u, &depthMap, D3D12_SHADER_VISIBILITY_PIXEL);
+    slotRootParameter[4].InitAsDescriptorTable(1u, &ambientOrVectorMap, D3D12_SHADER_VISIBILITY_PIXEL);
 
     const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
         0, // shaderRegister
@@ -219,6 +225,12 @@ VOID Engine::CreateShaders()
 
     m_shaders[EShaderType::CascadedShadowsVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVS.hlsl", nullptr, "main", "vs_5_1");
     m_shaders[EShaderType::CascadedShadowsGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/CascadesShadowGS.hlsl", nullptr, "main", "gs_5_1");
+
+#pragma region SSAO
+    m_shaders[EShaderType::SsaoVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SSAO.hlsl", nullptr, "SsaoVS", "vs_5_1");
+    m_shaders[EShaderType::SsaoPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SSAO.hlsl", nullptr, "SsaoPS", "ps_5_1");
+
+#pragma endregion SSAO
 
 #pragma region DeferredShading
     m_shaders[EShaderType::DeferredGeometryVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
@@ -415,10 +427,27 @@ VOID Engine::CreatePSO()
 
 #pragma region SSAO
     D3D12_GRAPHICS_PIPELINE_STATE_DESC ssaoPsoDesc = defaultPsoDesc;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&ssaoPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::ScreenSpaceAO])));
+    ssaoPsoDesc.pRootSignature = m_ssaoRootSignature->Get();
+
+    ssaoPsoDesc.VS =
+    {
+        reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::SsaoVS)->GetBufferPointer()),
+        m_shaders.at(EShaderType::SsaoVS)->GetBufferSize()
+    };
+    ssaoPsoDesc.PS = 
+    {
+        reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::SsaoPS)->GetBufferPointer()),
+        m_shaders.at(EShaderType::SsaoPS)->GetBufferSize()
+    };
+
+    ssaoPsoDesc.DepthStencilState.DepthEnable = FALSE; // ssao does not need depth
+    ssaoPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    ssaoPsoDesc.RTVFormats[0] = SSAO::AmbientMapFormat;
+    ssaoPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&ssaoPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Ssao])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC ssaoBlurPsoDesc = ssaoPsoDesc;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&ssaoBlurPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::ScreenSpaceAOBlur])));
+    //ThrowIfFailed(m_device->CreateGraphicsPipelineState(&ssaoBlurPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::SsaoBlur])));
 
 #pragma endregion SSAO
 
@@ -547,6 +576,8 @@ VOID Engine::CreateSrvAndSamplerDescriptorHeaps()
     }
     m_GBuffer->CreateDescriptors();
 
+    m_SSAOTexturesSrvHeapStartIndex = m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::MAX;
+    
     m_skyCubeSrvHeapStartIndex = m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::MAX;
     localHandle = GetCpuSrv(m_skyCubeSrvHeapStartIndex);
     for (auto& e : m_skyTextures)
@@ -943,6 +974,12 @@ VOID Engine::Reset()
 
     m_GBuffer->OnResize(m_width, m_height);
     m_cascadeShadowMap->OnResize(2048u, 2048u);
+
+    if (m_SSAO)
+    {
+        m_SSAO->OnResize(m_width, m_height);
+        m_SSAO->RebuildDescriptors(m_depthStencilBuffer.Get());
+    }
 }
 
 VOID Engine::CreateRtvAndDsvDescriptorHeaps()
@@ -950,7 +987,7 @@ VOID Engine::CreateRtvAndDsvDescriptorHeaps()
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     // swap chain frames + GBuffer rtvs
-    rtvHeapDesc.NumDescriptors = SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u;
+    rtvHeapDesc.NumDescriptors = SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::Max;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     rtvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
@@ -991,9 +1028,10 @@ void Engine::OnUpdate(const ScaldTimer& st)
     UpdateMaterialBuffer(st);
     UpdateLightsBuffer(st);
     
+    UpdateSsaoCB(st);
+
     UpdateShadowTransform(st);
     UpdateShadowPassCB(st); // pass
-    
     UpdateGeometryPassCB(st); // pass
     UpdateMainPassCB(st); // pass
 }
@@ -1225,6 +1263,46 @@ void Engine::UpdateShadowTransform(const ScaldTimer& st)
     }
 }
 
+void Engine::UpdateSsaoCB(const ScaldTimer& st)
+{
+    SSAOConstants ssaoCB;
+
+    XMMATRIX view = m_camera->GetViewMatrix();;
+    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
+    XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+
+    XMStoreFloat4x4(&ssaoCB.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&ssaoCB.Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&ssaoCB.InvProj, XMMatrixTranspose(invProj));
+
+    // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+    XMMATRIX T(
+        0.5f, 0.0f, 0.0f, 0.0f,
+        0.0f, -0.5f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.0f, 1.0f);
+
+    XMStoreFloat4x4(&ssaoCB.ProjTex, XMMatrixTranspose(proj * T));
+
+    m_SSAO->GetOffsetVectors(ssaoCB.OffsetVectors);
+
+    //auto blurWeights = m_SSAO->CalcGaussWeights(2.5f);
+    //ssaoCB.BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
+    //ssaoCB.BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
+    //ssaoCB.BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
+
+    ssaoCB.InvRenderTargetSize = XMFLOAT2(1.0f / m_SSAO->GetWidth(), 1.0f / m_SSAO->GetHeight());
+
+    // Coordinates given in view space.
+    ssaoCB.OcclusionRadius = 0.5f;
+    ssaoCB.OcclusionFadeStart = 0.2f;
+    ssaoCB.OcclusionFadeEnd = 1.0f;
+    ssaoCB.SurfaceEpsilon = 0.05f;
+
+    auto currSsaoCB = m_currFrameResource->SsaoCB.get();
+    currSsaoCB->CopyData(0, ssaoCB);
+}
+
 void Engine::UpdateShadowPassCB(const ScaldTimer& st)
 {
     XMMATRIX view = XMMatrixIdentity();
@@ -1309,7 +1387,7 @@ VOID Engine::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList)
 
     RenderDepthOnlyPass(pCommandList);
     RenderGeometryPass(pCommandList);
-    //RenderSSAOPass(pCommandList);
+    RenderSSAOPass(pCommandList);
     RenderLightingPass(pCommandList);
     RenderForwardPasses(pCommandList);
 }
@@ -1392,8 +1470,11 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
     TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
-void Engine::RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList)
+void Engine::RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList/*, numBlurPasses*/)
 {
+    UINT numBlurPasses = 3u;
+    auto ssaoCB = m_currFrameResource->SsaoCB->Get();
+
     pCommandList->SetGraphicsRootSignature(m_ssaoRootSignature->Get());
 
     pCommandList->RSSetViewports(1u, &m_SSAO->GetViewport());
@@ -1401,14 +1482,17 @@ void Engine::RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList)
 
     const float* clearColor = &m_mainPassCBData.FogColor.x;
     // start of the SSAO rtv in rtvHeap
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount /*+ GBuffer::EGBufferLayer::MAX - 1u*/, m_rtvDescriptorSize);
     pCommandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, nullptr);
     pCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
 
     // have to set depth and normals for SSAO pass
-    pCommandList->SetGraphicsRootDescriptorTable(0u, GetGpuSrv(m_SSAOTexturesSrvHeapStartIndex));
+    pCommandList->SetGraphicsRootConstantBufferView(0u, ssaoCB->GetGPUVirtualAddress());
+    pCommandList->SetGraphicsRoot32BitConstant(1u, numBlurPasses, 0u);
+    pCommandList->SetGraphicsRootDescriptorTable(2u, GetGpuSrv(m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::NORMAL));
+    pCommandList->SetGraphicsRootDescriptorTable(3u, GetGpuSrv(m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::DEPTH));
 
-    pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::ScreenSpaceAO).Get());
+    pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::Ssao).Get());
 
     // full quad (check the dir light pass full quad drawing for different approach)
     pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
