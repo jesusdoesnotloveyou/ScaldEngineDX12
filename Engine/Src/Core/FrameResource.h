@@ -14,6 +14,7 @@ struct FrameResource
 
     std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectsCB = nullptr;
     std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
+    std::unique_ptr<UploadBuffer<SSAOConstants>> SsaoCB = nullptr;
     std::unique_ptr<UploadBuffer<MaterialData>> MaterialSB = nullptr;
     std::unique_ptr<UploadBuffer<InstanceData>> PointLightSB = nullptr;
     
