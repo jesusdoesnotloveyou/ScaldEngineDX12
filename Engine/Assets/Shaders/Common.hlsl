@@ -116,11 +116,11 @@ float3 ComputeSpecularReflections(float3 toEyeW, float3 normalW, Material mat)
     return (mat.Shininess * fresnelFactor * reflectionColor.rgb);
 }
 
-float3 ComputeWorldPos(float3 texCoord)
+float3 ComputeWorldPos(float3 screenCoord)
 {
-    float depth = gGBuffer[G_DEPTH].Load(int3(texCoord)).r;
+    float depth = gGBuffer[G_DEPTH].Load(int3(screenCoord)).r;
 
-    float2 uv = texCoord.xy / gRTSize;
+    float2 uv = screenCoord.xy / gRTSize;
     float4 ndc = float4(uv.x * 2.0f - 1.0f, 1.0f - 2.0f * uv.y, depth, 1.0f);
     float4 worldPos = mul(ndc, gInvViewProj);
     worldPos.xyz /= worldPos.w;
@@ -144,7 +144,7 @@ GBufferPixelData FetchGBufferData(float4 posH)
     data.ao = gGBuffer[G_AMB_OCCL].Load(posH.xyz);
     data.normal = gGBuffer[G_NORMAL].Load(posH.xyz);
     data.specular = gGBuffer[G_SPECULAR].Load(posH.xyz);
-    data.motion = gGBuffer[G_MOTION_VEC].Load(posH.xyz);
+    data.motion = gGBuffer[G_MOTION_VEC].Load(posH.xyz).xy;
     
     return data;
 }
