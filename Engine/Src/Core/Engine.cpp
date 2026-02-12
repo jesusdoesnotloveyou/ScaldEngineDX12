@@ -577,8 +577,20 @@ VOID Engine::CreateSrvAndSamplerDescriptorHeaps()
     m_GBuffer->CreateDescriptors();
 
     m_SSAOTexturesSrvHeapStartIndex = m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::MAX;
+    localHandle = GetCpuSrv(m_SSAOTexturesSrvHeapStartIndex);
+    for (auto i = 0u; i < SSAO::ESSAOTextureType::Max; ++i)
+    {
+        srvDesc.Format = SSAO::AmbientMapFormat;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        m_device->CreateShaderResourceView(nullptr, &srvDesc, localHandle);
+
+        localHandle.Offset(1, m_cbvSrvUavDescriptorSize);
+    }
+    m_SSAO->BuildDescriptors(m_depthStencilBuffer.Get(), GetCpuSrv(m_SSAOTexturesSrvHeapStartIndex), GetGpuSrv(m_SSAOTexturesSrvHeapStartIndex),
+        GetRtv(SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u), m_cbvSrvUavDescriptorSize, m_rtvDescriptorSize);
     
-    m_skyCubeSrvHeapStartIndex = m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::MAX;
+    m_skyCubeSrvHeapStartIndex = m_SSAOTexturesSrvHeapStartIndex + SSAO::ESSAOTextureType::Max;
     localHandle = GetCpuSrv(m_skyCubeSrvHeapStartIndex);
     for (auto& e : m_skyTextures)
     {
@@ -987,7 +999,8 @@ VOID Engine::CreateRtvAndDsvDescriptorHeaps()
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     // swap chain frames + GBuffer rtvs
-    rtvHeapDesc.NumDescriptors = SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::Max;
+    rtvHeapDesc.NumDescriptors = SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::Max 
+        /*for ssao pass 2 rtvs would be enough (since I only need to ambient  maps, but for simplicity there will be 3 rtvs for every ssao texture*/;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     rtvHeapDesc.NodeMask = 0u;
     ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
@@ -1482,7 +1495,7 @@ void Engine::RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList/*, numBlurPa
 
     const float* clearColor = &m_mainPassCBData.FogColor.x;
     // start of the SSAO rtv in rtvHeap
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount /*+ GBuffer::EGBufferLayer::MAX - 1u*/, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u, m_rtvDescriptorSize);
     pCommandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, nullptr);
     pCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
 
