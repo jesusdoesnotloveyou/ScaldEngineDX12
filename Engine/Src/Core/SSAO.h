@@ -46,6 +46,13 @@ public:
 
 	void GetOffsetVectors(XMFLOAT4 offsets[14]);
 
+	void BuildDescriptors(ID3D12Resource* depthStencilBuffer,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv,
+		const UINT cbvSrvUavDescriptorSize,
+		const UINT rtvDescriptorSize);
+
 	void RebuildDescriptors(ID3D12Resource* depthStencilBuffer /* should be descriptor on existing resoucre */);
 
 private:

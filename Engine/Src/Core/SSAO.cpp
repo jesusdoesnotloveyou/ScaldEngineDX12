@@ -86,6 +86,31 @@ void SSAO::GetOffsetVectors(XMFLOAT4 offsets[14])
     std::copy(&m_offsets[0], &m_offsets[14], &offsets[0]);
 }
 
+void SSAO::BuildDescriptors(
+    ID3D12Resource* depthStencilBuffer,
+    CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
+    CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
+    CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv,
+    const UINT cbvSrvUavDescriptorSize,
+    const UINT rtvDescriptorSize)
+{
+    // Save references to the descriptors. The Ssao reserves heap space for 3 contiguous Srvs and 2 contiguous Rtvs
+
+    m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hCpuSrv = hCpuSrv;
+    m_ssaoBuffer[ESSAOTextureType::AmbientMap1].m_hCpuSrv = hCpuSrv.Offset(1, cbvSrvUavDescriptorSize);
+    m_ssaoBuffer[ESSAOTextureType::RandomVectors].m_hCpuSrv = hCpuSrv.Offset(1, cbvSrvUavDescriptorSize);
+
+    m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hGpuSrv = hGpuSrv;
+    m_ssaoBuffer[ESSAOTextureType::AmbientMap1].m_hGpuSrv = hGpuSrv.Offset(1, cbvSrvUavDescriptorSize);
+    m_ssaoBuffer[ESSAOTextureType::RandomVectors].m_hGpuSrv = hGpuSrv.Offset(1, cbvSrvUavDescriptorSize);
+
+    m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hCpuRtv = hCpuRtv;
+    m_ssaoBuffer[ESSAOTextureType::AmbientMap1].m_hCpuRtv = hCpuRtv.Offset(1, rtvDescriptorSize);
+
+    //  Create the descriptors
+    RebuildDescriptors(depthStencilBuffer);
+}
+
 void SSAO::RebuildDescriptors(ID3D12Resource* depthStencilBuffer)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
