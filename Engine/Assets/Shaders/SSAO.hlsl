@@ -27,11 +27,10 @@ Texture2D NormalMap : register(t0);
 Texture2D DepthMap : register(t1);
 Texture2D RandVecMap : register(t2);
 
-SamplerState gSamplerPointWrap : register(s0);
-SamplerState gSamplerLinearWrap : register(s1);
-SamplerState gSamplerAnisotropicWrap : register(s2);
-SamplerState gShadowSamplerLinearBorder : register(s3);
-SamplerComparisonState gShadowSamplerComparisonLinearBorder : register(s4);
+SamplerState gSamplerPointClamp : register(s0);
+SamplerState gSamplerLinearClamp : register(s1);
+SamplerState gSamplerDepthMap : register(s2);
+SamplerState gSamplerLinearWrap : register(s3);
 
 static const int gSampleCount = 14;
 
@@ -116,8 +115,8 @@ float4 SsaoPS(VertexOut pin) : SV_Target
 	// r -- a potential occluder that might occlude p.
     
     // from GBuffer
-    float3 normalW = NormalMap.SampleLevel(gSamplerPointWrap, pin.TexC, 0.0f).xyz;
-    float pz = DepthMap.SampleLevel(gSamplerPointWrap, pin.TexC, 0.0f).r;
+    float3 normalW = NormalMap.Sample(gSamplerPointClamp, pin.TexC).xyz;
+    float pz = DepthMap.Sample(gSamplerDepthMap, pin.TexC).r;
     
     pz = NdcDepthToViewDepth(pz);
     
@@ -130,7 +129,7 @@ float4 SsaoPS(VertexOut pin) : SV_Target
     float3 p = (pz / pin.PosV.z) * pin.PosV;
 
     // Extract random vector and map from [0,1] --> [-1, +1].
-    float3 randVec = 2.0f * RandVecMap.SampleLevel(gSamplerLinearWrap, 4.0f * pin.TexC, 0.0f).rgb - 1.0f;
+    float3 randVec = 2.0f * RandVecMap.Sample(gSamplerLinearWrap, 4.0f * pin.TexC).rgb - 1.0f;
 
     float occlusionSum = 0.0f;
     
@@ -154,19 +153,19 @@ float4 SsaoPS(VertexOut pin) : SV_Target
         // Find the nearest depth value along the ray from the eye to q (this is not
 		// the depth of q, as q is just an arbitrary point near p and might occupy empty space).
         // To find the nearest depth we look it up in the depthmap.
-        float rz = DepthMap.SampleLevel(gSamplerPointWrap, projQ.xy, 0.0f).r;
+        float rz = DepthMap.SampleLevel(gSamplerDepthMap, projQ.xy, 0.0f).r;
         rz = NdcDepthToViewDepth(rz);
         
         // Reconstruct full view space position r = (rx,ry,rz).  We know r
 		// lies on the ray of q, so there exists a t such that r = t*q.
 		// r.z = t*q.z ==> t = r.z / q.z
-        float3 r = (rz / q.z) * q;   
+        float3 r = (rz / q.z) * q;
     }
     
     float access = 1.0f - occlusionSum;
     // Sharpen the contrast of the SSAO map to make the SSAO affect more dramatic.
-    return saturate(pow(access, 6.0f));
+    //return saturate(pow(access, 6.0f));
     
     // Write normal in view space coordinates
-    //return float4(normalV, 1.0f);
+    return float4(normalV + pz.rrr + randVec, 1.0f);
 }

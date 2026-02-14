@@ -142,7 +142,7 @@ void Engine::CreateSsaoRootSignature()
     depthMap.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, SHADER_REGISTER(1u), REGISTER_SPACE_0);
     
     CD3DX12_DESCRIPTOR_RANGE ambientOrVectorMap;
-    ambientOrVectorMap.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, SHADER_REGISTER(2u), REGISTER_SPACE_0);
+    ambientOrVectorMap.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, SHADER_REGISTER(2u), REGISTER_SPACE_0);
 
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[5];
@@ -442,6 +442,7 @@ VOID Engine::CreatePSO()
 
     ssaoPsoDesc.DepthStencilState.DepthEnable = FALSE; // ssao does not need depth
     ssaoPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    ssaoPsoDesc.InputLayout = { nullptr, 0u };
     ssaoPsoDesc.RTVFormats[0] = SSAO::AmbientMapFormat;
     ssaoPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&ssaoPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Ssao])));
@@ -1299,10 +1300,10 @@ void Engine::UpdateSsaoCB(const ScaldTimer& st)
 
     m_SSAO->GetOffsetVectors(ssaoCB.OffsetVectors);
 
-    //auto blurWeights = m_SSAO->CalcGaussWeights(2.5f);
-    //ssaoCB.BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
-    //ssaoCB.BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
-    //ssaoCB.BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
+    auto blurWeights = m_SSAO->CalcGaussWeights(2.5f);
+    ssaoCB.BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
+    ssaoCB.BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
+    ssaoCB.BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
 
     ssaoCB.InvRenderTargetSize = XMFLOAT2(1.0f / m_SSAO->GetWidth(), 1.0f / m_SSAO->GetHeight());
 
@@ -1493,7 +1494,10 @@ void Engine::RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList/*, numBlurPa
     pCommandList->RSSetViewports(1u, &m_SSAO->GetViewport());
     pCommandList->RSSetScissorRects(1u, &m_SSAO->GetScissorRect());
 
-    const float* clearColor = &m_mainPassCBData.FogColor.x;
+    TransitionResource(pCommandList, m_SSAO->GetAmbientMap(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    // from SSAO.cpp
+    const float clearColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
     // start of the SSAO rtv in rtvHeap
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u, m_rtvDescriptorSize);
     pCommandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, nullptr);
@@ -1504,12 +1508,15 @@ void Engine::RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList/*, numBlurPa
     pCommandList->SetGraphicsRoot32BitConstant(1u, numBlurPasses, 0u);
     pCommandList->SetGraphicsRootDescriptorTable(2u, GetGpuSrv(m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::NORMAL));
     pCommandList->SetGraphicsRootDescriptorTable(3u, GetGpuSrv(m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::DEPTH));
+    pCommandList->SetGraphicsRootDescriptorTable(4u, GetGpuSrv(m_SSAOTexturesSrvHeapStartIndex + SSAO::ESSAOTextureType::RandomVectors));
 
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::Ssao).Get());
 
     // full quad (check the dir light pass full quad drawing for different approach)
     pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     pCommandList->DrawInstanced(6u, 1u, 0u, 0u);
+
+    TransitionResource(pCommandList, m_SSAO->GetAmbientMap(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
 // lighting pass (including all subpasses) uses the same render target

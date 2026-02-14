@@ -34,6 +34,7 @@ public:
 	~SSAO() noexcept = default;
 
 	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;
+	static const int MaxBlurRadius = 5;
 
 public:
 	void OnResize(UINT newWidth, UINT newHeight);
@@ -44,7 +45,12 @@ public:
 	FORCEINLINE UINT GetWidth()const { return m_renderTargetWidth / 2; }
 	FORCEINLINE UINT GetHeight()const { return m_renderTargetHeight / 2; }
 
+	ID3D12Resource* GetAmbientMap();
+
 	void GetOffsetVectors(XMFLOAT4 offsets[14]);
+
+	//heap allocations!!!
+	std::vector<float> CalcGaussWeights(float sigma);
 
 	void BuildDescriptors(ID3D12Resource* depthStencilBuffer,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
