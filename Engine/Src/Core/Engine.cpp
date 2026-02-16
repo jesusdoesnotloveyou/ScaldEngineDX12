@@ -55,6 +55,9 @@ VOID Engine::LoadGraphicsFeatures()
     m_SSAO = std::make_unique<SSAO>(m_device.Get(), commandList.Get(), m_width, m_height);
 
     m_bIsGraphicsFeaturesLoaded = true;
+
+    m_commandQueue->ExecuteCommandList(commandList);
+    m_commandQueue->Flush();
 }
 
 VOID Engine::LoadCSMResources()
