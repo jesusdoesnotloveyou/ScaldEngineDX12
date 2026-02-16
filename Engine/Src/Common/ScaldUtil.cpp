@@ -2,6 +2,12 @@
 
 #include "ScaldUtil.h"
 
+void ScaldUtil::TransitionResource(ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
+{
+    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(pResource, stateBefore, stateAfter);
+    pCommandList->ResourceBarrier(1u, &transition);
+}
+
 ComPtr<ID3D12Resource> ScaldUtil::CreateDefaultBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const void* initData, UINT64 byteSize, ComPtr<ID3D12Resource>& uploadBuffer)
 {
     ComPtr<ID3D12Resource> defaultBuffer;
