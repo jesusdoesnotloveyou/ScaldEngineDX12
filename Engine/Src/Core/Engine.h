@@ -269,8 +269,6 @@ private:
 
     bool m_bIsGraphicsFeaturesLoaded = false;
 
-    void TransitionResource(ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
-
 private:
     VOID LoadPipeline() override;
     VOID LoadGraphicsFeatures();

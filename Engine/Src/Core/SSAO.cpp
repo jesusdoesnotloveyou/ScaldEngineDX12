@@ -10,8 +10,6 @@ using namespace DirectX::PackedVector;
 
 SSAO::SSAO(ID3D12Device* device, ID3D12GraphicsCommandList* pCommandList, UINT width, UINT height)
 	: m_device(device)
-	//, m_renderTargetWidth(width)
-	//, m_renderTargetHeight(height)
 {
 	OnResize(width, height);
 
@@ -60,8 +58,6 @@ void SSAO::BuildResources()
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-
-    float ambientClearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     CD3DX12_CLEAR_VALUE optClear = CD3DX12_CLEAR_VALUE(AmbientMapFormat, ambientClearColor);
 
     ThrowIfFailed(m_device->CreateCommittedResource(
@@ -175,6 +171,12 @@ void SSAO::RebuildDescriptors(ID3D12Resource* depthStencilBuffer)
     m_device->CreateRenderTargetView(m_ambientMap1.Get(), &rtvDesc, m_ssaoBuffer[ESSAOTextureType::AmbientMap1].m_hCpuRtv);
 }
 
+void SSAO::SetPSOs(ID3D12PipelineState* ssaoPso, ID3D12PipelineState* ssaoBlurPso)
+{
+    m_ssaoPso = ssaoPso;
+    m_ssaoBlurPso = ssaoBlurPso;
+}
+
 void SSAO::BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList)
 {
     D3D12_RESOURCE_DESC texDesc = {};
@@ -233,11 +235,9 @@ void SSAO::BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList)
     // Schedule to copy the data to the default resource, and change states.
     // Note that mCurrSol is put in the GENERIC_READ state so it can be read by a shader.
 
-    pCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_randomVectorMap.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST));
-    UpdateSubresources(pCommandList, m_randomVectorMap.Get(), m_randomVectorMapUploadBuffer.Get(),
-        (UINT64)0u, 0u, num2DSubresources, &subResourceData);
-    pCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_randomVectorMap.Get(),
-        D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
+    pCommandList->ResourceBarrier(1u, &CD3DX12_RESOURCE_BARRIER::Transition(m_randomVectorMap.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST));
+    UpdateSubresources(pCommandList, m_randomVectorMap.Get(), m_randomVectorMapUploadBuffer.Get(), (UINT64)0u, 0u, num2DSubresources, &subResourceData);
+    pCommandList->ResourceBarrier(1u, &CD3DX12_RESOURCE_BARRIER::Transition(m_randomVectorMap.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
 void SSAO::BuildOffsetVectors()
@@ -281,15 +281,88 @@ void SSAO::BuildOffsetVectors()
     }
 }
 
-void SSAO::ComputeSSAO(ID3D12GraphicsCommandList* pCommandList, FrameResource* frameResource, int blurPassesCount)
+void SSAO::Compute(ID3D12GraphicsCommandList* pCommandList, FrameResource* currFrameResource, int blurPassesCount)
 {
+    auto ssaoCB = currFrameResource->SsaoCB->Get();
+
+    pCommandList->RSSetViewports(1u, &m_viewport);
+    pCommandList->RSSetScissorRects(1u, &m_scissorRect);
+
+    ScaldUtil::TransitionResource(pCommandList, m_ambientMap0.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    pCommandList->OMSetRenderTargets(1u, &m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hCpuRtv, TRUE, nullptr);
+    pCommandList->ClearRenderTargetView(m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hCpuRtv, ambientClearColor, 0u, nullptr);
+
+    pCommandList->SetGraphicsRootConstantBufferView(0u, ssaoCB->GetGPUVirtualAddress());
+    pCommandList->SetGraphicsRoot32BitConstant(1u, 0u, 0u); // no blur
+    pCommandList->SetGraphicsRootDescriptorTable(4u, m_ssaoBuffer[ESSAOTextureType::RandomVectors].m_hGpuSrv);
+
+    pCommandList->SetPipelineState(m_ssaoPso);
+
+    // Draw fullscreen quad (check the dir light pass full quad drawing for different approach)
+    pCommandList->IASetVertexBuffers(0u, 0u, nullptr);
+    pCommandList->IASetIndexBuffer(nullptr);
+    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    pCommandList->DrawInstanced(6u, 1u, 0u, 0u);
+
+    ScaldUtil::TransitionResource(pCommandList, m_ambientMap0.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
+    
+    BlurAmbientMap(pCommandList, currFrameResource, blurPassesCount);
 }
 
-void SSAO::BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, FrameResource* currFrame, int blurCount)
+void SSAO::BlurAmbientMap(ID3D12GraphicsCommandList* pCommandList, FrameResource* currFrameResource, int blurCount)
 {
+    pCommandList->SetPipelineState(m_ssaoBlurPso);
+
+    auto ssaoCB = currFrameResource->SsaoCB->Get();
+    pCommandList->SetGraphicsRootConstantBufferView(0, ssaoCB->GetGPUVirtualAddress());
+
+    for (int i = 0; i < blurCount; ++i)
+    {
+        BlurAmbientMap(pCommandList, true);
+        BlurAmbientMap(pCommandList, false);
+    }
 }
 
-void SSAO::BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, bool horzBlur)
+void SSAO::BlurAmbientMap(ID3D12GraphicsCommandList* pCommandList, bool horzBlur)
 {
+    ID3D12Resource* output = nullptr;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE inputSrv;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE outputRtv;
 
+    // Ping-pong the two ambient map textures as we apply
+    // horizontal and vertical blur passes.
+    if (horzBlur == true)
+    {
+        output = m_ambientMap1.Get();
+        inputSrv = m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hGpuSrv;
+        outputRtv = m_ssaoBuffer[ESSAOTextureType::AmbientMap1].m_hCpuRtv;
+        pCommandList->SetGraphicsRoot32BitConstant(1u, 1u, 0u);
+    }
+    else
+    {
+        output = m_ambientMap0.Get();
+        inputSrv = m_ssaoBuffer[ESSAOTextureType::AmbientMap1].m_hGpuSrv;
+        outputRtv = m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hCpuRtv;
+        pCommandList->SetGraphicsRoot32BitConstant(1u, 0u, 0u);
+    }
+
+    ScaldUtil::TransitionResource(pCommandList, output, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    pCommandList->ClearRenderTargetView(outputRtv, ambientClearColor, 0, nullptr);
+
+    pCommandList->OMSetRenderTargets(1u, &outputRtv, TRUE, nullptr);
+
+    // Normal/depth map still bound from the next subpass
+
+    // Bind the input ambient map to second texture table
+    pCommandList->SetGraphicsRootDescriptorTable(3u, inputSrv);
+
+    // Draw fullscreen quad
+    pCommandList->IASetVertexBuffers(0u, 0u, nullptr);
+    pCommandList->IASetIndexBuffer(nullptr);
+    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    pCommandList->DrawInstanced(6u, 1u, 0u, 0u);
+
+    ScaldUtil::TransitionResource(pCommandList, output, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
 }

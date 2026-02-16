@@ -61,6 +61,8 @@ public:
 
 	void RebuildDescriptors(ID3D12Resource* depthStencilBuffer /* should be descriptor on existing resoucre */);
 
+	void SetPSOs(ID3D12PipelineState* ssaoPso, ID3D12PipelineState* ssaoBlurPso);
+
 private:
 	void BuildResources();
 
@@ -68,21 +70,25 @@ private:
 	void BuildOffsetVectors();
 
 #pragma region Render
+public:
+	void Compute(ID3D12GraphicsCommandList* pCommandList, FrameResource* currFrameResource, int blurPassesCount);
 
-	void ComputeSSAO(ID3D12GraphicsCommandList* pCommandList, FrameResource* frameResource, int blurPassesCount);
-
+private:
 	///<summary>
 	/// Blurs the ambient map to smooth out the noise caused by only taking a
 	/// few random samples per pixel.  We use an edge preserving blur so that 
 	/// we do not blur across discontinuities--we want edges to remain edges.
 	///</summary>
-	void BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, FrameResource* currFrame, int blurCount);
-	void BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, bool horzBlur);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* pCommandList, FrameResource* currFrameResource, int blurCount);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* pCommandList, bool horzBlur);
 
 #pragma endregion Render
 
 private:
 	ID3D12Device* m_device = nullptr;
+
+	ID3D12PipelineState* m_ssaoPso = nullptr;
+	ID3D12PipelineState* m_ssaoBlurPso = nullptr;
 
 	UINT m_renderTargetWidth;
 	UINT m_renderTargetHeight;
@@ -98,4 +104,6 @@ private:
 	XMFLOAT4 m_offsets[14];
 
 	FSSAOTexture m_ssaoBuffer[ESSAOTextureType::Max];
+
+	const float ambientClearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 };

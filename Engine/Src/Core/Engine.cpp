@@ -33,12 +33,6 @@ void Engine::OnInit()
     LoadAssets();
 }
 
-void Engine::TransitionResource(ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
-{
-    auto transition = CD3DX12_RESOURCE_BARRIER::Transition(pResource, stateBefore, stateAfter);
-    pCommandList->ResourceBarrier(1u, &transition);
-}
-
 // Load the rendering pipeline dependencies.
 VOID Engine::LoadPipeline()
 {
@@ -90,6 +84,8 @@ VOID Engine::LoadAssets()
 
     m_commandQueue->ExecuteCommandList(commandList);
     m_commandQueue->Flush();
+
+    m_SSAO->SetPSOs(m_pipelineStates.at(EPsoType::Ssao).Get(), m_pipelineStates.at(EPsoType::SsaoBlur).Get());
 }
 
 VOID Engine::CreateRootSignatures()
@@ -232,6 +228,9 @@ VOID Engine::CreateShaders()
 #pragma region SSAO
     m_shaders[EShaderType::SsaoVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SSAO.hlsl", nullptr, "SsaoVS", "vs_5_1");
     m_shaders[EShaderType::SsaoPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SSAO.hlsl", nullptr, "SsaoPS", "ps_5_1");
+
+    m_shaders[EShaderType::SsaoBlurVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SSAOBlur.hlsl", nullptr, "SsaoBlurVS", "vs_5_1");
+    m_shaders[EShaderType::SsaoBlurPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SSAOBlur.hlsl", nullptr, "SsaoBlurPS", "ps_5_1");
 
 #pragma endregion SSAO
 
@@ -451,7 +450,17 @@ VOID Engine::CreatePSO()
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&ssaoPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Ssao])));
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC ssaoBlurPsoDesc = ssaoPsoDesc;
-    //ThrowIfFailed(m_device->CreateGraphicsPipelineState(&ssaoBlurPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::SsaoBlur])));
+    ssaoBlurPsoDesc.VS =
+    {
+        reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::SsaoBlurVS)->GetBufferPointer()),
+        m_shaders.at(EShaderType::SsaoBlurVS)->GetBufferSize()
+    };
+    ssaoBlurPsoDesc.PS =
+    {
+        reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::SsaoBlurPS)->GetBufferPointer()),
+        m_shaders.at(EShaderType::SsaoBlurPS)->GetBufferSize()
+    };
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&ssaoBlurPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::SsaoBlur])));
 
 #pragma endregion SSAO
 
@@ -1417,7 +1426,7 @@ void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->RSSetScissorRects(1u, &m_cascadeShadowMap->GetScissorRect());
 
     // change to depth write state
-    TransitionResource(pCommandList, m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    ScaldUtil::TransitionResource(pCommandList, m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
@@ -1432,7 +1441,7 @@ void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::CascadedShadowsOpaque).Get());
     DrawRenderItems(pCommandList, m_renderItems);
 
-    TransitionResource(pCommandList, m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+    ScaldUtil::TransitionResource(pCommandList, m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
 void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
@@ -1445,9 +1454,9 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
     // barrier
     for (unsigned i = 0; i < GBuffer::EGBufferLayer::MAX - 1u; i++)
     {
-        TransitionResource(pCommandList, m_GBuffer->Get(i), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        ScaldUtil::TransitionResource(pCommandList, m_GBuffer->Get(i), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
-    TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    ScaldUtil::TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 #pragma region BypassResources
     auto currFramePassCB = m_currFrameResource->PassCB->Get();
@@ -1482,44 +1491,19 @@ void Engine::RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList)
 
     for (unsigned i = 0; i < GBuffer::EGBufferLayer::MAX - 1u; i++)
     {
-        TransitionResource(pCommandList, m_GBuffer->Get(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
+        ScaldUtil::TransitionResource(pCommandList, m_GBuffer->Get(i), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
     }
-    TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+    ScaldUtil::TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
-void Engine::RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList/*, numBlurPasses*/)
+void Engine::RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList)
 {
-    UINT numBlurPasses = 3u;
-    auto ssaoCB = m_currFrameResource->SsaoCB->Get();
-
     pCommandList->SetGraphicsRootSignature(m_ssaoRootSignature->Get());
-
-    pCommandList->RSSetViewports(1u, &m_SSAO->GetViewport());
-    pCommandList->RSSetScissorRects(1u, &m_SSAO->GetScissorRect());
-
-    TransitionResource(pCommandList, m_SSAO->GetAmbientMap(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-    // from SSAO.cpp
-    const float clearColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
-    // start of the SSAO rtv in rtvHeap
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u, m_rtvDescriptorSize);
-    pCommandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, nullptr);
-    pCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
-
-    // have to set depth and normals for SSAO pass
-    pCommandList->SetGraphicsRootConstantBufferView(0u, ssaoCB->GetGPUVirtualAddress());
-    pCommandList->SetGraphicsRoot32BitConstant(1u, numBlurPasses, 0u);
+    // Have to set manually depth and normals for SSAO pass from GBuffer
     pCommandList->SetGraphicsRootDescriptorTable(2u, GetGpuSrv(m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::NORMAL));
     pCommandList->SetGraphicsRootDescriptorTable(3u, GetGpuSrv(m_GBufferTexturesSrvHeapStartIndex + GBuffer::EGBufferLayer::DEPTH));
-    pCommandList->SetGraphicsRootDescriptorTable(4u, GetGpuSrv(m_SSAOTexturesSrvHeapStartIndex + SSAO::ESSAOTextureType::RandomVectors));
-
-    pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::Ssao).Get());
-
-    // full quad (check the dir light pass full quad drawing for different approach)
-    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    pCommandList->DrawInstanced(6u, 1u, 0u, 0u);
-
-    TransitionResource(pCommandList, m_SSAO->GetAmbientMap(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
+    
+    m_SSAO->Compute(pCommandList, m_currFrameResource, 3u);
 }
 
 // lighting pass (including all subpasses) uses the same render target
@@ -1537,7 +1521,7 @@ void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandLis
 {
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
     // Indicate that the back buffer will be used as a render target.
-    TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    ScaldUtil::TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // The viewport needs to be reset whenever the command list is reset.
     pCommandList->RSSetViewports(1u, &m_viewport);
@@ -1597,7 +1581,7 @@ void Engine::RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList)
     RenderSkyBoxPass(pCommandList);
 
     // Close accumulation buffer, that was opened in the light pass and indicate that the back buffer will now be used to present.
-    TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    ScaldUtil::TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void Engine::RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList)
@@ -1609,7 +1593,7 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
     // Set GBuffer depth for read to properly draw sky box
-    TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_READ);
+    ScaldUtil::TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_READ);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currBackBuffer, m_rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), 2, m_dsvDescriptorSize);
@@ -1624,7 +1608,7 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::Sky).Get());
     DrawRenderItem(pCommandList, m_skyRenderItem);
     
-    TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ);
+    ScaldUtil::TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
 void Engine::DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& ri)
