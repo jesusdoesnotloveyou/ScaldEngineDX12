@@ -211,7 +211,7 @@ private:
 private:
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
     FrameResource* m_currFrameResource = nullptr;
-    int m_ñurrFrameResourceIndex = 0;
+    int m_currentFrameResourceIndex = 0;
 
     UINT m_passCbvOffset = 0u;
 
