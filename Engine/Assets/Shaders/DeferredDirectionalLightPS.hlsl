@@ -2,8 +2,9 @@
 
 struct PSInput
 {
-    float4 iPosH : SV_POSITION;
-    float2 iTexC : TEXCOORD0;
+    float4 iPosH     : SV_POSITION;
+    float4 iSSAOPosH : POSITION;
+    float2 iTexC     : TEXCOORD0;
 };
 
 float SampleShadowMap(uint layer, float2 uv, float depth)
@@ -59,6 +60,8 @@ float4 main(PSInput input) : SV_TARGET
 {
     float2 screenCoord = input.iPosH.xy;
     
+    float ambientAccess = gSSAO.Sample(gSamplerLinearWrap, input.iSSAOPosH.xy);
+    
     GBufferPixelData gbuffer = FetchGBufferData(input.iPosH);
     
     float3 posW = ComputeWorldPos(float3(screenCoord, 0.0f));
@@ -76,7 +79,7 @@ float4 main(PSInput input) : SV_TARGET
     float distToEye = length(toEye);
     float3 viewDir = toEye / distToEye;
     
-    float4 ambient = gAmbient * gbuffer.diffuse;
+    float4 ambient = ambientAccess * gAmbient * gbuffer.diffuse;
     float4 litColor = ambient;
     
     float viewDepth = mul(float4(posW, 1.0f), gView).z;

@@ -1,51 +1,8 @@
-cbuffer cbSsao : register(b0)
-{
-    float4x4 gView;
-    float4x4 gProj;
-    float4x4 gInvProj;
-    float4x4 gProjTex;
-    float4 gOffsetVectors[14];
+#include "SSAOCommon.hlsl"
 
-    // For SsaoBlur.hlsl
-    float4 gBlurWeights[3];
-
-    float2 gInvRenderTargetSize;
-
-    // Coordinates given in view space.
-    float gOcclusionRadius;
-    float gOcclusionFadeStart;
-    float gOcclusionFadeEnd;
-    float gSurfaceEpsilon;
-};
-
-cbuffer cbRootConstants : register(b1)
-{
-    bool gHorizontalBlur;
-};
-
-Texture2D gNormalMap : register(t0);
-Texture2D gDepthMap : register(t1);
 Texture2D gInputMap : register(t2);
 
-SamplerState gSamplerPointClamp : register(s0);
-SamplerState gSamplerLinearClamp : register(s1);
-SamplerState gSamplerDepthMap : register(s2);
-SamplerState gSamplerLinearWrap : register(s3);
-
 static const int gBlurRadius = 5;
-
-static const int gSampleCount = 14;
-
-// vertices id's
-static const float2 gTexCoords[6] =
-{
-    float2(0.0f, 1.0f),
-    float2(0.0f, 0.0f),
-    float2(1.0f, 0.0f),
-    float2(0.0f, 1.0f),
-    float2(1.0f, 0.0f),
-    float2(1.0f, 1.0f)
-};
 
 struct VSOutput
 {
@@ -57,18 +14,11 @@ VSOutput SsaoBlurVS(uint vid : SV_VertexID)
 {
     VSOutput output = (VSOutput) 0;
     
-    output.TexC = gTexCoords[vid];
+    output.TexC = float2(vid & 1, (vid & 2) >> 1);
     // Quad covering screen in NDC space.
-    output.PosH = float4(2.0f * output.TexC.x - 1.0f, 1.0f - 2.0f * output.TexC.y, 0.0f, 1.0f);
+    output.PosH = float4(output.TexC * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
     
     return output;
-}
-
-float NdcDepthToViewDepth(float z_ndc)
-{
-    // z_ndc = A + B/viewZ, where gProj[2,2]=A and gProj[3,2]=B.
-    float viewZ = gProj[3][2] / (z_ndc - gProj[2][2]);
-    return viewZ;
 }
 
 float4 SsaoBlurPS(VSOutput input) : SV_Target
@@ -95,7 +45,7 @@ float4 SsaoBlurPS(VSOutput input) : SV_Target
     float4 color = blurWeights[gBlurRadius] * gInputMap.SampleLevel(gSamplerPointClamp, input.TexC, 0.0);
     float totalWeight = blurWeights[gBlurRadius];
 	 
-    float3 centerNormal = gNormalMap.SampleLevel(gSamplerPointClamp, input.TexC, 0.0f).xyz;
+    float3 centerNormal = mul(gNormalMap.SampleLevel(gSamplerPointClamp, input.TexC, 0.0f).xyz, (float3x3) gView);
     float centerDepth = NdcDepthToViewDepth(gDepthMap.SampleLevel(gSamplerDepthMap, input.TexC, 0.0f).r);
 
     for (float i = -gBlurRadius; i <= gBlurRadius; ++i)

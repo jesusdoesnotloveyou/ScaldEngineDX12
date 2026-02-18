@@ -104,12 +104,15 @@ VOID Engine::CreateDefaultRootSignature()
     CD3DX12_DESCRIPTOR_RANGE GBufferTable;
     GBufferTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)GBuffer::EGBufferLayer::MAX, SHADER_REGISTER(1u), REGISTER_SPACE_1);
 
+    CD3DX12_DESCRIPTOR_RANGE SSAOTable;
+    SSAOTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)SSAO::ESSAOTextureType::Max - 2u, SHADER_REGISTER(7u), REGISTER_SPACE_1);
+
     CD3DX12_DESCRIPTOR_RANGE skyBoxTable;
-    skyBoxTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_skyTextures.size(), SHADER_REGISTER(7u), REGISTER_SPACE_1);
+    skyBoxTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)m_skyTextures.size(), SHADER_REGISTER(8u), REGISTER_SPACE_1);
 
     // Bindless unbound textures
     CD3DX12_DESCRIPTOR_RANGE textureTable;
-    textureTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)-1, SHADER_REGISTER(8u), REGISTER_SPACE_1);
+    textureTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)-1, SHADER_REGISTER(9u), REGISTER_SPACE_1);
 
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[ERootParameter::NumRootParameters];
@@ -124,6 +127,7 @@ VOID Engine::CreateDefaultRootSignature()
 
     slotRootParameter[ERootParameter::CascadedShadowMaps].InitAsDescriptorTable(1u, &cascadeShadowSrv, D3D12_SHADER_VISIBILITY_PIXEL); // a descriptor table for shadow maps TextureArray.
     slotRootParameter[ERootParameter::GBufferTextures   ].InitAsDescriptorTable(1u, &GBufferTable, D3D12_SHADER_VISIBILITY_PIXEL);     // a descriptor table for GBuffer
+    slotRootParameter[ERootParameter::SSAOTexture       ].InitAsDescriptorTable(1u, &SSAOTable, D3D12_SHADER_VISIBILITY_PIXEL);     // a descriptor table for GBuffer
     slotRootParameter[ERootParameter::SkyBox            ].InitAsDescriptorTable(1u, &skyBoxTable, D3D12_SHADER_VISIBILITY_PIXEL);      // a descriptor table for sky
     slotRootParameter[ERootParameter::Textures          ].InitAsDescriptorTable(1u, &textureTable, D3D12_SHADER_VISIBILITY_PIXEL);     // a descriptor table for diffuse textures
 
@@ -1293,7 +1297,7 @@ void Engine::UpdateSsaoCB(const ScaldTimer& st)
 {
     SSAOConstants ssaoCB;
 
-    XMMATRIX view = m_camera->GetViewMatrix();;
+    XMMATRIX view = m_camera->GetViewMatrix();
     XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
     XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
 
@@ -1544,6 +1548,8 @@ void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandLis
     pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::CascadedShadowMaps, GetGpuSrv(m_cascadesShadowSrvHeapStartIndex));
     // Bind GBuffer textures
     pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, GetGpuSrv(m_GBufferTexturesSrvHeapStartIndex));
+    // Bind SSAO texture
+    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::SSAOTexture, GetGpuSrv(m_SSAOTexturesSrvHeapStartIndex));
     // Bind SkyBox for sky reflections
     pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::SkyBox, GetGpuSrv(m_skyCubeSrvHeapStartIndex));
 #pragma endregion BypassResources

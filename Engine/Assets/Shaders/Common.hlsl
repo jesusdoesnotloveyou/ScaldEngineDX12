@@ -96,10 +96,11 @@ StructuredBuffer<MaterialData> gMaterialData : register(t0);
 StructuredBuffer<InstanceData/*Light*/> gPointLights : register(t1);
 StructuredBuffer<InstanceData/*Light*/> gSpotLights : register(t2);
 
-Texture2DArray gShadowMaps : register(t0, space1);
-Texture2D gGBuffer[GBufferSize] : register(t1, space1); // t1, t2, t3, t4, t5, t6 in space1
-TextureCube gCubeMap : register(t7, space1);
-Texture2D gTextures[] : register(t8, space1); // Bindless textures: t8 - inf
+Texture2DArray gShadowMaps           : register(t0, space1);
+Texture2D      gGBuffer[GBufferSize] : register(t1, space1); // t1, t2, t3, t4, t5, t6 in space1
+Texture2D      gSSAO                 : register(t7, space1);
+TextureCube    gCubeMap              : register(t8, space1);
+Texture2D      gTextures[]           : register(t9, space1); // Bindless textures: from this register to inf
 
 SamplerState gSamplerPointWrap : register(s0);
 SamplerState gSamplerLinearWrap : register(s1);

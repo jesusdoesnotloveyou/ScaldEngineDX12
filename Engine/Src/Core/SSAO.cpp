@@ -177,6 +177,7 @@ void SSAO::SetPSOs(ID3D12PipelineState* ssaoPso, ID3D12PipelineState* ssaoBlurPs
     m_ssaoBlurPso = ssaoBlurPso;
 }
 
+// TO DO: move calcs from stack
 void SSAO::BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList)
 {
     D3D12_RESOURCE_DESC texDesc = {};
@@ -299,11 +300,15 @@ void SSAO::Compute(ID3D12GraphicsCommandList* pCommandList, FrameResource* currF
 
     pCommandList->SetPipelineState(m_ssaoPso);
 
-    // Draw fullscreen quad (check the dir light pass full quad drawing for different approach)
+    // Draw fullscreen quad (check commented code for different approach to draw full quad)
     pCommandList->IASetVertexBuffers(0u, 0u, nullptr);
     pCommandList->IASetIndexBuffer(nullptr);
-    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    pCommandList->DrawInstanced(6u, 1u, 0u, 0u);
+
+    /*pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    pCommandList->DrawInstanced(6u, 1u, 0u, 0u);*/
+    
+    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    pCommandList->DrawInstanced(4u, 1u, 0u, 0u);
 
     ScaldUtil::TransitionResource(pCommandList, m_ambientMap0.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
     
@@ -356,13 +361,13 @@ void SSAO::BlurAmbientMap(ID3D12GraphicsCommandList* pCommandList, bool horzBlur
     // Normal/depth map still bound from the next subpass
 
     // Bind the input ambient map to second texture table
-    pCommandList->SetGraphicsRootDescriptorTable(3u, inputSrv);
+    pCommandList->SetGraphicsRootDescriptorTable(4u, inputSrv);
 
     // Draw fullscreen quad
     pCommandList->IASetVertexBuffers(0u, 0u, nullptr);
     pCommandList->IASetIndexBuffer(nullptr);
-    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    pCommandList->DrawInstanced(6u, 1u, 0u, 0u);
+    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    pCommandList->DrawInstanced(4u, 1u, 0u, 0u);
 
     ScaldUtil::TransitionResource(pCommandList, output, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
 }

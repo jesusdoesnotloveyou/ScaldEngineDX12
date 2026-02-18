@@ -102,6 +102,7 @@ public:
         SpotLightsDataSB,
         CascadedShadowMaps,
         GBufferTextures,
+        SSAOTexture,
         SkyBox,
         Textures,
 
