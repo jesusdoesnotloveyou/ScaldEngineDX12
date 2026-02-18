@@ -7,10 +7,6 @@
 </br>
 ![](Screenshots/final_scene3.png)
 </br>
-![](Screenshots/final_scene4.png)
-</br>
-![](Screenshots/final_scene5.png)
-</br>
 
 # Features
 
@@ -19,16 +15,17 @@
 - Deferred Rendering
   - GBuffer
     - Diffuse Albedo
-    - Ambient Occlusion (work in progress)
     - Normal
     - Specular (FresnelR0 + Roughness)
     - Motion Vectors (work in progress)
     - Depth
+  - Screen Space Ambient Occlusion
 - Lighting & Shadows
   - Directional Lights
     - Cascaded Shadows
     - PCF
   - Point Lights (Instancing)
+  - Spot Lights (Instancing, work in progress)
 - Textures
   - Bindless
   - SkySphere
