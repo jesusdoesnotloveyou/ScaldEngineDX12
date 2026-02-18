@@ -560,7 +560,7 @@ VOID Engine::CreateSrvAndSamplerDescriptorHeaps()
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     ZeroMemory(&srvDesc, sizeof(srvDesc));
 
-    m_cascadesShadowSrvHeapStartIndex = 0u;
+    m_cascadesShadowSrvHeapStartIndex = 1u;
     CD3DX12_CPU_DESCRIPTOR_HANDLE localHandle = GetCpuSrv(m_cascadesShadowSrvHeapStartIndex);
     // configuring srv for shadow maps texture2Darray in the srv heap
     srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
