@@ -202,10 +202,11 @@ private:
     void RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList);
     void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderUI(ID3D12GraphicsCommandList* pCommandList);
 
     void DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& renderItem);
     void DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
-    void DrawInstancedRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
+    void DrawInstancedRenderItem(ID3D12GraphicsCommandList* pCommandList, const std::unique_ptr<RenderItem>& renderItem);
 
 private:
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
@@ -243,7 +244,8 @@ private:
     std::unique_ptr<RenderItem> m_skyRenderItem;
 
     std::vector<Scald::SObject> m_sceneObjects;
-    std::vector<std::unique_ptr<RenderItem>> m_pointLights;
+    std::unique_ptr<RenderItem> m_pointLightItem;
+    std::unique_ptr<RenderItem> m_spotLightItem;
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;

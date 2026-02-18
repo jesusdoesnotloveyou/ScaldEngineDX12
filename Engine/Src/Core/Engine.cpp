@@ -943,13 +943,13 @@ VOID Engine::CreatePointLights(ID3D12GraphicsCommandList* pCommandList)
 
     const int n = 10;
 
-    auto pointLight = std::make_unique<RenderItem>();
-    pointLight->Instances.resize(n * n);
-    pointLight->World = XMMatrixIdentity();
-    pointLight->Geo = m_geometries.at("pointLightMesh").get();
-    pointLight->StartIndexLocation = 0u;
-    pointLight->BaseVertexLocation = 0;
-    pointLight->IndexCount = (UINT)sphereMesh.LODIndices[0].size();
+    m_pointLightItem = std::make_unique<RenderItem>();
+    m_pointLightItem->Instances.resize(n * n);
+    m_pointLightItem->World = XMMatrixIdentity();
+    m_pointLightItem->Geo = m_geometries.at("pointLightMesh").get();
+    m_pointLightItem->StartIndexLocation = 0u;
+    m_pointLightItem->BaseVertexLocation = 0;
+    m_pointLightItem->IndexCount = (UINT)sphereMesh.LODIndices[0].size();
 
     float width = 50.0f;
     float depth = 50.0f;
@@ -970,16 +970,14 @@ VOID Engine::CreatePointLights(ID3D12GraphicsCommandList* pCommandList)
             // scale should be dependent from range of light source
             XMMATRIX world = XMMatrixScalingFromVector(XMVectorReplicate(lightRange)) * XMMatrixTranslationFromVector(pos);
 
-            XMStoreFloat4x4(&pointLight->Instances[index].World, world);
+            XMStoreFloat4x4(&m_pointLightItem->Instances[index].World, world);
 
-            XMStoreFloat3(&pointLight->Instances[index].Light.Position, pos);
-            pointLight->Instances[index].Light.FallOfStart = ScaldMath::RandF(1.0, 2.0f);
-            pointLight->Instances[index].Light.FallOfEnd = lightRange;
-            pointLight->Instances[index].Light.Strength = { ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f) };
+            XMStoreFloat3(&m_pointLightItem->Instances[index].Light.Position, pos);
+            m_pointLightItem->Instances[index].Light.FallOfStart = ScaldMath::RandF(1.0, 2.0f);
+            m_pointLightItem->Instances[index].Light.FallOfEnd = lightRange;
+            m_pointLightItem->Instances[index].Light.Strength = { ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f) };
         }
     }
-
-    m_pointLights.push_back(std::move(pointLight));
 }
 
 VOID Engine::CreateFrameResources()
@@ -1044,8 +1042,8 @@ void Engine::OnUpdate(const ScaldTimer& st)
     m_camera->Update(st.DeltaTime());
     
     // Cycle through the circular frame resource array.
-    m_ñurrFrameResourceIndex = (m_ñurrFrameResourceIndex + 1u) % gNumFrameResources;
-    m_currFrameResource = m_frameResources[m_ñurrFrameResourceIndex].get();
+    m_Ã±urrFrameResourceIndex = (m_Ã±urrFrameResourceIndex + 1u) % gNumFrameResources;
+    m_currFrameResource = m_frameResources[m_Ã±urrFrameResourceIndex].get();
 
     // Has the GPU finished processing the commands of the current frame resource?
     // If not, wait until the GPU has completed commands up to this fence point.
@@ -1083,7 +1081,6 @@ void Engine::OnRender(const ScaldTimer& st)
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList(commandList.Get());
 
-    //ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
     // Execute the command list.
     m_commandQueue->ExecuteCommandList(commandList);
 
@@ -1250,32 +1247,29 @@ void Engine::UpdateMaterialBuffer(const ScaldTimer& st)
 
 void Engine::UpdateLightsBuffer(const ScaldTimer& st)
 {
+#pragma region PointLights
     auto currPointLightSB = m_currFrameResource->PointLightSB.get();
 
-    for (auto& e : m_pointLights)
+    // we have many instances, not the one objects, so think about it (we can't update all instances, if only one point light gets dirty)
+    //if (e->NumFramesDirty > 0) {
+    int pointLightIndex = 0;
+    const auto& instances = m_pointLightItem->Instances;
+
+    for (UINT i = 0; i < (UINT)instances.size(); ++i)
     {
-        // we have many instances, not the one objects, so think about it (we can't update all instances, if only one point light gets dirty)
-        //if (e->NumFramesDirty > 0)
-        //{
-        
-        int pointLightIndex = 0;
-        const auto& instances = e->Instances;
-
-        for (UINT i = 0; i < (UINT)instances.size(); ++i)
-        {
-            XMStoreFloat4x4(&m_perInstanceSBData.World, XMMatrixTranspose(XMLoadFloat4x4(&instances[i].World)));
-            m_perInstanceSBData.Light.Strength = instances[i].Light.Strength;
-            m_perInstanceSBData.Light.FallOfStart = instances[i].Light.FallOfStart;
-            m_perInstanceSBData.Light.FallOfEnd = instances[i].Light.FallOfEnd;
-            m_perInstanceSBData.Light.Position = instances[i].Light.Position;
-            // copy all instances to structured buffer
-            currPointLightSB->CopyData(pointLightIndex++, m_perInstanceSBData);
-        }
-        e->InstanceCount = pointLightIndex;
-
-        //e->NumFramesDirty--;
-        //}
+        XMStoreFloat4x4(&m_perInstanceSBData.World, XMMatrixTranspose(XMLoadFloat4x4(&instances[i].World)));
+        m_perInstanceSBData.Light.Strength = instances[i].Light.Strength;
+        m_perInstanceSBData.Light.FallOfStart = instances[i].Light.FallOfStart;
+        m_perInstanceSBData.Light.FallOfEnd = instances[i].Light.FallOfEnd;
+        m_perInstanceSBData.Light.Position = instances[i].Light.Position;
+        // copy all instances to structured buffer
+        currPointLightSB->CopyData(pointLightIndex++, m_perInstanceSBData);
     }
+    m_pointLightItem->InstanceCount = pointLightIndex;
+
+#pragma endregion PointLights
+    //e->NumFramesDirty--;
+    //}
 }
 
 void Engine::UpdateShadowTransform(const ScaldTimer& st)
@@ -1561,18 +1555,16 @@ void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandLis
 
 void Engine::DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList)
 {
-    UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-
-    auto currFramePassCB = m_currFrameResource->PassCB->Get();
-    auto currFrameGPUVirtualAddress = ScaldUtil::GetGPUVirtualAddress(currFramePassCB->GetGPUVirtualAddress(), passCBByteSize, static_cast<UINT>(EPassType::DeferredLighting));
-    pCommandList->SetGraphicsRootConstantBufferView(ERootParameter::PerPassDataCB, currFrameGPUVirtualAddress);
-
-    // Bind GBuffer textures
-    pCommandList->SetGraphicsRootDescriptorTable(ERootParameter::GBufferTextures, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_GBufferTexturesSrvHeapStartIndex, m_cbvSrvUavDescriptorSize));
+    // All bypass resources already set by the previous pass (dir light)
 
     // !!! HACK (TO DRAW EVEN IF FRUSTUM INTERSECTS LIGHT VOLUME)
     pCommandList->SetPipelineState(m_pipelineStates.at(EPsoType::DeferredPointWithinFrustum).Get());
-    DrawInstancedRenderItems(pCommandList, m_pointLights);
+
+    // Set the instance buffer to use for this render-item.  For structured buffers, we can bypass the heap and set as a root descriptor.
+    auto instanceBuffer = m_currFrameResource->PointLightSB->Get();
+    pCommandList->SetGraphicsRootShaderResourceView(ERootParameter::PointLightsDataSB, instanceBuffer->GetGPUVirtualAddress());
+
+    DrawInstancedRenderItem(pCommandList, m_pointLightItem);
 }
 
 void Engine::DeferredSpotLightPass(ID3D12GraphicsCommandList* pCommandList)
@@ -1585,6 +1577,7 @@ void Engine::RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList)
     // forward-like
     // RenderTransparencyPass(pCommandList);
     RenderSkyBoxPass(pCommandList);
+    RenderUI(pCommandList);
 
     // Close accumulation buffer, that was opened in the light pass and indicate that the back buffer will now be used to present.
     ScaldUtil::TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -1615,6 +1608,11 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
     DrawRenderItem(pCommandList, m_skyRenderItem);
     
     ScaldUtil::TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ);
+}
+
+void Engine::RenderUI(ID3D12GraphicsCommandList* pCommandList)
+{
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
 }
 
 void Engine::DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& ri)
@@ -1656,24 +1654,12 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vecto
     }
 }
 
-void Engine::DrawInstancedRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems)
+void Engine::DrawInstancedRenderItem(ID3D12GraphicsCommandList* pCommandList, const std::unique_ptr<RenderItem>& ri)
 {
-    for (auto& ri : renderItems)
-    {
-        pCommandList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
-        pCommandList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
-        pCommandList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
-
-        // Set the instance buffer to use for this render-item.  For structured buffers, we can bypass 
-        // the heap and set as a root descriptor.
-        auto instanceBuffer = m_currFrameResource->PointLightSB->Get();
-
-        // now we set only objects' cbv per item, material data is set per pass
-        // we get material data by index from structured buffer
-        pCommandList->SetGraphicsRootShaderResourceView(ERootParameter::PointLightsDataSB, instanceBuffer->GetGPUVirtualAddress());
-
-        pCommandList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
-    }
+    pCommandList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
+    pCommandList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
+    pCommandList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+    pCommandList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
 }
 
 std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, const float farZ)

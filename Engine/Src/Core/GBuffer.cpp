@@ -163,10 +163,10 @@ void GBuffer::CreateResources()
         &optClear,
         IID_PPV_ARGS(&m_buffer[depthIndex].m_resource)));
 
-    SCALD_NAME_D3D12_OBJECT(m_buffer[DIFFUSE_ALBEDO].m_resource, L"Diffuse Albedo");
-    SCALD_NAME_D3D12_OBJECT(m_buffer[AMBIENT_OCCLUSION].m_resource, L"World Position"); // SSAO will be
-    SCALD_NAME_D3D12_OBJECT(m_buffer[NORMAL].m_resource, L"Normal");
-    SCALD_NAME_D3D12_OBJECT(m_buffer[SPECULAR].m_resource, L"Specular");
-    SCALD_NAME_D3D12_OBJECT(m_buffer[MOTION_VECTORS].m_resource, L"Motion Vectors");
-    SCALD_NAME_D3D12_OBJECT(m_buffer[DEPTH].m_resource, L"Depth");
+    SCALD_NAME_D3D12_OBJECT(m_buffer[DIFFUSE_ALBEDO].m_resource, L"Diffuse Buffer");
+    SCALD_NAME_D3D12_OBJECT(m_buffer[AMBIENT_OCCLUSION].m_resource, L"WorldPos Buffer"); // SSAO will be
+    SCALD_NAME_D3D12_OBJECT(m_buffer[NORMAL].m_resource, L"Normal Buffer");
+    SCALD_NAME_D3D12_OBJECT(m_buffer[SPECULAR].m_resource, L"Specular Buffer");
+    SCALD_NAME_D3D12_OBJECT(m_buffer[MOTION_VECTORS].m_resource, L"Motion Vectors Buffer");
+    SCALD_NAME_D3D12_OBJECT(m_buffer[DEPTH].m_resource, L"Depth Buffer");
 }
