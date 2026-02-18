@@ -14,8 +14,7 @@ const int gNumFrameResources = 3;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
-// for the GPU lifetime of resources to avoid destroying objects that may still be
-// referenced by the GPU.
+// for the GPU lifetime of resources to avoid destroying objects that may still be referenced by the GPU.
 // An example of this can be found in the class method: OnDestroy().
 
 using Microsoft::WRL::ComPtr;
@@ -229,7 +228,7 @@ private:
     PassConstants m_shadowPassCBData;
     PassConstants m_geometryPassCBData;
     PassConstants m_mainPassCBData; // deferred color(light) pass
-    //PassConstants m_lightingPassCBData;
+    
     MaterialData m_perMaterialSBData;
     InstanceData m_perInstanceSBData;
 
@@ -325,8 +324,8 @@ private:
     VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
 
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
-    // Doubt that't a good idea to return vector of matrices. Should rather pass vector as a parameter probalby and fill it inside function.
-    void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
 
+    // TO DO: use static array instead of vector to avoid allocation in heap
+    void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
     std::vector<XMVECTOR> GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection);
 };

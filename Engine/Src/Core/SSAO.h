@@ -49,7 +49,7 @@ public:
 
 	void GetOffsetVectors(XMFLOAT4 offsets[14]);
 
-	//heap allocations!!!
+	// TO DO : remove heap allocation for every frame
 	std::vector<float> CalcGaussWeights(float sigma);
 
 	void BuildDescriptors(ID3D12Resource* depthStencilBuffer,
