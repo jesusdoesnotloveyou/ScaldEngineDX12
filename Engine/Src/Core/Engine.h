@@ -8,6 +8,7 @@
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Objects/SObject.h"
 #include "RootSignature.h"
+#include "SSAO.h"
 
 const int gNumFrameResources = 3;
 
@@ -94,25 +95,28 @@ class Engine : public D3D12Sample
 public:
     enum ERootParameter : UINT
     {
-        PerObjectDataCB = 0,
+        PerObjectDataCB = 0u,
         PerPassDataCB,
         MaterialDataSB,
         PointLightsDataSB,
         SpotLightsDataSB,
         CascadedShadowMaps,
         GBufferTextures,
+        SSAOTexture,
         SkyBox,
         Textures,
 
-        NumRootParameters = 9u
+        NumRootParameters
     };
 
     enum EPsoType : UINT
     {
-        CascadedShadowsOpaque = 0,
+        CascadedShadowsOpaque = 0u,
         
         DeferredGeometry,
         Wireframe,
+        Ssao,
+        SsaoBlur,
 
         DeferredDirectional,
         DeferredPointWithinFrustum,
@@ -122,8 +126,8 @@ public:
 
         Transparency,
         Sky,
-        
-        NumPipelineStates = 10u
+
+        NumPipelineStates
     };
 
     enum EShaderType : UINT
@@ -135,6 +139,11 @@ public:
         CascadedShadowsVS,
         CascadedShadowsGS,
 
+        SsaoVS,
+        SsaoPS,
+        SsaoBlurVS,
+        SsaoBlurPS,
+
         DeferredGeometryVS,
         DeferredGeometryPS,
         DeferredDirVS,
@@ -145,7 +154,7 @@ public:
         SkyBoxVS,
         SkyBoxPS,
 
-        NumShaders = 13U
+        NumShaders
     };
 
 public:
@@ -165,10 +174,14 @@ public:
 
 private:
     void OnKeyboardInput(const ScaldTimer& st);
+    
     void UpdateObjectsCB(const ScaldTimer& st);
     void UpdateMaterialBuffer(const ScaldTimer& st);
     void UpdateLightsBuffer(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
+
+    void UpdateSsaoCB(const ScaldTimer& st);
+
     void UpdateShadowPassCB(const ScaldTimer& st);
     void UpdateGeometryPassCB(const ScaldTimer& st);
     void UpdateMainPassCB(const ScaldTimer& st);
@@ -179,15 +192,15 @@ private:
 #pragma endregion Shadows
 #pragma region DeferredShading
     void RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderLightingPass(ID3D12GraphicsCommandList* pCommandList);
-
     void DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandList);
     void DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList);
     void DeferredSpotLightPass(ID3D12GraphicsCommandList* pCommandList);
+#pragma endregion DeferredShading
 
     void RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList);
     void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
-#pragma endregion DeferredShading
     void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderUI(ID3D12GraphicsCommandList* pCommandList);
 
@@ -205,7 +218,9 @@ private:
     float m_sunPhi = XM_PI / 3;
     float m_sunTheta = 1.25f * XM_PI;
     
+    // should be placed in RenderPass abstraction class
     std::shared_ptr<RootSignature> m_rootSignature;
+    std::shared_ptr<RootSignature> m_ssaoRootSignature;
 
     std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
@@ -236,6 +251,9 @@ private:
     std::unique_ptr<Camera> m_camera;
     std::shared_ptr<Scald::Scene> m_scene;
 
+    std::unique_ptr<SSAO> m_SSAO;
+    UINT m_SSAOTexturesSrvHeapStartIndex = 0u;
+
 #pragma region DeferredShading
     std::unique_ptr<GBuffer> m_GBuffer;
     UINT m_GBufferTexturesSrvHeapStartIndex = 0u;
@@ -254,8 +272,6 @@ private:
 
     bool m_bIsGraphicsFeaturesLoaded = false;
 
-    void TransitionResource(ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
-
 private:
     VOID LoadPipeline() override;
     VOID LoadGraphicsFeatures();
@@ -266,7 +282,9 @@ private:
     VVOID CreateRtvAndDsvDescriptorHeaps() override;
     
     VOID LoadAssets();
-    VOID CreateRootSignature();
+    VOID CreateRootSignatures();
+    VOID CreateDefaultRootSignature();
+    VOID CreateSsaoRootSignature();
     VOID CreateShaders();
     VOID CreatePSO();
     
@@ -283,6 +301,26 @@ private:
     VOID CreateFrameResources();
     // Heaps are created if there are root descriptor tables in root signature 
     VOID CreateSrvAndSamplerDescriptorHeaps();
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index)const
+    {
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize);
+    }
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index)const
+    {
+        return CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize);
+    }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index)const
+    {
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_dsvDescriptorSize);
+    }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index)const
+    {
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_rtvDescriptorSize);
+    }
 
     VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
 

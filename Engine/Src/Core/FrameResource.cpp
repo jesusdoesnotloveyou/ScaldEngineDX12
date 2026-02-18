@@ -10,6 +10,7 @@ FrameResource::FrameResource(ID3D12Device* device, UINT passCount, UINT objectCo
 
 	ObjectsCB = std::make_unique<UploadBuffer<ObjectConstants>>(device, objectCount, TRUE);
 	PassCB = std::make_unique<UploadBuffer<PassConstants>>(device, passCount, TRUE);
+	SsaoCB = std::make_unique<UploadBuffer<SSAOConstants>>(device, 1u, TRUE);
 	MaterialSB = std::make_unique<UploadBuffer<MaterialData>>(device, materialCount, FALSE); // Structured buffer
 	PointLightSB = std::make_unique<UploadBuffer<InstanceData>>(device, pointLightsCount, FALSE); // Structured buffer
 }

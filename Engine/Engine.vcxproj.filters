@@ -31,6 +31,7 @@
     <ClCompile Include="External\imgui\backends\imgui_impl_dx12.cpp" />
     <ClCompile Include="External\imgui\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="External\imgui\misc\fonts\binary_to_compressed_c.cpp" />
+    <ClCompile Include="Src\Core\SSAO.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
@@ -78,6 +79,7 @@
     <ClInclude Include="External\imgui\examples\libs\glfw\include\GLFW\glfw3native.h" />
     <ClInclude Include="External\imgui\misc\single_file\imgui_single_file.h" />
     <ClInclude Include="Src\Common\ScaldCoreDefines.h" />
+    <ClInclude Include="Src\Core\SSAO.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\LightUtil.hlsl" />
@@ -101,9 +103,12 @@
     <None Include="External\imgui\examples\libs\emscripten\shell_minimal.html" />
     <None Include="External\imgui\.gitignore" />
     <None Include="Assets\Shaders\SkyBox.hlsl" />
+    <None Include="Assets\Shaders\SSAO.hlsl" />
+    <None Include="Assets\Shaders\SSAOCommon.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="External\imgui\misc\debuggers\README.txt" />
+    <Text Include="Assets\Shaders\SSAOBlur.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="External\imgui\misc\debuggers\imgui.natvis" />
