@@ -92,6 +92,7 @@ VOID Engine::CreateRootSignatures()
 {
     CreateDefaultRootSignature();
     CreateSsaoRootSignature();
+    CreateComputeRootSignature();
 }
 
 VOID Engine::CreateDefaultRootSignature()
@@ -200,6 +201,16 @@ void Engine::CreateSsaoRootSignature()
         staticSamplers.data());
 }
 
+void Engine::CreateComputeRootSignature()
+{
+    m_computeRootSignature = std::make_shared<RootSignature>();
+
+    CD3DX12_ROOT_PARAMETER slotRootParameter[1];
+    slotRootParameter[0].InitAsConstants(1u, SHADER_REGISTER(0u));
+
+    m_computeRootSignature->Create(m_device.Get(), ARRAYSIZE(slotRootParameter), slotRootParameter);
+}
+
 VOID Engine::CreateShaders()
 {
     //auto pixelShaderPath = GetAssetFullPath(L"./PixelShader.hlsl").c_str();
@@ -254,6 +265,10 @@ VOID Engine::CreateShaders()
     m_shaders[EShaderType::SkyBoxVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SkyBox.hlsl", nullptr, "VSMain", "vs_5_1");
     m_shaders[EShaderType::SkyBoxPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SkyBox.hlsl", nullptr, "PSMain", "ps_5_1");
 #pragma endregion Sky
+
+#pragma region Particles
+    m_shaders[EShaderType::ParticlesCS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ParticlesCS.hlsl", nullptr, "CSMain", "cs_5_1");
+#pragma endregion Particles
 }
 
 VOID Engine::CreatePSO()
@@ -493,6 +508,19 @@ VOID Engine::CreatePSO()
     ThrowIfFailed(m_device->CreateGraphicsPipelineState(&skyPsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Sky])));
 
 #pragma endregion Sky
+
+#pragma region Particles
+    D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc = {};
+    computePsoDesc.pRootSignature = m_computeRootSignature->Get();
+    computePsoDesc.CS =
+    {
+        reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::ParticlesCS)->GetBufferPointer()),
+        m_shaders.at(EShaderType::ParticlesCS)->GetBufferSize()
+    };
+    computePsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+    //ThrowIfFailed(m_device->CreateComputePipelineState(&computePsoDesc, IID_PPV_ARGS(&m_pipelineStates[EPsoType::Particles])));
+
+#pragma region Particles
 }
 
 VOID Engine::LoadScene()
@@ -1608,6 +1636,13 @@ void Engine::RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList)
     DrawRenderItem(pCommandList, m_skyRenderItem);
     
     ScaldUtil::TransitionResource(pCommandList, m_GBuffer->Get(GBuffer::EGBufferLayer::DEPTH), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_GENERIC_READ);
+}
+
+void Engine::RenderParticles(ID3D12GraphicsCommandList* pCommandList)
+{
+    // emission
+    // update
+    // rendering
 }
 
 void Engine::RenderUI(ID3D12GraphicsCommandList* pCommandList)

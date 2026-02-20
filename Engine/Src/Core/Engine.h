@@ -126,6 +126,8 @@ public:
         Transparency,
         Sky,
 
+        Particles,
+
         NumPipelineStates
     };
 
@@ -150,8 +152,11 @@ public:
         DeferredLightVolumesVS,
         DeferredPointPS,
         DeferredSpotPS,
+
         SkyBoxVS,
         SkyBoxPS,
+
+        ParticlesCS,
 
         NumShaders
     };
@@ -201,6 +206,7 @@ private:
     void RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList);
     void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderParticles(ID3D12GraphicsCommandList* pCommandList);
     void RenderUI(ID3D12GraphicsCommandList* pCommandList);
 
     void DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& renderItem);
@@ -220,6 +226,7 @@ private:
     // should be placed in RenderPass abstraction class
     std::shared_ptr<RootSignature> m_rootSignature;
     std::shared_ptr<RootSignature> m_ssaoRootSignature;
+    std::shared_ptr<RootSignature> m_computeRootSignature;
 
     std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
@@ -281,9 +288,11 @@ private:
     VVOID CreateRtvAndDsvDescriptorHeaps() override;
     
     VOID LoadAssets();
+
     VOID CreateRootSignatures();
     VOID CreateDefaultRootSignature();
     VOID CreateSsaoRootSignature();
+    VOID CreateComputeRootSignature();
     VOID CreateShaders();
     VOID CreatePSO();
     

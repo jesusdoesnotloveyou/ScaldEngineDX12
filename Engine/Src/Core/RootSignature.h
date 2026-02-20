@@ -14,7 +14,12 @@ public:
 
 public:
 	template<typename T = CD3DX12_STATIC_SAMPLER_DESC>
-	void Create(ID3D12Device* device, UINT numParameters, const CD3DX12_ROOT_PARAMETER* rootParams, D3D12_ROOT_SIGNATURE_FLAGS flags, UINT numStaticSamplers = 0u, const T* staticSamplers = nullptr)
+	void Create(ID3D12Device* device,
+				UINT numParameters,
+				const CD3DX12_ROOT_PARAMETER* rootParams,
+				D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+				UINT numStaticSamplers = 0u,
+				const T* staticSamplers = nullptr)
 	{
 		if (numStaticSamplers)
 		{

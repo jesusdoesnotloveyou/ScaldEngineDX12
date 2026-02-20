@@ -77,8 +77,6 @@ struct InstanceData
 	LightData Light;
 };
 
-// Fprward Rendering
-#define MaxLights 16
 
 struct PassConstants
 {
@@ -143,4 +141,24 @@ struct MaterialData
 	UINT NormalMapIndex = 0u;
 	UINT matPad1 = 0u;
 	UINT matPad2 = 0u;
+};
+
+// Fprward Rendering
+
+/*
+ *	Particles
+ */
+
+struct Particle
+{
+	XMFLOAT4 Color;
+	
+	XMFLOAT3 Position;
+	float Age;
+
+	XMFLOAT3 Velocity;
+	float Size;
+
+	float Alive;
+	XMFLOAT3 pad;
 };

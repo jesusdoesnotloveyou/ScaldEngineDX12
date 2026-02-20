@@ -105,6 +105,10 @@
     <None Include="Assets\Shaders\SkyBox.hlsl" />
     <None Include="Assets\Shaders\SSAO.hlsl" />
     <None Include="Assets\Shaders\SSAOCommon.hlsl" />
+    <None Include="Assets\Shaders\ParticlesCS.hlsl" />
+    <None Include="Assets\Shaders\BillboardParticleGS.hlsl" />
+    <None Include="Assets\Shaders\SortParticlesCS.hlsl" />
+    <None Include="Assets\Shaders\ParticlesColor.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="External\imgui\misc\debuggers\README.txt" />
