@@ -1042,8 +1042,8 @@ void Engine::OnUpdate(const ScaldTimer& st)
     m_camera->Update(st.DeltaTime());
     
     // Cycle through the circular frame resource array.
-    m_ñurrFrameResourceIndex = (m_ñurrFrameResourceIndex + 1u) % gNumFrameResources;
-    m_currFrameResource = m_frameResources[m_ñurrFrameResourceIndex].get();
+    m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1u) % gNumFrameResources;
+    m_currFrameResource = m_frameResources[m_currentFrameResourceIndex].get();
 
     // Has the GPU finished processing the commands of the current frame resource?
     // If not, wait until the GPU has completed commands up to this fence point.
