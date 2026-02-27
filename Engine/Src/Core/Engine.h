@@ -276,6 +276,10 @@ private:
     UINT m_normalSrvHeapStartIndex = 0u;
 #pragma endregion TexturesAndSky
 
+#pragma region Particles
+    UINT m_particlesSrvHeapStartIndex = 0u;
+#pragma endregion Particles
+
     bool m_bIsGraphicsFeaturesLoaded = false;
 
 private:

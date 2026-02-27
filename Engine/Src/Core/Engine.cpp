@@ -684,6 +684,8 @@ VOID Engine::CreateSrvAndSamplerDescriptorHeaps()
 
         localHandle.Offset(1, m_cbvSrvUavDescriptorSize);
     }
+
+    m_particlesSrvHeapStartIndex = m_normalSrvHeapStartIndex + 1u;
 }
 
 VOID Engine::CreateGeometry(ID3D12GraphicsCommandList* pCommandList)
