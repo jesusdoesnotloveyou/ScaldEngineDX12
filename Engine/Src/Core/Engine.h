@@ -1,14 +1,18 @@
 #pragma once
 
-#include "D3D12Sample.h"
+#include "D3D12/D3D12Sample.h"
+
+#include "Common/Camera.h"
 #include "FrameResource.h"
-#include "Camera.h"
-#include "CascadeShadowMap.h"
-#include "GBuffer.h"
+
+#include "DeferredRendering/GBuffer.h"
+#include "Shadows/CascadeShadowMap.h"
+#include "SSAO/SSAO.h"
+
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Objects/SObject.h"
-#include "RootSignature.h"
-#include "SSAO.h"
+
+class RootSignature;
 
 const int gNumFrameResources = 3;
 
@@ -226,7 +230,8 @@ private:
     // should be placed in RenderPass abstraction class
     std::shared_ptr<RootSignature> m_rootSignature;
     std::shared_ptr<RootSignature> m_ssaoRootSignature;
-    std::shared_ptr<RootSignature> m_computeRootSignature;
+    std::shared_ptr<RootSignature> m_particlesComputeRootSignature;
+    std::shared_ptr<RootSignature> m_commonComputeRootSignature;
 
     std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
@@ -296,7 +301,8 @@ private:
     VOID CreateRootSignatures();
     VOID CreateDefaultRootSignature();
     VOID CreateSsaoRootSignature();
-    VOID CreateComputeRootSignature();
+    VOID CreateParticlesRootSignature();
+    VOID CreateCommomComputeRootSignature();
     VOID CreateShaders();
     VOID CreatePSO();
     

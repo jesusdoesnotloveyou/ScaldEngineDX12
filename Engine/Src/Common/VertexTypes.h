@@ -78,3 +78,22 @@ public:
 		InputElementCount
 	};
 };
+
+struct VertexID
+{
+	VertexID() {}
+
+private:
+	static constexpr inline UINT InputElementCount = 1u;
+	static constexpr inline const D3D12_INPUT_ELEMENT_DESC InputElements[InputElementCount] =
+	{
+		{ "SV_VertexID", 0u, DXGI_FORMAT_R32_UINT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
+	};
+
+public:
+	static constexpr inline D3D12_INPUT_LAYOUT_DESC InputLayout =
+	{
+		InputElements,
+		InputElementCount
+	};
+};

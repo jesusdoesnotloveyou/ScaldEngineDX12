@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "ParticleSystem.h"
 
+#include "Common/Camera.h"
+
 // The number of elements to sort is limited to an even power of 2
 // At minimum 8,192 elements - BITONIC_BLOCK_SIZE * TRANSPOSE_BLOCK_SIZE
 // At maximum 262,144 elements - BITONIC_BLOCK_SIZE * BITONIC_BLOCK_SIZE
@@ -11,36 +13,20 @@ const UINT TRANSPOSE_BLOCK_SIZE = 16;
 const UINT MATRIX_WIDTH = BITONIC_BLOCK_SIZE;
 const UINT MATRIX_HEIGHT = NUM_ELEMENTS / BITONIC_BLOCK_SIZE;
 
-ParticleSystem::ParticleSystem(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int maxParticles, XMVECTOR origin, class Camera* camera)
+ParticleSystem::ParticleSystem(ID3D12Device* device, int maxParticles, XMVECTOR origin, class Camera* camera)
     :
-    mDevice(device),
-    mDeviceContext(deviceContext),
+    m_device(device),
     maxParticles(maxParticles),
     origin(origin),
     camera(camera)
 {
-    D3D11_SAMPLER_DESC sampleDesc = {};
-    sampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampleDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    sampleDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-    sampleDesc.BorderColor[0] = 1.0f;
-    sampleDesc.BorderColor[1] = 0.0f;
-    sampleDesc.BorderColor[2] = 0.0f;
-    sampleDesc.BorderColor[3] = 1.0f;
-    sampleDesc.MipLODBias = 0;
-    sampleDesc.MaxAnisotropy = 0;
-    sampleDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    ThrowIfFailed(mDevice->CreateSamplerState(&sampleDesc, mParticleSamplerClamp.GetAddressOf()));
-
     //ThrowIfFailed(CreateWICTextureFromFile(mDevice, L"./Data/Textures/pop_cat_color.png", nullptr, &mBillboardTexture));
 }
 
 void ParticleSystem::Render()
 {
-    mDeviceContext->PSSetShaderResources(0u, 1u, mBillboardTexture.GetAddressOf());
-    mDeviceContext->PSSetSamplers(0u, 1u, mParticleSamplerClamp.GetAddressOf());
+    //mDeviceContext->PSSetShaderResources(0u, 1u, mBillboardTexture.GetAddressOf());
+    //mDeviceContext->PSSetSamplers(0u, 1u, mParticleSamplerClamp.GetAddressOf());
 }
 
 void ParticleSystem::Emit(int numParticles)
@@ -53,22 +39,24 @@ void ParticleSystem::Emit(int numParticles)
 
 void ParticleSystem::InitializeSystem()
 {
-    ThrowIfFailed(mBillboardGeometryShader.Init(mDevice, L"./Shaders/particles/BillboardParticleGS.hlsl"));
-    ThrowIfFailed(mBitonicSortShader.Init(mDevice, L"./Shaders/particles/SortCS.hlsl"));
-    ThrowIfFailed(mBitonicTransposeShader.Init(mDevice, L"./Shaders/particles/SortTransposeCS.hlsl"));
+    ThrowIfFailed(mBillboardGeometryShader.Init(m_device, L"./Shaders/particles/BillboardParticleGS.hlsl"));
+    ThrowIfFailed(mBitonicSortShader.Init(m_device, L"./Shaders/particles/SortCS.hlsl"));
+    ThrowIfFailed(mBitonicTransposeShader.Init(m_device, L"./Shaders/particles/SortTransposeCS.hlsl"));
 
-    ThrowIfFailed(mCBSort.Init(mDevice, mDeviceContext));
-    ThrowIfFailed(mCBParticle.Init(mDevice, mDeviceContext));
-    ThrowIfFailed(mCBCamera.Init(mDevice, mDeviceContext));
+    ThrowIfFailed(mCBSort.Init(m_device, mDeviceContext));
+    ThrowIfFailed(mCBParticle.Init(m_device, mDeviceContext));
+    ThrowIfFailed(mCBCamera.Init(m_device, mDeviceContext));
 
     // Injection buffer
-    ThrowIfFailed(CreateRWStructuredBufferCPUWrite<Particle>(mDevice, &injectionBuffer, (UINT)injectionBufferSize));
+    ThrowIfFailed(CreateRWStructuredBufferCPUWrite<Particle>(m_device, &injectionBuffer, (UINT)injectionBufferSize));
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-    srvDesc.Buffer.ElementWidth = injectionBufferSize;
-    ThrowIfFailed((mDevice->CreateShaderResourceView(injectionBuffer, &srvDesc, &mInjectionBufferSRV)));
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    srvDesc.Buffer.FirstElement = (UINT64)0u;
+    srvDesc.Buffer.StructureByteStride = sizeof(Particle);
+    srvDesc.Buffer.NumElements = injectionBufferSize;
+    m_device->CreateShaderResourceView(injectionBuffer.Get(), &srvDesc, mInjectionBufferSRV);
 
     // indirect args buffer
     D3D11_BUFFER_DESC desc = {};
@@ -86,25 +74,25 @@ void ParticleSystem::InitializeSystem()
 
     D3D11_SUBRESOURCE_DATA srd = {};
     srd.pSysMem = &args;
-    ThrowIfFailed(mDevice->CreateBuffer(&desc, &srd, &indirectArgsBuffer));
+    ThrowIfFailed(m_device->CreateBuffer(&desc, &srd, &indirectArgsBuffer));
 
     // Main particle pool
-    ThrowIfFailed(CreateRWStructuredBuffer<Particle>(mDevice, &particleBuffer, maxParticles));
+    ThrowIfFailed(CreateRWStructuredBuffer<Particle>(m_device, &particleBuffer, maxParticles));
 
-    D3D11_UNORDERED_ACCESS_VIEW_DESC particleUAVDesc;
+    D3D12_UNORDERED_ACCESS_VIEW_DESC particleUAVDesc;
     particleUAVDesc.Format = DXGI_FORMAT_UNKNOWN;
-    particleUAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+    particleUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
     particleUAVDesc.Buffer.NumElements = maxParticles;
     particleUAVDesc.Buffer.FirstElement = 0u;
-    particleUAVDesc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_COUNTER;
-    ThrowIfFailed(mDevice->CreateUnorderedAccessView(particleBuffer, &particleUAVDesc, &mParticleBufferUAV));
+    particleUAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+    m_device->CreateUnorderedAccessView(particleBuffer.Get(), nullptr, &particleUAVDesc, mParticleBufferUAV);
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC particleSRVDesc;
+    D3D12_SHADER_RESOURCE_VIEW_DESC particleSRVDesc;
     particleSRVDesc.Format = DXGI_FORMAT_UNKNOWN;
-    particleSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    particleSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     particleSRVDesc.Buffer.NumElements = maxParticles;
-    particleSRVDesc.Buffer.ElementOffset = 0u;
-    ThrowIfFailed(mDevice->CreateShaderResourceView(particleBuffer, &particleSRVDesc, &mParticleBufferSRV));
+    particleSRVDesc.Buffer.FirstElement = 0u;
+    m_device->CreateShaderResourceView(particleBuffer.Get(), &particleSRVDesc, mParticleBufferSRV);
 
     // Vectors for sort list and dead list
     std::vector<SortList> sort(maxParticles);
@@ -118,43 +106,43 @@ void ParticleSystem::InitializeSystem()
     mParticleData.numAliveParticles = 0u;
 
     // Alive (sort) lists
-    ThrowIfFailed(CreateRWStructuredBuffer<SortList>(mDevice, &sortListBuffer, maxParticles, sort.data()));
-    ThrowIfFailed(CreateRWStructuredBuffer<SortList>(mDevice, &sortListBuffer2, maxParticles, sort.data()));
+    ThrowIfFailed(CreateRWStructuredBuffer<SortList>(m_device, &sortListBuffer, maxParticles, sort.data()));
+    ThrowIfFailed(CreateRWStructuredBuffer<SortList>(m_device, &sortListBuffer2, maxParticles, sort.data()));
 
-    D3D11_UNORDERED_ACCESS_VIEW_DESC sortListUAVDesc;
+    D3D12_UNORDERED_ACCESS_VIEW_DESC sortListUAVDesc;
     sortListUAVDesc.Format = DXGI_FORMAT_UNKNOWN;
-    sortListUAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+    sortListUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
     sortListUAVDesc.Buffer.FirstElement = 0u;
     sortListUAVDesc.Buffer.NumElements = maxParticles;
-    sortListUAVDesc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_COUNTER;
-    ThrowIfFailed(mDevice->CreateUnorderedAccessView(sortListBuffer, &sortListUAVDesc, &mSortListBufferUAV));
-    ThrowIfFailed(mDevice->CreateUnorderedAccessView(sortListBuffer2, &sortListUAVDesc, &mSortListBufferUAV2));
+    sortListUAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE; // was D3D11_BUFFER_UAV_FLAG_COUNTER
+    m_device->CreateUnorderedAccessView(sortListBuffer, nullptr, &sortListUAVDesc, mSortListBufferUAV);
+    m_device->CreateUnorderedAccessView(sortListBuffer2, nullptr, &sortListUAVDesc, mSortListBufferUAV2);
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC sortListSRVDesc;
+    D3D12_SHADER_RESOURCE_VIEW_DESC sortListSRVDesc;
     sortListSRVDesc.Format = DXGI_FORMAT_UNKNOWN;
-    sortListSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    sortListSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     sortListSRVDesc.Buffer.FirstElement = 0u;
     sortListSRVDesc.Buffer.NumElements = maxParticles;
-    ThrowIfFailed(mDevice->CreateShaderResourceView(sortListBuffer, &sortListSRVDesc, &mSortListBufferSRV));
-    ThrowIfFailed(mDevice->CreateShaderResourceView(sortListBuffer2, &sortListSRVDesc, &mSortListBufferSRV2));
+    m_device->CreateShaderResourceView(sortListBuffer, &sortListSRVDesc, mSortListBufferSRV);
+    m_device->CreateShaderResourceView(sortListBuffer2, &sortListSRVDesc, mSortListBufferSRV2);
 
     // Dead list
-    ThrowIfFailed(CreateRWStructuredBuffer<UINT>(mDevice, &deadListBuffer, maxParticles, deadIndeces.data()));
+    ThrowIfFailed(CreateRWStructuredBuffer<UINT>(m_device, &deadListBuffer, maxParticles, deadIndeces.data()));
 
-    D3D11_UNORDERED_ACCESS_VIEW_DESC deadListUAVDesc;
+    D3D12_UNORDERED_ACCESS_VIEW_DESC deadListUAVDesc;
     deadListUAVDesc.Format = DXGI_FORMAT_UNKNOWN;
-    deadListUAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+    deadListUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
     deadListUAVDesc.Buffer.FirstElement = 0u;
     deadListUAVDesc.Buffer.NumElements = maxParticles;
-    deadListUAVDesc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_APPEND;
-    ThrowIfFailed(mDevice->CreateUnorderedAccessView(deadListBuffer, &deadListUAVDesc, &mDeadListBufferUAV));
+    deadListUAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+    m_device->CreateUnorderedAccessView(deadListBuffer, nullptr, &deadListUAVDesc, mDeadListBufferUAV);
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC deadListSRVDesc;
+    D3D12_SHADER_RESOURCE_VIEW_DESC deadListSRVDesc;
     deadListSRVDesc.Format = DXGI_FORMAT_UNKNOWN;
-    deadListSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    deadListSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     deadListSRVDesc.Buffer.FirstElement = 0u;
     deadListSRVDesc.Buffer.NumElements = maxParticles;
-    ThrowIfFailed(mDevice->CreateShaderResourceView(deadListBuffer, &deadListSRVDesc, &mDeadListBufferSRV));
+    m_device->CreateShaderResourceView(deadListBuffer, &deadListSRVDesc, mDeadListBufferSRV);
 }
 
 ParticleSystem::~ParticleSystem() noexcept

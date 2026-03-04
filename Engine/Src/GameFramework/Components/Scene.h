@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common/DXHelper.h"
-#include "Core/Shapes.h"
+#include "Common/Shapes.h"
 
 namespace Scald
 {

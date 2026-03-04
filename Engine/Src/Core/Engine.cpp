@@ -1,10 +1,14 @@
 #include "stdafx.h"
 #include "Engine.h"
+
 #include "Common/ScaldMath.h"
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
-#include "CommandQueue.h"
+
+#include "D3D12/CommandQueue.h"
+#include "D3D12/RootSignature.h"
+
 #include <imgui_impl_dx12.h>
 
 extern const int gNumFrameResources;
@@ -92,7 +96,8 @@ VOID Engine::CreateRootSignatures()
 {
     CreateDefaultRootSignature();
     CreateSsaoRootSignature();
-    CreateComputeRootSignature();
+    CreateCommomComputeRootSignature();
+    CreateParticlesRootSignature();
 }
 
 VOID Engine::CreateDefaultRootSignature()
@@ -201,14 +206,47 @@ void Engine::CreateSsaoRootSignature()
         staticSamplers.data());
 }
 
-void Engine::CreateComputeRootSignature()
+VOID Engine::CreateParticlesRootSignature()
 {
-    m_computeRootSignature = std::make_shared<RootSignature>();
+    m_particlesComputeRootSignature = std::make_shared<RootSignature>();
 
     CD3DX12_ROOT_PARAMETER slotRootParameter[1];
     slotRootParameter[0].InitAsConstants(1u, SHADER_REGISTER(0u));
 
-    m_computeRootSignature->Create(m_device.Get(), ARRAYSIZE(slotRootParameter), slotRootParameter);
+    const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+        0u,                                     // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR,        // filter
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,       // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,       // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP,       // addressW
+        0.0f,                                   // mipLODBias
+        0u,                                     // maxAnisotropy
+        D3D12_COMPARISON_FUNC_ALWAYS,           // comparisonFunc
+        D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE, // borderColor 
+        0.0f,                                   // minLOD
+        D3D12_FLOAT32_MAX,                      // maxLOD
+        D3D12_SHADER_VISIBILITY_ALL,            // shaderVisibility
+        0u);                                    // registerSpace
+
+    std::array<CD3DX12_STATIC_SAMPLER_DESC, 1u> staticSamplers =
+    {
+        linearClamp
+    };
+
+    m_particlesComputeRootSignature->Create(m_device.Get(), ARRAYSIZE(slotRootParameter), slotRootParameter,
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+        (UINT)staticSamplers.size(),
+        staticSamplers.data());
+}
+
+void Engine::CreateCommomComputeRootSignature()
+{
+    m_commonComputeRootSignature = std::make_shared<RootSignature>();
+
+    CD3DX12_ROOT_PARAMETER slotRootParameter[1];
+    slotRootParameter[0].InitAsConstants(1u, SHADER_REGISTER(0u));
+
+    m_commonComputeRootSignature->Create(m_device.Get(), ARRAYSIZE(slotRootParameter), slotRootParameter);
 }
 
 VOID Engine::CreateShaders()
@@ -511,7 +549,7 @@ VOID Engine::CreatePSO()
 
 #pragma region Particles
     D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc = {};
-    computePsoDesc.pRootSignature = m_computeRootSignature->Get();
+    computePsoDesc.pRootSignature = m_commonComputeRootSignature->Get();
     computePsoDesc.CS =
     {
         reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::ParticlesCS)->GetBufferPointer()),

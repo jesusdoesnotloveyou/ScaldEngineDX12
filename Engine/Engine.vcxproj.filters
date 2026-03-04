@@ -4,24 +4,24 @@
     <ClCompile Include="Src\Core\Engine.cpp" />
     <ClCompile Include="Src\Common\ScaldTimer.cpp" />
     <ClCompile Include="Src\Core\Main.cpp" />
-    <ClCompile Include="Src\Core\D3D12Sample.cpp" />
+    <ClCompile Include="Src\Core\D3D12\D3D12Sample.cpp" />
     <ClCompile Include="Src\Core\Win32App.cpp" />
     <ClCompile Include="Src\stdafx.cpp" />
     <ClCompile Include="Src\Common\ScaldUtil.cpp" />
     <ClCompile Include="Src\Core\FrameResource.cpp" />
-    <ClCompile Include="Src\Core\Shapes.cpp" />
-    <ClCompile Include="Src\Core\Camera.cpp" />
+    <ClCompile Include="Src\Common\Shapes.cpp" />
+    <ClCompile Include="Src\Common\Camera.cpp" />
     <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
-    <ClCompile Include="Src\Core\ShadowMap.cpp" />
+    <ClCompile Include="Src\Core\Shadows\ShadowMap.cpp" />
     <ClCompile Include="Src\GameFramework\Components\SComponent.cpp" />
-    <ClCompile Include="Src\Core\CascadeShadowMap.cpp" />
-    <ClCompile Include="Src\Core\GBuffer.cpp" />
-    <ClCompile Include="Src\Core\Device.cpp" />
+    <ClCompile Include="Src\Core\Shadows\CascadeShadowMap.cpp" />
+    <ClCompile Include="Src\Core\DeferredRendering\GBuffer.cpp" />
+    <ClCompile Include="Src\Core\D3D12\Device.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Transform.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
     <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
-    <ClCompile Include="Src\Core\CommandQueue.cpp" />
-    <ClCompile Include="Src\Core\RootSignature.cpp" />
+    <ClCompile Include="Src\Core\D3D12\CommandQueue.cpp" />
+    <ClCompile Include="Src\Core\D3D12\RootSignature.cpp" />
     <ClCompile Include="External\imgui\imgui.cpp" />
     <ClCompile Include="External\imgui\imgui_demo.cpp" />
     <ClCompile Include="External\imgui\imgui_draw.cpp" />
@@ -31,14 +31,14 @@
     <ClCompile Include="External\imgui\backends\imgui_impl_dx12.cpp" />
     <ClCompile Include="External\imgui\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="External\imgui\misc\fonts\binary_to_compressed_c.cpp" />
-    <ClCompile Include="Src\Core\SSAO.cpp" />
+    <ClCompile Include="Src\Core\SSAO\SSAO.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
     <ClInclude Include="Src\Core\Engine.h" />
     <ClInclude Include="Src\Common\ScaldTimer.h" />
     <ClInclude Include="Src\Core\Win32App.h" />
-    <ClInclude Include="Src\Core\D3D12Sample.h" />
+    <ClInclude Include="Src\Core\D3D12\D3D12Sample.h" />
     <ClInclude Include="Src\stdafx.h" />
     <ClInclude Include="Src\Common\DXHelper.h" />
     <ClInclude Include="Src\Common\d3dx12.h" />
@@ -46,24 +46,24 @@
     <ClInclude Include="Src\Core\UploadBuffer.h" />
     <ClInclude Include="Src\Common\ScaldUtil.h" />
     <ClInclude Include="Src\Core\FrameResource.h" />
-    <ClInclude Include="Src\Core\Shapes.h" />
+    <ClInclude Include="Src\Common\Shapes.h" />
     <ClInclude Include="Src\Common\ScaldMath.h" />
-    <ClInclude Include="Src\Core\Camera.h" />
+    <ClInclude Include="Src\Common\Camera.h" />
     <ClInclude Include="Src\Common\DDSTextureLoader.h" />
-    <ClInclude Include="Src\Core\ShadowMap.h" />
+    <ClInclude Include="Src\Core\Shadows\ShadowMap.h" />
     <ClInclude Include="Src\GameFramework\Objects\Actor.h" />
     <ClInclude Include="Src\GameFramework\Objects\SObject.h" />
     <ClInclude Include="Src\GameFramework\Components\SComponent.h" />
-    <ClInclude Include="Src\Core\CascadeShadowMap.h" />
-    <ClInclude Include="Src\Core\GBuffer.h" />
-    <ClInclude Include="Src\Core\Device.h" />
+    <ClInclude Include="Src\Core\Shadows\CascadeShadowMap.h" />
+    <ClInclude Include="Src\Core\DeferredRendering\GBuffer.h" />
+    <ClInclude Include="Src\Core\D3D12\Device.h" />
     <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
     <ClInclude Include="Src\GameFramework\Components\Scene.h" />
     <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
     <ClInclude Include="Src\GameFramework\Components\Transform.h" />
     <ClInclude Include="Src\Common\VertexTypes.h" />
-    <ClInclude Include="Src\Core\RootSignature.h" />
-    <ClInclude Include="Src\Core\CommandQueue.h" />
+    <ClInclude Include="Src\Core\D3D12\RootSignature.h" />
+    <ClInclude Include="Src\Core\D3D12\CommandQueue.h" />
     <ClInclude Include="External\imgui\imconfig.h" />
     <ClInclude Include="External\imgui\imgui.h" />
     <ClInclude Include="External\imgui\imgui_internal.h" />
@@ -79,7 +79,7 @@
     <ClInclude Include="External\imgui\examples\libs\glfw\include\GLFW\glfw3native.h" />
     <ClInclude Include="External\imgui\misc\single_file\imgui_single_file.h" />
     <ClInclude Include="Src\Common\ScaldCoreDefines.h" />
-    <ClInclude Include="Src\Core\SSAO.h" />
+    <ClInclude Include="Src\Core\SSAO\SSAO.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\LightUtil.hlsl" />
@@ -106,9 +106,9 @@
     <None Include="Assets\Shaders\SSAO.hlsl" />
     <None Include="Assets\Shaders\SSAOCommon.hlsl" />
     <None Include="Assets\Shaders\ParticlesCS.hlsl" />
-    <None Include="Assets\Shaders\BillboardParticleGS.hlsl" />
-    <None Include="Assets\Shaders\SortParticlesCS.hlsl" />
-    <None Include="Assets\Shaders\ParticlesColor.hlsl" />
+    <None Include="Assets\Shaders\ParticleBillboardGS.hlsl" />
+    <None Include="Assets\Shaders\ParticlesSortCS.hlsl" />
+    <None Include="Assets\Shaders\ParticlesDraw.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="External\imgui\misc\debuggers\README.txt" />

@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Win32App.h"
-#include "D3D12Sample.h"
+
+#include "D3D12/D3D12Sample.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"

@@ -1,8 +1,10 @@
 #include "stdafx.h"
 #include "Fire.h"
 
-FireParticleSystem::FireParticleSystem(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int maxParticles, XMVECTOR origin, class Camera* camera)
-	: ParticleSystem(device, deviceContext, maxParticles, origin, camera)
+#include "Common/Camera.h"
+
+FireParticleSystem::FireParticleSystem(ID3D12Device* device, int maxParticles, XMVECTOR origin, Camera* camera)
+	: ParticleSystem(device, maxParticles, origin, camera)
 {
 
 }

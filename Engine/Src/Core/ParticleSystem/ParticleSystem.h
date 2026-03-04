@@ -1,21 +1,23 @@
 #pragma once
-#pragma once
 
 #include "Common/DXHelper.h"
-#include <d3d11.h>
 
-static constexpr int injectionBufferSize = 1024;
+class Camera;
+
+static constexpr UINT injectionBufferSize = 1024;
 
 class ParticleSystem
 {
 public:
-    ParticleSystem(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int maxParticles, XMVECTOR origin, class Camera* camera);
-    virtual void Update(float elapsedTime) = 0;
-    virtual void Simulate(float elapsedTime) = 0;
-    virtual void Render();
-    virtual void Emit(int numParticles);
+    ParticleSystem(ID3D12Device* device, int maxParticles, XMVECTOR origin, Camera* camera);
     virtual void InitializeSystem();
     virtual ~ParticleSystem() noexcept;
+
+    virtual void Emit(int numParticles);
+    virtual void Simulate(float deltaTime) = 0;
+    virtual void Update(float deltaTime) = 0;
+    virtual void Render();
+
 private:
     void SetConstBuffer(UINT iLevel, UINT iLevelMask, UINT iWidth, UINT iHeight);
 
@@ -94,8 +96,7 @@ protected:
     }
 
     // Graphics context. Graphics object manages these resources.
-    ID3D11Device* mDevice = nullptr;
-    ID3D11DeviceContext* mDeviceContext = nullptr;
+    ID3D12Device* m_device = nullptr;
 
     UINT      maxParticles = 4096u;    // maximum number of particles in total
     int       numParticles = 0;        // current number of particles
@@ -104,31 +105,32 @@ protected:
     XMVECTOR  force;                   // force (gravity, wind, etc.) acting on the system
 
     // main particle pool
-    ID3D11Buffer* particleBuffer = nullptr;
-    Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> mParticleBufferUAV;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mParticleBufferSRV;
+    ComPtr<ID3D12Resource> particleBuffer = nullptr;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE mParticleBufferUAV;
+    D3D12_CPU_DESCRIPTOR_HANDLE mParticleBufferSRV;
 
     // alive list
-    ID3D11Buffer* sortListBuffer = nullptr;
-    Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> mSortListBufferUAV;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mSortListBufferSRV;
+    ID3D12Resource* sortListBuffer = nullptr;
+    D3D12_CPU_DESCRIPTOR_HANDLE mSortListBufferUAV;
+    D3D12_CPU_DESCRIPTOR_HANDLE mSortListBufferSRV;
 
-    ID3D11Buffer* sortListBuffer2 = nullptr;
-    Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> mSortListBufferUAV2;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mSortListBufferSRV2;
+    ID3D12Resource* sortListBuffer2 = nullptr;
+    D3D12_CPU_DESCRIPTOR_HANDLE mSortListBufferUAV2;
+    D3D12_CPU_DESCRIPTOR_HANDLE mSortListBufferSRV2;
 
     // dead list
-    ID3D11Buffer* deadListBuffer = nullptr;
-    Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> mDeadListBufferUAV;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mDeadListBufferSRV;
+    ID3D12Resource* deadListBuffer = nullptr;
+    D3D12_CPU_DESCRIPTOR_HANDLE mDeadListBufferUAV;
+    D3D12_CPU_DESCRIPTOR_HANDLE mDeadListBufferSRV;
 
     // indirect
-    ID3D11Buffer* indirectArgsBuffer = nullptr;
+    ComPtr<ID3D12Resource> indirectArgsBuffer = nullptr; //ID3D11Buffer
 
     // to fill particle pool
-    Particle injectionParticleData[injectionBufferSize];
-    ID3D11Buffer* injectionBuffer = nullptr;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mInjectionBufferSRV;
+    std::vector<Particle> injectionParticleData[injectionBufferSize];
+    ComPtr<ID3D12Resource> injectionBuffer = nullptr; //ID3D11Buffer
+    D3D12_CPU_DESCRIPTOR_HANDLE mInjectionBufferSRV;
 
     GeometryShader mBillboardGeometryShader;
     ComputeShader mBitonicSortShader;
@@ -143,8 +145,7 @@ protected:
 
     ConstantBuffer<Camera—onstantBuffer> mCBCamera;
     Camera—onstantBuffer mCameraData;
-    ThirdPersonCamera* camera = nullptr;
+    Camera* camera = nullptr;
 
-    Microsoft::WRL::ComPtr<ID3D11SamplerState> mParticleSamplerClamp;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mBillboardTexture;
+    ComPtr<ID3D11ShaderResourceView> mBillboardTexture;
 };
