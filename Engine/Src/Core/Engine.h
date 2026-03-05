@@ -141,8 +141,8 @@ public:
         DefaultVS = 0,
         DefaultOpaquePS,
 
-        CascadedShadowsVS,
-        CascadedShadowsGS,
+        CascadeShadowsVS,
+        CascadeShadowsGS,
 
         SsaoVS,
         SsaoPS,
@@ -153,14 +153,22 @@ public:
         DeferredGeometryPS,
         DeferredDirVS,
         DeferredDirPS,
-        DeferredLightVolumesVS,
+        DeferredPointVS,
         DeferredPointPS,
+        DeferredSpotVS,
         DeferredSpotPS,
 
         SkyBoxVS,
         SkyBoxPS,
 
         ParticlesCS,
+        EmitCS,
+        SimulateCS,
+        BitonicSortCS,
+        BitonicTransposeCS,
+        ParticlesVS,
+        ParticlesBillboardGS,
+        ParticlesPS,
 
         NumShaders
     };

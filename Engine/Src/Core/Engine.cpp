@@ -272,11 +272,11 @@ VOID Engine::CreateShaders()
         NULL, NULL
     };
 
-    m_shaders[EShaderType::DefaultVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VertexShader.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders[EShaderType::DefaultOpaquePS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PixelShader.hlsl", fogDefines, "main", "ps_5_1");
+    m_shaders[EShaderType::DefaultVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VSDefault.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DefaultOpaquePS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PSDefault.hlsl", fogDefines, "main", "ps_5_1");
 
-    m_shaders[EShaderType::CascadedShadowsVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ShadowVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders[EShaderType::CascadedShadowsGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/CascadesShadowGS.hlsl", nullptr, "main", "gs_5_1");
+    m_shaders[EShaderType::CascadeShadowsVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VSShadows.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::CascadeShadowsGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GSCascadeShadow.hlsl", nullptr, "main", "gs_5_1");
 
 #pragma region SSAO
     m_shaders[EShaderType::SsaoVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SSAO.hlsl", nullptr, "SsaoVS", "vs_5_1");
@@ -284,19 +284,19 @@ VOID Engine::CreateShaders()
 
     m_shaders[EShaderType::SsaoBlurVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SSAOBlur.hlsl", nullptr, "SsaoBlurVS", "vs_5_1");
     m_shaders[EShaderType::SsaoBlurPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/SSAOBlur.hlsl", nullptr, "SsaoBlurPS", "ps_5_1");
-
 #pragma endregion SSAO
 
 #pragma region DeferredShading
-    m_shaders[EShaderType::DeferredGeometryVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders[EShaderType::DeferredGeometryPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GBufferPassPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredGeometryVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VSGeometryPass.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredGeometryPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PSGeometryPass.hlsl", nullptr, "main", "ps_5_1");
 
-    m_shaders[EShaderType::DeferredDirVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders[EShaderType::DeferredDirPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredDirectionalLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredDirVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VSDeferredDL.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredDirPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PSDeferredDL.hlsl", nullptr, "main", "ps_5_1");
 
-    m_shaders[EShaderType::DeferredLightVolumesVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/LightVolumesVS.hlsl", nullptr, "main", "vs_5_1");
-    m_shaders[EShaderType::DeferredPointPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredPointLightPS.hlsl", nullptr, "main", "ps_5_1");
-    m_shaders[EShaderType::DeferredSpotPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/DeferredSpotLightPS.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredPointVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VSDeferredPL.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredPointPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PSDeferredPL.hlsl", nullptr, "main", "ps_5_1");
+    m_shaders[EShaderType::DeferredSpotVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/VSDeferredSL.hlsl", nullptr, "main", "vs_5_1");
+    m_shaders[EShaderType::DeferredSpotPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/PSDeferredSL.hlsl", nullptr, "main", "ps_5_1");
 #pragma endregion DeferredShading
 
 #pragma region Sky
@@ -305,7 +305,15 @@ VOID Engine::CreateShaders()
 #pragma endregion Sky
 
 #pragma region Particles
-    m_shaders[EShaderType::ParticlesCS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ParticlesCS.hlsl", nullptr, "CSMain", "cs_5_1");
+    m_shaders[EShaderType::ParticlesCS] = ScaldUtil::CompileShader(L"./Assets/Shaders/CSParticles.hlsl", nullptr, "CSMain", "cs_5_1");
+    m_shaders[EShaderType::BitonicSortCS] = ScaldUtil::CompileShader(L"./Assets/Shaders/CSParticlesSort.hlsl", nullptr, "BitonicSort", "cs_5_1");
+    m_shaders[EShaderType::BitonicTransposeCS] = ScaldUtil::CompileShader(L"./Assets/Shaders/CSParticlesSort.hlsl", nullptr, "MatrixTranspose", "cs_5_1");
+    m_shaders[EShaderType::EmitCS] = ScaldUtil::CompileShader(L"./Assets/Shaders/CSParticles.hlsl", nullptr, "Emit", "cs_5_1");
+    m_shaders[EShaderType::SimulateCS] = ScaldUtil::CompileShader(L"./Assets/Shaders/CSParticles.hlsl", nullptr, "Simulate", "cs_5_1");
+
+    m_shaders[EShaderType::ParticlesVS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ParticlesDraw.hlsl", nullptr, "ParticlesVS", "vs_5_1");
+    m_shaders[EShaderType::ParticlesPS] = ScaldUtil::CompileShader(L"./Assets/Shaders/ParticlesDraw.hlsl", nullptr, "ParticlesPS", "ps_5_1");
+    m_shaders[EShaderType::ParticlesBillboardGS] = ScaldUtil::CompileShader(L"./Assets/Shaders/GSParticlesBillboard.hlsl", nullptr, "main", "gs_5_1");
 #pragma endregion Particles
 }
 
@@ -329,13 +337,13 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC cascadeShadowPsoDesc = defaultPsoDesc;
     cascadeShadowPsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferPointer()),
-                m_shaders.at(EShaderType::CascadedShadowsVS)->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadeShadowsVS)->GetBufferPointer()),
+                m_shaders.at(EShaderType::CascadeShadowsVS)->GetBufferSize()
         });
     cascadeShadowPsoDesc.GS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferPointer()),
-                m_shaders.at(EShaderType::CascadedShadowsGS)->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::CascadeShadowsGS)->GetBufferPointer()),
+                m_shaders.at(EShaderType::CascadeShadowsGS)->GetBufferSize()
         });
     cascadeShadowPsoDesc.RasterizerState.DepthBias = 10000;
     cascadeShadowPsoDesc.RasterizerState.DepthClipEnable = (BOOL)0.0f;
@@ -409,8 +417,8 @@ VOID Engine::CreatePSO()
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pointLightIntersectsFarPlanePsoDesc = dirLightPsoDesc;
     pointLightIntersectsFarPlanePsoDesc.VS = D3D12_SHADER_BYTECODE(
         {
-            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferPointer()),
-            m_shaders.at(EShaderType::DeferredLightVolumesVS)->GetBufferSize()
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredPointVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredPointVS)->GetBufferSize()
         });
     pointLightIntersectsFarPlanePsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
@@ -439,6 +447,11 @@ VOID Engine::CreatePSO()
 
 #pragma region DeferredSpotLight
     D3D12_GRAPHICS_PIPELINE_STATE_DESC spotLightPsoDesc = pointLightIntersectsFarPlanePsoDesc;
+    spotLightPsoDesc.VS = D3D12_SHADER_BYTECODE(
+        {
+            reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredSpotVS)->GetBufferPointer()),
+            m_shaders.at(EShaderType::DeferredSpotVS)->GetBufferSize()
+        });
     spotLightPsoDesc.PS = D3D12_SHADER_BYTECODE(
         {
             reinterpret_cast<BYTE*>(m_shaders.at(EShaderType::DeferredSpotPS)->GetBufferPointer()),
