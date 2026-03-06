@@ -4,10 +4,10 @@
 
 cbuffer CB : register(b0)
 {
-    unsigned int g_iLevel;
-    unsigned int g_iLevelMask;
-    unsigned int g_iWidth;
-    unsigned int g_iHeight;
+    uint g_iLevel;
+    uint g_iLevelMask;
+    uint g_iWidth;
+    uint g_iHeight;
 };
 
 struct ParticleDepth

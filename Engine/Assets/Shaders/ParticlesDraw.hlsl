@@ -1,10 +1,6 @@
-struct SortList
-{
-    uint index;
-    float distanceSq;
-};
+#include "ParticlesCommon.hlsl"
 
-StructuredBuffer<SortList> gSortListBuffer : register(t0);
+StructuredBuffer<Sort> gSortListBuffer : register(t0);
 
 struct VSOutput
 {

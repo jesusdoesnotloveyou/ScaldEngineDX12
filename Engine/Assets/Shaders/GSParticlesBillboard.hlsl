@@ -1,25 +1,9 @@
-struct Particle
-{
-    float4 pos;
-    float4 prevPos;
-    float4 velocity;
-    float4 acceleration;
-    float4 initialColor;
-    float4 endColor;
-    
-    float maxLifeTime;
-    float lifeTime;
-    float initialSize;
-    float endSize;
-    float initialWeight;
-    float endWeight;
-    float2 _pad;
-};
+#include "ParticlesCommon.hlsl"
 
 cbuffer CameraData : register(b0)
 {
-    matrix view;
-    matrix proj;
+    float4x4 view;
+    float4x4 proj;
     float4 camForward;
     float4 camUp;
 };

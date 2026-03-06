@@ -132,9 +132,9 @@ protected:
     ComPtr<ID3D12Resource> injectionBuffer = nullptr; //ID3D11Buffer
     D3D12_CPU_DESCRIPTOR_HANDLE mInjectionBufferSRV;
 
-    GeometryShader mBillboardGeometryShader;
-    ComputeShader mBitonicSortShader;
-    ComputeShader mBitonicTransposeShader;
+    //GeometryShader mBillboardGeometryShader;
+    //ComputeShader mBitonicSortShader;
+    //ComputeShader mBitonicTransposeShader;
 
     // CS constant buffer
     ConstantBuffer<SortConstantBuffer> mCBSort;

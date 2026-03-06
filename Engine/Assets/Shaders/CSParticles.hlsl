@@ -1,4 +1,4 @@
-//#include "ComputeCommon.hlsl"
+#include "ParticlesCommon.hlsl"
 
 // num of threads within the thread group
 [numthreads(16, 16, 1)]
@@ -18,30 +18,6 @@ cbuffer ParticlesData : register(b0)
     float4 gEyePos;
 };
 
-struct Particle
-{
-    float4 pos;
-    float4 prevPos;
-    float4 velocity;
-    float4 acceleration;
-    float4 initialColor;
-    float4 endColor;
-    
-    float maxLifeTime;
-    float lifeTime;
-    float initialSize;
-    float endSize;
-    float initialWeight;
-    float endWeight;
-    float2 _pad;
-};
-
-struct Sort
-{
-    uint index;
-    float distanceSq;
-};
-
 RWStructuredBuffer<Particle> ParticlePool    : register(u0); // Read-Write structured buffer, has to be created on CPU side UnorderedAccessView
 RWStructuredBuffer<Sort> SortList            : register(u1);         // Read-Write structured buffer, has to be created on CPU side UnorderedAccessView
 AppendStructuredBuffer<uint> DeadList        : register(u2);     // Read-Write structured buffer, has to be created on CPU side UnorderedAccessView
@@ -57,7 +33,7 @@ float distanceSquared(float3 a, float3 b)
 
 #define THREAD_GROUP_X 32
 #define THREAD_GROUP_Y 32
-#define THREAD_GROUP_TOTAL 1024
+#define THREAD_GROUP_TOTAL (THREAD_GROUP_X * THREAD_GROUP_Y)
 
 [numthreads(THREAD_GROUP_X, THREAD_GROUP_Y, 1)]
 void Simulate(uint3 DTid : SV_GroupThreadID, uint3 Gid : SV_GroupID)
