@@ -75,6 +75,17 @@ int Win32App::Run(D3D12Sample* pSample, HINSTANCE hInstance, int nCmdShow)
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(m_hwnd);
 
+    RAWINPUTDEVICE rid = {};
+    rid.usUsagePage = 0x01;
+    rid.usUsage = 0x02;
+    rid.dwFlags = 0u;
+    rid.hwndTarget = NULL;
+    
+    if (RegisterRawInputDevices(&rid, 1u, sizeof(rid)) == FALSE)
+    {
+        OutputDebugString(L"[ERROR] Failed to register Raw Input Device");
+    }
+
     return pSample->Run();
 }
 

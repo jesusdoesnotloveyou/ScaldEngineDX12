@@ -21,8 +21,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int nCmdShow)
     WindowWidth = 1280;
     WindowHeight = 720;
 
+    // engine should be separated from WIN32 stuff
     Engine engine(WindowWidth, WindowHeight, WindowTitle, WindowClass);
+#ifdef WIN32
     return Win32App::Run(&engine, HInstance(), nCmdShow);
+#endif
+#ifdef __linux__
+    return 0; // Vulkan or OpenGL
+#endif
 }
 
 #ifdef CreateWindow
