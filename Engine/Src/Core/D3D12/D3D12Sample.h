@@ -3,6 +3,9 @@
 #include "Common/DXHelper.h"
 #include "Common/ScaldTimer.h"
 #include "Core/Win32App.h"
+#include "Common/KeyboardDevice.h"
+#include "Common/MousePad.h"
+
 //#include "DescriptorHeaps.h"
 
 // target_link_libraries(${PROJECT_NAME} PRIVATE DirectXTK d3dcompiler dxguid dxgi d3d11 assimp)
@@ -33,9 +36,9 @@ public:
     VVOID LoadPipeline();
 
     // Convenience overrides for handling mouse input.
-    VVOID OnMouseDown(WPARAM btnState, int x, int y) {}
-    VVOID OnMouseUp(WPARAM btnState, int x, int y) {}
-    VVOID OnMouseMove(WPARAM btnState, int x, int y) {}
+    MousePad* GetMouse();
+    KeyboardDevice* GetKeyboard();
+
     // Samples override the event handlers to handle specific messages.
     VVOID OnKeyDown(UINT8 /*key*/) {}
     VVOID OnKeyUp(UINT8 /*key*/) {}
@@ -85,6 +88,9 @@ protected:
 
 protected:
 
+    KeyboardDevice m_keyboard;
+    MousePad m_mouse;
+
     UINT m_dxgiFactoryFlags = 0u;
 
     // Viewport dimensions.
@@ -107,8 +113,6 @@ protected:
     UINT m_rtvDescriptorSize;       // see m_rtvHeap
     UINT m_dsvDescriptorSize;       // see m_dsvHeap
     UINT m_cbvSrvUavDescriptorSize; // see m_cbvHeap
-
-    XMFLOAT2 m_lastMousePos = { 0.0f, 0.0f };
 
     static const UINT SwapChainFrameCount = 2u;
     static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;

@@ -123,7 +123,6 @@ int D3D12Sample::Run()
                 ImGui::ShowDemoWindow();
                 // Rendering
                 ImGui::Render();
-                
                 OnUpdate(m_timer);
                 OnRender(m_timer);
             }
@@ -206,6 +205,16 @@ void D3D12Sample::LoadPipeline()
     CreateSwapChain();
 
     Reset();
+}
+
+MousePad* D3D12Sample::GetMouse()
+{
+    return &m_mouse;
+}
+
+KeyboardDevice* D3D12Sample::GetKeyboard()
+{
+    return &m_keyboard;
 }
 
 VOID D3D12Sample::Pause()

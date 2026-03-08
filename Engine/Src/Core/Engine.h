@@ -182,13 +182,12 @@ public:
     virtual void OnRender(const ScaldTimer& st) override;
     virtual void OnDestroy() override;
 
-    virtual void OnMouseDown(WPARAM btnState, int x, int y) override;
-    virtual void OnMouseUp(WPARAM btnState, int x, int y) override;
-    virtual void OnMouseMove(WPARAM btnState, int x, int y) override;
-    virtual void OnKeyDown(UINT8 key) override;
-    virtual void OnKeyUp(UINT8 key) override;
+    virtual void OnKeyDown(UINT8 key) override {}
+    virtual void OnKeyUp(UINT8 key) override {}
 
 private:
+    // Should be smth like camera controller
+    void UpdateCamera(const ScaldTimer& st);
     void OnKeyboardInput(const ScaldTimer& st);
     
     void UpdateObjectsCB(const ScaldTimer& st);

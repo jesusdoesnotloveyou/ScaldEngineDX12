@@ -127,6 +127,7 @@ void Camera::MoveUp(float d)
 // Rotation around world's Y axis
 void Camera::AdjustYaw(float angle)
 {
+	if (angle == 0.0f) return;
 	XMMATRIX R = XMMatrixRotationY(angle);
 	XMStoreFloat3(&m_right,	  XMVector3TransformNormal(XMLoadFloat3(&m_right), R));
 	XMStoreFloat3(&m_up,	  XMVector3TransformNormal(XMLoadFloat3(&m_up), R));
@@ -137,6 +138,7 @@ void Camera::AdjustYaw(float angle)
 // Rotation around X axis
 void Camera::AdjustPitch(float angle)
 {
+	if (angle == 0.0f) return;
 	XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&m_right), angle);
 	XMStoreFloat3(&m_up,	  XMVector3TransformNormal(XMLoadFloat3(&m_up), R));
 	XMStoreFloat3(&m_forward, XMVector3TransformNormal(XMLoadFloat3(&m_forward), R));
