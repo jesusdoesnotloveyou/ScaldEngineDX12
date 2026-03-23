@@ -1,21 +1,24 @@
 #pragma once
 
-#include "D3D12Sample.h"
+#include "D3D12/D3D12Sample.h"
+
+#include "Common/Camera.h"
 #include "FrameResource.h"
-#include "Camera.h"
-#include "CascadeShadowMap.h"
-#include "GBuffer.h"
+
+#include "DeferredRendering/GBuffer.h"
+#include "Shadows/CascadeShadowMap.h"
+#include "SSAO/SSAO.h"
+
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Objects/SObject.h"
-#include "RootSignature.h"
-#include "SSAO.h"
+
+class RootSignature;
 
 const int gNumFrameResources = 3;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
-// for the GPU lifetime of resources to avoid destroying objects that may still be
-// referenced by the GPU.
+// for the GPU lifetime of resources to avoid destroying objects that may still be referenced by the GPU.
 // An example of this can be found in the class method: OnDestroy().
 
 using Microsoft::WRL::ComPtr;
@@ -127,6 +130,8 @@ public:
         Transparency,
         Sky,
 
+        Particles,
+
         NumPipelineStates
     };
 
@@ -136,8 +141,8 @@ public:
         DefaultVS = 0,
         DefaultOpaquePS,
 
-        CascadedShadowsVS,
-        CascadedShadowsGS,
+        CascadeShadowsVS,
+        CascadeShadowsGS,
 
         SsaoVS,
         SsaoPS,
@@ -148,11 +153,22 @@ public:
         DeferredGeometryPS,
         DeferredDirVS,
         DeferredDirPS,
-        DeferredLightVolumesVS,
+        DeferredPointVS,
         DeferredPointPS,
+        DeferredSpotVS,
         DeferredSpotPS,
+
         SkyBoxVS,
         SkyBoxPS,
+
+        ParticlesCS,
+        EmitCS,
+        SimulateCS,
+        BitonicSortCS,
+        BitonicTransposeCS,
+        ParticlesVS,
+        ParticlesBillboardGS,
+        ParticlesPS,
 
         NumShaders
     };
@@ -166,13 +182,12 @@ public:
     virtual void OnRender(const ScaldTimer& st) override;
     virtual void OnDestroy() override;
 
-    virtual void OnMouseDown(WPARAM btnState, int x, int y) override;
-    virtual void OnMouseUp(WPARAM btnState, int x, int y) override;
-    virtual void OnMouseMove(WPARAM btnState, int x, int y) override;
-    virtual void OnKeyDown(UINT8 key) override;
-    virtual void OnKeyUp(UINT8 key) override;
+    virtual void OnKeyDown(UINT8 key) override {}
+    virtual void OnKeyUp(UINT8 key) override {}
 
 private:
+    // Should be smth like camera controller
+    void UpdateCamera(const ScaldTimer& st);
     void OnKeyboardInput(const ScaldTimer& st);
     
     void UpdateObjectsCB(const ScaldTimer& st);
@@ -202,6 +217,7 @@ private:
     void RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList);
     void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderParticles(ID3D12GraphicsCommandList* pCommandList);
     void RenderUI(ID3D12GraphicsCommandList* pCommandList);
 
     void DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& renderItem);
@@ -221,6 +237,8 @@ private:
     // should be placed in RenderPass abstraction class
     std::shared_ptr<RootSignature> m_rootSignature;
     std::shared_ptr<RootSignature> m_ssaoRootSignature;
+    std::shared_ptr<RootSignature> m_particlesComputeRootSignature;
+    std::shared_ptr<RootSignature> m_commonComputeRootSignature;
 
     std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
     std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
@@ -229,7 +247,7 @@ private:
     PassConstants m_shadowPassCBData;
     PassConstants m_geometryPassCBData;
     PassConstants m_mainPassCBData; // deferred color(light) pass
-    //PassConstants m_lightingPassCBData;
+    
     MaterialData m_perMaterialSBData;
     InstanceData m_perInstanceSBData;
 
@@ -270,6 +288,10 @@ private:
     UINT m_normalSrvHeapStartIndex = 0u;
 #pragma endregion TexturesAndSky
 
+#pragma region Particles
+    UINT m_particlesSrvHeapStartIndex = 0u;
+#pragma endregion Particles
+
     bool m_bIsGraphicsFeaturesLoaded = false;
 
 private:
@@ -282,9 +304,12 @@ private:
     VVOID CreateRtvAndDsvDescriptorHeaps() override;
     
     VOID LoadAssets();
+
     VOID CreateRootSignatures();
     VOID CreateDefaultRootSignature();
     VOID CreateSsaoRootSignature();
+    VOID CreateParticlesRootSignature();
+    VOID CreateCommomComputeRootSignature();
     VOID CreateShaders();
     VOID CreatePSO();
     
@@ -325,8 +350,8 @@ private:
     VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
 
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
-    // Doubt that't a good idea to return vector of matrices. Should rather pass vector as a parameter probalby and fill it inside function.
-    void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
 
+    // TO DO: use static array instead of vector to avoid allocation in heap
+    void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
     std::vector<XMVECTOR> GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection);
 };

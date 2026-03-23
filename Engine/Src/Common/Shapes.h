@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Common/ScaldCoreTypes.h"
-#include "Common/DXHelper.h"
+#include "ScaldCoreTypes.h"
+#include "DXHelper.h"
 
 class Shapes
 {
