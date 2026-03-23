@@ -47,6 +47,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="src\Common\KeyboardDevice.cpp" />
+    <ClCompile Include="src\Common\MousePad.cpp" />
     <ClCompile Include="Src\Core\D3D12\CommandQueue.cpp" />
     <ClCompile Include="Src\Core\D3D12\RootSignature.cpp" />
     <ClCompile Include="Src\Core\SSAO\SSAO.cpp" />
@@ -93,6 +95,8 @@
     <ClInclude Include="External\imgui\imstb_truetype.h" />
     <ClInclude Include="External\imgui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="External\imgui\misc\single_file\imgui_single_file.h" />
+    <ClInclude Include="src\Common\KeyboardDevice.h" />
+    <ClInclude Include="src\Common\MousePad.h" />
     <ClInclude Include="Src\Common\ScaldCoreDefines.h" />
     <ClInclude Include="Src\Common\VertexTypes.h" />
     <ClInclude Include="Src\Core\D3D12\CommandQueue.h" />

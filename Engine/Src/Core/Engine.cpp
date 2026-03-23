@@ -1119,8 +1119,8 @@ void Engine::OnUpdate(const ScaldTimer& st)
 {
     Super::OnUpdate(st);
 
+    UpdateCamera(st);
     OnKeyboardInput(st);
-    m_camera->Update(st.DeltaTime());
     
     // Cycle through the circular frame resource array.
     m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1u) % gNumFrameResources;
@@ -1176,40 +1176,25 @@ void Engine::OnDestroy()
     m_commandQueue->Flush();
 }
 
-void Engine::OnMouseDown(WPARAM btnState, int x, int y)
+void Engine::UpdateCamera(const ScaldTimer& st)
 {
-    m_lastMousePos.x = static_cast<float>(x);
-    m_lastMousePos.y = static_cast<float>(y);
-
-    SetCapture(Win32App::GetHwnd());
-}
-
-void Engine::OnMouseUp(WPARAM btnState, int x, int y)
-{
-    ReleaseCapture();
-}
-
-void Engine::OnMouseMove(WPARAM btnState, int x, int y)
-{
-    if ((btnState & MK_LBUTTON) != 0)
+    // We have to read all events in while loop since a lot of events related to mouse input might be in one frame! Try to comment this line.
+    while (!m_mouse.IsEventBufferEmpty())
     {
-        float dx = XMConvertToRadians(0.25f * static_cast<float>(x - m_lastMousePos.x));
-        float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_lastMousePos.y));
-
-        m_camera->AdjustYaw(dx); 
-        m_camera->AdjustPitch(dy);
+        auto mouseEvent = m_mouse.ReadEvent();
+        if (m_mouse.IsRightPressed())
+        {
+            if (mouseEvent.GetType() == MouseEvent::RawMove)
+            {
+                float dx = XMConvertToRadians(static_cast<float>(0.25f * mouseEvent.GetPosX()));
+                float dy = XMConvertToRadians(static_cast<float>(0.25f * mouseEvent.GetPosY()));
+                
+                m_camera->AdjustYaw(dx);
+                m_camera->AdjustPitch(dy);
+            }
+        }
     }
-
-    m_lastMousePos.x = static_cast<float>(x);
-    m_lastMousePos.y = static_cast<float>(y);
-}
-
-void Engine::OnKeyDown(UINT8 key)
-{
-}
-
-void Engine::OnKeyUp(UINT8 key)
-{
+    m_camera->Update(st.DeltaTime());
 }
 
 void Engine::OnKeyboardInput(const ScaldTimer& st)

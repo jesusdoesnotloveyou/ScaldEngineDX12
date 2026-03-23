@@ -83,7 +83,9 @@ int Win32App::Run(D3D12Sample* pSample, HINSTANCE hInstance, int nCmdShow)
     
     if (RegisterRawInputDevices(&rid, 1u, sizeof(rid)) == FALSE)
     {
+#if defined(DEBUG) || defined(_DEBUG)
         OutputDebugString(L"[ERROR] Failed to register Raw Input Device");
+#endif
     }
 
     return pSample->Run();
@@ -98,103 +100,172 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
 
     switch (message)
     {
-    case WM_ACTIVATE:
-    {
-        if (LOWORD(wParam) == WA_INACTIVE)
+        case WM_ACTIVATE:
         {
-            pSample->Pause();
-        }
-        else
-        {
-            pSample->UnPause();
-        }
-    }
-    return 0;
-
-    case WM_SIZE:
-    {
-        pSample->SetWidth(LOWORD(lParam));
-        pSample->SetHeight(HIWORD(lParam));
-    }
-    return 0;
-
-    // WM_ENTERSIZEMOVE is sent when the user grabs the resize bars.
-    case WM_ENTERSIZEMOVE:
-    {
-        pSample->Resize();
-    }
-    return 0;
-
-    // WM_EXITSIZEMOVE is sent when the user releases the resize bars.
-    // Here we reset everything based on the new window dimensions.
-    case WM_EXITSIZEMOVE:
-    {
-        pSample->OnResize();
-    }
-    return 0;
-
-    case WM_CREATE:
-    {
-        // Save the D3D12Sample* passed in to CreateWindow.
-        LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
-        SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
-    }
-    return 0;
-
-    /* Keyboard */
-    case WM_KEYDOWN:
-
-        if (pSample)
-        {
-            if (wParam == VK_F1)
+            if (LOWORD(wParam) == WA_INACTIVE)
             {
-                pSample->Set4xMsaaState(!pSample->Get4xMsaaState());
+                pSample->Pause();
             }
-
-            pSample->OnKeyDown(static_cast<UINT8>(wParam));
+            else
+            {
+                pSample->UnPause();
+            }
+            return 0;
         }
-        return 0;
 
-    case WM_KEYUP:
+        case WM_SIZE:
+        {
+            pSample->SetWidth(LOWORD(lParam));
+            pSample->SetHeight(HIWORD(lParam));
+            return 0;
+        }
 
-        if (wParam == VK_ESCAPE)
+        // WM_ENTERSIZEMOVE is sent when the user grabs the resize bars.
+        case WM_ENTERSIZEMOVE:
+        {
+            pSample->Resize();
+            return 0;
+        }
+
+        // WM_EXITSIZEMOVE is sent when the user releases the resize bars.
+        // Here we reset everything based on the new window dimensions.
+        case WM_EXITSIZEMOVE:
+        {
+            pSample->OnResize();
+            return 0;
+        }
+
+        case WM_CREATE:
+        {
+            // Save the D3D12Sample* passed in to CreateWindow.
+            LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
+            SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+            return 0;
+        }
+
+        case WM_DESTROY:
         {
             PostQuitMessage(0);
+            return 0;
         }
-        return 0;
 
-        if (pSample)
+        /******************************** INPUT ********************************/
+        /* Keyboard */
+        case WM_KEYDOWN:
         {
-            pSample->OnKeyUp(static_cast<UINT8>(wParam));
+            if (pSample)
+            {
+                if (wParam == VK_F1)
+                {
+                    pSample->Set4xMsaaState(!pSample->Get4xMsaaState());
+                }
+
+                pSample->OnKeyDown(static_cast<UINT8>(wParam));
+            }
+            break;
         }
-        return 0;
 
-    /* Mouse */
-    case WM_LBUTTONDOWN:
-    case WM_MBUTTONDOWN:
-    case WM_RBUTTONDOWN:
-    {
-        pSample->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-    }
-    return 0;
+        case WM_KEYUP:
+        {
+            if (wParam == VK_ESCAPE)
+            {
+                PostQuitMessage(0);
+                return 0;
+            }
 
-    case WM_LBUTTONUP:
-    case WM_MBUTTONUP:
-    case WM_RBUTTONUP:
-    {
-        pSample->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-    }
-    return 0;
+            if (pSample)
+            {
+                pSample->OnKeyUp(static_cast<UINT8>(wParam));
+            }
+            break;
+        }
 
-    case WM_MOUSEMOVE:
-    {
-        pSample->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-    }
-    return 0;
+        /* Mouse */
+        case WM_LBUTTONDOWN:
+        {
+            const POINTS pt = MAKEPOINTS(lParam);
+            pSample->GetMouse()->OnLeftPressed(pt.x, pt.y);
+            break;
+        }
 
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
+        case WM_MBUTTONDOWN:
+        {
+            const POINTS pt = MAKEPOINTS(lParam);
+            pSample->GetMouse()->OnMiddlePressed(pt.x, pt.y);
+            break;
+        }
+        case WM_RBUTTONDOWN:
+        {
+            const POINTS pt = MAKEPOINTS(lParam);
+            pSample->GetMouse()->OnRightPressed(pt.x, pt.y);
+            break;
+        }
+
+        case WM_LBUTTONUP:
+        {
+            const POINTS pt = MAKEPOINTS(lParam);
+            pSample->GetMouse()->OnLeftReleased(pt.x, pt.y);
+            break;
+        }
+        case WM_MBUTTONUP:
+        {
+            const POINTS pt = MAKEPOINTS(lParam);
+            pSample->GetMouse()->OnMiddleReleased(pt.x, pt.y);
+            break;
+        }
+        case WM_RBUTTONUP:
+        {
+            const POINTS pt = MAKEPOINTS(lParam);
+            pSample->GetMouse()->OnRightReleased(pt.x, pt.y);
+            break;
+        }
+
+        case WM_MOUSEMOVE:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            pSample->GetMouse()->OnMouseMove(x, y);
+#if defined(DEBUG) || defined(_DEBUG)
+            std::wstring rawInputInfoDefug = L"{X,Y}: " + std::to_wstring(x) + L" " + std::to_wstring(y) + L"\n";
+            OutputDebugString(rawInputInfoDefug.c_str());
+#endif
+            break;
+        }
+
+        case WM_MOUSEWHEEL:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            
+            pSample->GetMouse()->OnWheelDelta(x, y, GET_WHEEL_DELTA_WPARAM(wParam));
+            break;
+        }
+
+        /******************************** RAW INPUT ********************************/
+        case WM_INPUT:
+        {
+            UINT dataSize = {};
+            GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize, sizeof(RAWINPUTHEADER));
+            
+            if (dataSize > 0)
+            {
+                // TO DO: Bad, heap alloc.
+                const auto m_rawBuffer = std::make_unique<BYTE[]>(dataSize);
+                if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, m_rawBuffer.get(), &dataSize, sizeof(RAWINPUTHEADER)) == dataSize)
+                {
+                    auto ri = reinterpret_cast<RAWINPUT*>(m_rawBuffer.get());
+                    if (ri->header.dwType == RIM_TYPEMOUSE)
+                    {
+                        pSample->GetMouse()->OnMouseMoveRaw(ri->data.mouse.lLastX, ri->data.mouse.lLastY);
+#if defined(DEBUG) || defined(_DEBUG)
+                        std::wstring rawInputInfoDefug = L"Delta {X,Y}: " + std::to_wstring(ri->data.mouse.lLastX) + L" " + std::to_wstring(ri->data.mouse.lLastY) + L"\n";
+                        OutputDebugString(rawInputInfoDefug.c_str());
+#endif
+                    }
+                }
+            }
+            return DefWindowProc(hWnd, message, wParam, lParam);
+        }
     }
 
     // Handle any messages the switch statement didn't.
