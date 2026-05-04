@@ -289,7 +289,7 @@ void SSAO::Compute(ID3D12GraphicsCommandList* pCommandList, FrameResource* currF
     pCommandList->RSSetViewports(1u, &m_viewport);
     pCommandList->RSSetScissorRects(1u, &m_scissorRect);
 
-    ScaldUtil::TransitionResource(pCommandList, m_ambientMap0.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    ScaldUtil::ResourceBarrier(pCommandList, m_ambientMap0.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     pCommandList->OMSetRenderTargets(1u, &m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hCpuRtv, TRUE, nullptr);
     pCommandList->ClearRenderTargetView(m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hCpuRtv, ambientClearColor, 0u, nullptr);
@@ -310,7 +310,7 @@ void SSAO::Compute(ID3D12GraphicsCommandList* pCommandList, FrameResource* currF
     pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     pCommandList->DrawInstanced(4u, 1u, 0u, 0u);
 
-    ScaldUtil::TransitionResource(pCommandList, m_ambientMap0.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
+    ScaldUtil::ResourceBarrier(pCommandList, m_ambientMap0.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
     
     BlurAmbientMap(pCommandList, currFrameResource, blurPassesCount);
 }
@@ -352,7 +352,7 @@ void SSAO::BlurAmbientMap(ID3D12GraphicsCommandList* pCommandList, bool horzBlur
         pCommandList->SetGraphicsRoot32BitConstant(1u, 0u, 0u);
     }
 
-    ScaldUtil::TransitionResource(pCommandList, output, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    ScaldUtil::ResourceBarrier(pCommandList, output, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     pCommandList->ClearRenderTargetView(outputRtv, ambientClearColor, 0, nullptr);
 
@@ -369,5 +369,5 @@ void SSAO::BlurAmbientMap(ID3D12GraphicsCommandList* pCommandList, bool horzBlur
     pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     pCommandList->DrawInstanced(4u, 1u, 0u, 0u);
 
-    ScaldUtil::TransitionResource(pCommandList, output, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
+    ScaldUtil::ResourceBarrier(pCommandList, output, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
