@@ -33,4 +33,6 @@ void Scald::Scene::CreateBuildInMeshes()
     m_buildInMeshes[EBuiltInMeshes::SPHERE] = Shapes::CreateSphere(1.0f, 16u, 16u);
     m_buildInMeshes[EBuiltInMeshes::GEOSPHERE] = Shapes::CreateGeosphere(1.0f, 3u);
     m_buildInMeshes[EBuiltInMeshes::GRID] = Shapes::CreateGrid(100.0f, 100.0f, 2u, 2u);
+    m_buildInMeshes[EBuiltInMeshes::CYLINDER] = Shapes::CreateCylinder(1u, 1u, 1u, 16u);
+    m_buildInMeshes[EBuiltInMeshes::CONE] = Shapes::CreateCylinder(1u, 0u, 1u, 16u);
 }

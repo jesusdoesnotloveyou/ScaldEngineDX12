@@ -180,6 +180,136 @@ MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateSphere(float rad
 	return meshData;
 }
 
+MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateCylinder(int baseRadius, int topRadius, int height, int sectorCount)
+{
+	MeshData<> meshData;
+
+	float x, y, z; // vertex position
+
+	const float PI = std::acos(-1.0f);
+	float sectorStep = 2.0f * PI / static_cast<float>(sectorCount);
+	float sectorAngle; // radian
+
+	// compute the normal vector at 0 degree first
+	// tanA = (baseRadius-topRadius) / height
+	float zAngle = std::atan2(static_cast<float>(baseRadius - topRadius), static_cast<float>(height));
+	float x0 = std::cos(zAngle); // nx
+	float y0 = 0.0f;             // ny
+	float z0 = std::sin(zAngle); // nz
+
+	// rotate (x0,y0,z0) per sector angle
+	std::vector<float> sideNormals;
+	for (int i = 0; i <= sectorCount; ++i)
+	{
+		sectorAngle = i * sectorStep;
+		sideNormals.push_back(std::cos(sectorAngle) * x0 - std::sin(sectorAngle) * y0); // nx
+		sideNormals.push_back(std::sin(sectorAngle) * x0 + std::cos(sectorAngle) * y0); // ny
+		sideNormals.push_back(z0);                                            // nz
+	}
+
+	std::vector<float> unitCircleVertices;
+	for (int i = 0; i <= sectorCount; ++i)
+	{
+		sectorAngle = i * sectorStep;
+		unitCircleVertices.push_back(std::cos(sectorAngle)); // x
+		unitCircleVertices.push_back(std::sin(sectorAngle)); // y
+		unitCircleVertices.push_back(0.0f);                  // z
+	}
+
+	// remember where the base.top vertices start
+	unsigned int baseVertexIndex = (unsigned int)meshData.LODVertices[0].size();
+	// TODO: Convert this
+	// put vertices of base of cylinder
+	z = -height * 0.5f;
+
+	meshData.LODVertices[0].push_back(ScaldVertex(0.0f, 0.0f, z, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f));
+
+	for (int i = 0, j = 0; i < sectorCount; ++i, j += 3)
+	{
+		x = unitCircleVertices[j];
+		y = unitCircleVertices[j + 1];
+		meshData.LODVertices[0].push_back(ScaldVertex(x * baseRadius, y * baseRadius, z, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, -x * 0.5f + 0.5f, -y * 0.5f + 0.5f));
+	}
+
+	// remember where the top vertices start
+	unsigned int topVertexIndex = (unsigned int)meshData.LODVertices[0].size();
+	// put vertices of top of cylinder
+	z = height * 0.5f;
+	meshData.LODVertices[0].push_back(ScaldVertex(0.0f, 0.0f, z, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f));
+
+	for (int i = 0, j = 0; i < sectorCount; ++i, j += 3)
+	{
+		x = unitCircleVertices[j];
+		y = unitCircleVertices[j + 1];
+		meshData.LODVertices[0].push_back(ScaldVertex(x * topRadius, y * topRadius, z, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, x * 0.5f + 0.5f, -y * 0.5f + 0.5f));
+	}
+
+	int k1 = 0;               // 1st vertex index at base
+	int k2 = sectorCount + 1; // 1st vertex index at top
+
+	for (int j = 0; j < sectorCount; ++j, ++k1, ++k2)
+	{
+		if (j == 0)
+		{
+			// 2 trianles per sector
+			meshData.LODIndices[0].push_back(k1 + sectorCount);
+			meshData.LODIndices[0].push_back(k1 + 1);
+			meshData.LODIndices[0].push_back(k2 + sectorCount);
+
+			meshData.LODIndices[0].push_back(k2 + sectorCount);
+			meshData.LODIndices[0].push_back(k1 + 1);
+			meshData.LODIndices[0].push_back(k2 + 1);
+		}
+		else
+		{
+			// 2 trianles per sector
+			meshData.LODIndices[0].push_back(k1);
+			meshData.LODIndices[0].push_back(k1 + 1);
+			meshData.LODIndices[0].push_back(k2);
+
+			meshData.LODIndices[0].push_back(k2);
+			meshData.LODIndices[0].push_back(k1 + 1);
+			meshData.LODIndices[0].push_back(k2 + 1);
+		}
+	}
+
+	// put indices for base
+	for (int i = 0, k = baseVertexIndex + 1; i < sectorCount; ++i, ++k)
+	{
+		if (i < (sectorCount - 1))
+		{
+			meshData.LODIndices[0].push_back(baseVertexIndex);
+			meshData.LODIndices[0].push_back(k + 1);
+			meshData.LODIndices[0].push_back(k);
+		}
+		else // last triangle
+		{
+			meshData.LODIndices[0].push_back(baseVertexIndex);
+			meshData.LODIndices[0].push_back(baseVertexIndex + 1);
+			meshData.LODIndices[0].push_back(k);
+		}
+	}
+
+	// put indices for top
+	for (int i = 0, k = topVertexIndex + 1; i < sectorCount; ++i, ++k)
+	{
+		if (i < (sectorCount - 1))
+		{
+			meshData.LODIndices[0].push_back(topVertexIndex);
+			meshData.LODIndices[0].push_back(k);
+			meshData.LODIndices[0].push_back(k + 1);
+		}
+		else
+		{
+			meshData.LODIndices[0].push_back(topVertexIndex);
+			meshData.LODIndices[0].push_back(k);
+			meshData.LODIndices[0].push_back(topVertexIndex + 1);
+		}
+	}
+
+	return meshData;
+}
+
 MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateGrid(float width, float depth, UINT m, UINT n)
 {
 	MeshData<VertexPositionNormalTangentUV, uint16_t> meshData;

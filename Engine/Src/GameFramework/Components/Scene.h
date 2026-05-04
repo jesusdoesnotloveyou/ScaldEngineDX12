@@ -11,6 +11,8 @@ namespace Scald
 		SPHERE,
 		GEOSPHERE,
 		GRID,
+		CYLINDER,
+		CONE,
 		NUM_BUILTIN_MESHES
 	};
 

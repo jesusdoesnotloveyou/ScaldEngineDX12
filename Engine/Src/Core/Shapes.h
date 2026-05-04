@@ -10,6 +10,8 @@ public:
 
 	static MeshData<VertexPositionNormalTangentUV, uint16_t> CreateSphere(float radius, UINT sliceCount, UINT stackCount);
 
+	static MeshData<VertexPositionNormalTangentUV, uint16_t> CreateCylinder(int baseRadius, int topRadius, int height, int sectorCount);
+
 	///<summary>
 	/// Creates an mxn grid in the xz-plane with m rows and n columns, centered
 	/// at the origin with the specified width and depth.

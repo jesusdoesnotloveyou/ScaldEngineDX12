@@ -4,6 +4,12 @@
 
 using namespace DirectX;
 
+struct VertexPositionNormalTangentUV;
+struct VertexPosition;
+
+using ScaldVertex = VertexPositionNormalTangentUV;
+using SimpleVertex = VertexPosition;
+
 struct VertexPosition
 {
 	VertexPosition() {}
