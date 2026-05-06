@@ -3,20 +3,19 @@
 #include <stdexcept>
 #include <wrl.h>
 
-#include "DirectXCollision.h"
-#include "d3dx12.h"
+#include <dxgi1_4.h>
+#include <DirectXMath.h>
+#include <DirectXCollision.h>
+
 #include "DDSTextureLoader.h"
-#include "ScaldCoreTypes.h"
-#include "ScaldCoreDefines.h"
+#include "Common/d3dx12.h"
+#include "Common/ScaldCoreTypes.h"
+#include "Common/ScaldCoreDefines.h"
 
 #include <unordered_map>
-#include <unordered_set>
-#include <memory>
 #include <string>
-#include <array>
+#include <cstring>
 #include <vector>
-#include <cassert>
-#include <queue>
 
 using Microsoft::WRL::ComPtr;
 
@@ -65,23 +64,43 @@ inline void ThrowIfFailed(HRESULT hr)
     }
 }
 
-inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
-{
-    if (!path) throw std::exception();
-
-    DWORD size = GetModuleFileName(nullptr, path, pathSize);
-    if (size == 0 || size == pathSize)
+#ifdef UNICODE
+    inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
     {
-        // Method failed or path was truncated.
-        throw std::exception();
-    }
+        if (!path) throw std::exception();
 
-    WCHAR* lastSlash = wcsrchr(path, L'\\');
-    if (lastSlash)
-    {
-        *(lastSlash + 1) = L'\0';
+        DWORD size = GetModuleFileName(nullptr, path, pathSize);
+        if (size == 0 || size == pathSize)
+        {
+            // Method failed or path was truncated.
+            throw std::exception();
+        }
+
+        WCHAR* lastSlash = wcsrchr(path, '\\');
+        if (lastSlash)
+        {
+            *(lastSlash + 1) = L'\0';
+        }
     }
-}
+#else
+    inline void GetAssetsPath(_Out_writes_(pathSize) CHAR* path, UINT pathSize)
+    {
+        if (!path) throw std::exception();
+
+        DWORD size = GetModuleFileName(nullptr, path, pathSize);
+        if (size == 0 || size == pathSize)
+        {
+            // Method failed or path was truncated.
+            throw std::exception();
+        }
+
+        CHAR* lastSlash = strrchr(path, '\\');
+        if (lastSlash)
+        {
+            *(lastSlash + 1) = L'\0';
+        }
+    }
+#endif  // !UNICODE
 
 inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
 {
@@ -186,27 +205,45 @@ inline HRESULT ReadDataFromDDSFile(LPCWSTR filename, byte** data, UINT* offset, 
 }
 
 // Assign a name to the object to aid with debugging.
-#if defined(_DEBUG) || defined(DBG)
-inline void SetName(ID3D12Object* pObject, LPCWSTR name)
-{
-    pObject->SetName(name);
-}
-inline void SetNameIndexed(ID3D12Object* pObject, LPCWSTR name, UINT index)
-{
-    WCHAR fullName[50];
-    if (swprintf_s(fullName, L"%s[%u]", name, index) > 0)
-    {
-        pObject->SetName(fullName);
-    }
-}
-#else
-inline void SetName(ID3D12Object*, LPCWSTR)
-{
-}
-inline void SetNameIndexed(ID3D12Object*, LPCWSTR, UINT)
-{
-}
-#endif
+#if defined(_DEBUG) || defined(DEBUG)
+    #ifdef UNICODE
+        inline void SetName(ID3D12Object* pObject, LPCWSTR name)
+        {
+            pObject->SetName(name);
+        }
+
+        inline void SetNameIndexed(ID3D12Object* pObject, LPCWSTR name, UINT index)
+        {
+            WCHAR fullName[50];
+            if (swprintf_s(fullName, L"%s[%u]", name, index) > 0)
+            {
+                pObject->SetName(fullName);
+            }
+        }
+    #else
+        // TODO: internet advices to use MultiByteToWideChar
+        inline std::wstring GetWSTR(const std::string& string)
+        {
+            return std::wstring(string.begin(), string.end());
+        }
+
+        inline void SetName(ID3D12Object* pObject, LPCSTR name)
+        {
+            const auto wide = GetWSTR(name); 
+            pObject->SetName(wide.c_str());
+        }
+
+        inline void SetNameIndexed(ID3D12Object* pObject, LPCSTR name, UINT index)
+        {
+            CHAR fullName[50];
+            if (sprintf_s(fullName, "%s[%u]", name, index) > 0)
+            {
+                const auto wide = GetWSTR(fullName);
+                pObject->SetName(wide.c_str());
+            }
+        }
+    #endif  // !UNICODE
+#endif  // !DEBUG
 
 // Naming helper for ComPtr<T>.
 // Assigns the name of the variable as the name of the object.

@@ -2,8 +2,6 @@
 
 #include "DXHelper.h"
 
-using Microsoft::WRL::ComPtr;
-
 class ScaldUtil
 {
 public:

@@ -36,21 +36,32 @@
 /*
  * Debug 
  */
-
-#if defined(DEBUG) || defined(_DEBUG)
-	#define SCALD_NAME_D3D12_OBJECT(obj, name)					\
-				obj->SetName(name);								\
-				OutputDebugString(L"::D3D12 Object Created: "); \
-				OutputDebugString(name);						\
-				OutputDebugString(L"\n");
+#ifdef UNICODE
+	#if defined(DEBUG) || defined(_DEBUG)
+		#define SCALD_NAME_D3D12_OBJECT(obj, name)					\
+					obj->SetName(name);								\
+					OutputDebugStringW(L"::D3D12 Object Created: ");\
+					OutputDebugStringW(name);						\
+					OutputDebugStringW(L"\n");
+	#else
+		#define SCALD_NAME_D3D12_OBJECT(obj, name)
+	#endif
 #else
-	#define SCALD_NAME_D3D12_OBJECT(obj, name)
+	// TODO : I still pass the narrow string to SetName which takes the wide one
+	#if defined(DEBUG) || defined(_DEBUG)
+		#define SCALD_NAME_D3D12_OBJECT(obj, name)					\
+					obj->SetName(name);                             \
+					OutputDebugStringA("::D3D12 Object Created: ");	\
+					OutputDebugStringA(name);                       \
+					OutputDebugStringA("\n");
+	#else
+		#define SCALD_NAME_D3D12_OBJECT(obj, name)
+	#endif
 #endif
 
 /*
  * Textures
  */
-
 #define TextureMapsMaxCount 128 // 128 textures for every kind of textures
 
 /*

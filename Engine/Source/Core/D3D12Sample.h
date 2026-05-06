@@ -2,7 +2,7 @@
 
 #include "Common/DXHelper.h"
 #include "Common/ScaldTimer.h"
-#include "Win32App.h"
+#include "Core/Win32App.h"
 //#include "DescriptorHeaps.h"
 
 // target_link_libraries(${PROJECT_NAME} PRIVATE DirectXTK d3dcompiler dxguid dxgi d3d11 assimp)

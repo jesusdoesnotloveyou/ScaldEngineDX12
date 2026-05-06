@@ -47,35 +47,35 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Src\Core\CommandQueue.cpp" />
-    <ClCompile Include="Src\Core\RootSignature.cpp" />
-    <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
-    <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
-    <ClCompile Include="Src\GameFramework\Components\SComponent.cpp" />
-    <ClCompile Include="Src\GameFramework\Components\Transform.cpp" />
-    <ClCompile Include="Src\Core\Camera.cpp">
+    <ClCompile Include="Source\Core\CommandQueue.cpp" />
+    <ClCompile Include="Source\Core\RootSignature.cpp" />
+    <ClCompile Include="Source\GameFramework\Components\Renderer.cpp" />
+    <ClCompile Include="Source\GameFramework\Components\Scene.cpp" />
+    <ClCompile Include="Source\GameFramework\Components\SComponent.cpp" />
+    <ClCompile Include="Source\GameFramework\Components\Transform.cpp" />
+    <ClCompile Include="Source\Core\Camera.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Src\Core\CascadeShadowMap.cpp" />
-    <ClCompile Include="Src\Core\D3D12Sample.cpp" />
-    <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
-    <ClCompile Include="Src\Core\Device.cpp" />
-    <ClCompile Include="Src\Core\Engine.cpp" />
-    <ClCompile Include="Src\Core\FrameResource.cpp" />
-    <ClCompile Include="Src\Core\GBuffer.cpp" />
-    <ClCompile Include="Src\Core\Main.cpp" />
-    <ClCompile Include="Src\Common\ScaldTimer.cpp" />
-    <ClCompile Include="Src\Common\ScaldUtil.cpp" />
-    <ClCompile Include="Src\Core\ShadowMap.cpp" />
-    <ClCompile Include="Src\Core\Shapes.cpp">
+    <ClCompile Include="Source\Core\CascadeShadowMap.cpp" />
+    <ClCompile Include="Source\Core\D3D12Sample.cpp" />
+    <ClCompile Include="Source\Common\DDSTextureLoader.cpp" />
+    <ClCompile Include="Source\Core\Device.cpp" />
+    <ClCompile Include="Source\Core\Engine.cpp" />
+    <ClCompile Include="Source\Core\FrameResource.cpp" />
+    <ClCompile Include="Source\Core\GBuffer.cpp" />
+    <ClCompile Include="Source\Core\Main.cpp" />
+    <ClCompile Include="Source\Common\ScaldTimer.cpp" />
+    <ClCompile Include="Source\Common\ScaldUtil.cpp" />
+    <ClCompile Include="Source\Core\ShadowMap.cpp" />
+    <ClCompile Include="Source\Core\Shapes.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\GameFramework\objects\SEntity.cpp" />
-    <ClCompile Include="Src\stdafx.cpp">
+    <ClCompile Include="Source\GameFramework\objects\SEntity.cpp" />
+    <ClCompile Include="Source\stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Src\Core\Win32App.cpp" />
+    <ClCompile Include="Source\Core\Win32App.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
@@ -93,36 +93,36 @@
     <ClInclude Include="External\imgui\imstb_truetype.h" />
     <ClInclude Include="External\imgui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="External\imgui\misc\single_file\imgui_single_file.h" />
-    <ClInclude Include="Src\Common\ScaldCoreDefines.h" />
-    <ClInclude Include="Src\Common\VertexTypes.h" />
-    <ClInclude Include="Src\Core\CommandQueue.h" />
-    <ClInclude Include="Src\Core\Mesh.h" />
-    <ClInclude Include="Src\Core\RootSignature.h" />
-    <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
-    <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
-    <ClInclude Include="Src\GameFramework\Components\Scene.h" />
-    <ClInclude Include="Src\GameFramework\Components\Transform.h" />
-    <ClInclude Include="Src\Core\Camera.h" />
-    <ClInclude Include="Src\GameFramework\Components\SComponent.h" />
-    <ClInclude Include="Src\Core\CascadeShadowMap.h" />
-    <ClInclude Include="Src\Core\D3D12Sample.h" />
-    <ClInclude Include="Src\Common\d3dx12.h" />
-    <ClInclude Include="Src\Common\DDSTextureLoader.h" />
-    <ClInclude Include="Src\Common\DXHelper.h" />
-    <ClInclude Include="Src\Core\Device.h" />
-    <ClInclude Include="Src\Core\Engine.h" />
-    <ClInclude Include="Src\Core\FrameResource.h" />
-    <ClInclude Include="Src\Core\GBuffer.h" />
-    <ClInclude Include="Src\GameFramework\Objects\SEntity.h" />
-    <ClInclude Include="Src\Common\ScaldCoreTypes.h" />
-    <ClInclude Include="Src\Common\ScaldMath.h" />
-    <ClInclude Include="Src\Common\ScaldTimer.h" />
-    <ClInclude Include="Src\Common\ScaldUtil.h" />
-    <ClInclude Include="Src\Core\ShadowMap.h" />
-    <ClInclude Include="Src\Core\Shapes.h" />
-    <ClInclude Include="Src\stdafx.h" />
-    <ClInclude Include="Src\Core\UploadBuffer.h" />
-    <ClInclude Include="Src\Core\Win32App.h" />
+    <ClInclude Include="Source\Common\ScaldCoreDefines.h" />
+    <ClInclude Include="Source\Common\VertexTypes.h" />
+    <ClInclude Include="Source\Core\CommandQueue.h" />
+    <ClInclude Include="Source\Core\Mesh.h" />
+    <ClInclude Include="Source\Core\RootSignature.h" />
+    <ClInclude Include="Source\GameFramework\Components\ComponentManager.h" />
+    <ClInclude Include="Source\GameFramework\Components\Renderer.h" />
+    <ClInclude Include="Source\GameFramework\Components\Scene.h" />
+    <ClInclude Include="Source\GameFramework\Components\Transform.h" />
+    <ClInclude Include="Source\Core\Camera.h" />
+    <ClInclude Include="Source\GameFramework\Components\SComponent.h" />
+    <ClInclude Include="Source\Core\CascadeShadowMap.h" />
+    <ClInclude Include="Source\Core\D3D12Sample.h" />
+    <ClInclude Include="Source\Common\d3dx12.h" />
+    <ClInclude Include="Source\Common\DDSTextureLoader.h" />
+    <ClInclude Include="Source\Common\DXHelper.h" />
+    <ClInclude Include="Source\Core\Device.h" />
+    <ClInclude Include="Source\Core\Engine.h" />
+    <ClInclude Include="Source\Core\FrameResource.h" />
+    <ClInclude Include="Source\Core\GBuffer.h" />
+    <ClInclude Include="Source\GameFramework\Objects\SEntity.h" />
+    <ClInclude Include="Source\Common\ScaldCoreTypes.h" />
+    <ClInclude Include="Source\Common\ScaldMath.h" />
+    <ClInclude Include="Source\Common\ScaldTimer.h" />
+    <ClInclude Include="Source\Common\ScaldUtil.h" />
+    <ClInclude Include="Source\Core\ShadowMap.h" />
+    <ClInclude Include="Source\Core\Shapes.h" />
+    <ClInclude Include="Source\stdafx.h" />
+    <ClInclude Include="Source\Core\UploadBuffer.h" />
+    <ClInclude Include="Source\Core\Win32App.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\Common.hlsl">
@@ -306,7 +306,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <AdditionalIncludeDirectories>$(SolutionDir)\$(ProjectName)\Src;$(SolutionDir)\$(ProjectName)\Assets\Shaders;$(SolutionDir)\$(ProjectName)\External\imgui;$(SolutionDir)\$(ProjectName)\External\imgui\backends;$(SolutionDir)\$(ProjectName)\External\imgui\misc\debuggers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\$(ProjectName)\Source;$(SolutionDir)\$(ProjectName)\Assets\Shaders;$(SolutionDir)\$(ProjectName)\External\imgui;$(SolutionDir)\$(ProjectName)\External\imgui\backends;$(SolutionDir)\$(ProjectName)\External\imgui\misc\debuggers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -330,7 +330,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <AdditionalIncludeDirectories>$(SolutionDir)\$(ProjectName)\Src;$(SolutionDir)\$(ProjectName)\Assets\Shaders;$(SolutionDir)\$(ProjectName)\External\imgui;$(SolutionDir)\$(ProjectName)\External\imgui\backends;$(SolutionDir)\$(ProjectName)\External\imgui\misc\debuggers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\$(ProjectName)\Source;$(SolutionDir)\$(ProjectName)\Assets\Shaders;$(SolutionDir)\$(ProjectName)\External\imgui;$(SolutionDir)\$(ProjectName)\External\imgui\backends;$(SolutionDir)\$(ProjectName)\External\imgui\misc\debuggers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
