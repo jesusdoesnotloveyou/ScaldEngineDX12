@@ -5,7 +5,7 @@
 namespace Scald
 {
 	class SComponent;
-	class SObject;
+	class SEntity;
 	
 	class ComponentManager
 	{
@@ -17,7 +17,7 @@ namespace Scald
 		}
 
 		template<typename T = SComponent, typename... Args>
-		std::shared_ptr<T> CreateDefaultSubobject(std::shared_ptr<SObject> owner, Args&&... args)
+		std::shared_ptr<T> CreateDefaultSubobject(std::shared_ptr<SEntity> owner, Args&&... args)
 		{
 			return std::make_shared<T>(owner, std::forward<Args>(args)...);
 		}

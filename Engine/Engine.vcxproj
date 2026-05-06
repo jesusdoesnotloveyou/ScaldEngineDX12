@@ -70,6 +70,7 @@
     <ClCompile Include="Src\Core\Shapes.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="src\GameFramework\objects\SEntity.cpp" />
     <ClCompile Include="Src\stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
@@ -112,12 +113,11 @@
     <ClInclude Include="Src\Core\Engine.h" />
     <ClInclude Include="Src\Core\FrameResource.h" />
     <ClInclude Include="Src\Core\GBuffer.h" />
-    <ClInclude Include="Src\GameFramework\Objects\SObject.h" />
+    <ClInclude Include="Src\GameFramework\Objects\SEntity.h" />
     <ClInclude Include="Src\Common\ScaldCoreTypes.h" />
     <ClInclude Include="Src\Common\ScaldMath.h" />
     <ClInclude Include="Src\Common\ScaldTimer.h" />
     <ClInclude Include="Src\Common\ScaldUtil.h" />
-    <ClInclude Include="Src\GameFramework\Objects\Actor.h" />
     <ClInclude Include="Src\Core\ShadowMap.h" />
     <ClInclude Include="Src\Core\Shapes.h" />
     <ClInclude Include="Src\stdafx.h" />

@@ -5,9 +5,11 @@
 #include "Camera.h"
 #include "CascadeShadowMap.h"
 #include "GBuffer.h"
-#include "GameFramework/Components/Scene.h"
-#include "GameFramework/Objects/SObject.h"
 #include "RootSignature.h"
+#include "Mesh.h"
+
+#include "GameFramework/Components/Scene.h"
+#include "GameFramework/Objects/SEntity.h"
 
 const int gNumFrameResources = 3;
 
@@ -194,7 +196,7 @@ private:
     void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderUI(ID3D12GraphicsCommandList* pCommandList);
 
-    void DrawMesh(ID3D12GraphicsCommandList* pCommandList);
+    void DrawMesh(ID3D12GraphicsCommandList* pCommandList, const Mesh& mesh);
     void DrawMeshes(ID3D12GraphicsCommandList* pCommandList);
     void DrawInstancedMeshes(ID3D12GraphicsCommandList* pCommandList);
 
@@ -235,7 +237,7 @@ private:
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::unique_ptr<RenderItem> m_skyRenderItem;
 
-    std::vector<Scald::SObject> m_sceneObjects;
+    std::vector<Scald::SEntity> m_sceneObjects;
     std::unique_ptr<RenderItem> m_pointLightItem;
     std::unique_ptr<RenderItem> m_spotLightItem;
     std::vector<RenderItem*> m_opaqueItems;

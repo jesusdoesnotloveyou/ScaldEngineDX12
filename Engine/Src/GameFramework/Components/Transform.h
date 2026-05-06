@@ -10,7 +10,7 @@ namespace Scald
 	{
 		using Super = SComponent;
 	public:
-		Transform(std::shared_ptr<SObject> owner, XMVECTOR pos, XMVECTOR rot, XMVECTOR scale);
+		Transform(std::shared_ptr<SEntity> owner, XMVECTOR pos, XMVECTOR rot, XMVECTOR scale);
 		virtual ~Transform() noexcept override;
 
 		FORCEINLINE XMVECTOR GetScale() const
@@ -64,7 +64,7 @@ namespace Scald
 
 
 	public:
-		virtual void OnUpdate() override;
+		virtual void Update() override;
 		virtual void OnAttach() override;
 		virtual void OnDestroy() override;
 

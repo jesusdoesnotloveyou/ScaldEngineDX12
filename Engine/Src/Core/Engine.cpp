@@ -1,11 +1,12 @@
 #include "stdafx.h"
 #include "Engine.h"
 #include "Common/ScaldMath.h"
+#include "CommandQueue.h"
+#include <imgui_impl_dx12.h>
+
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
-#include "CommandQueue.h"
-#include <imgui_impl_dx12.h>
 
 extern const int gNumFrameResources;
 
@@ -373,6 +374,7 @@ VOID Engine::CreatePSO()
 VOID Engine::LoadScene()
 {
     m_scene = std::make_shared<Scald::Scene>();
+    CreateSceneObjects();
 }
 
 VOID Engine::LoadTextures(ID3D12GraphicsCommandList* pCommandList)
@@ -709,8 +711,8 @@ VOID Engine::CreateGeometryMaterials()
 
 VOID Engine::CreateSceneObjects()
 {
-    auto testObj = std::make_shared<Scald::SObject>();
-    testObj->AddComponent<Scald::Transform>(ScaldMath::ZeroVector, ScaldMath::ZeroVector, ScaldMath::One);
+    auto testObj = std::make_shared<Scald::SEntity>(std::string("test_entity"));
+    testObj->AddComponent<Scald::Transform>(Scald::ZeroVector, Scald::ZeroVector, Scald::One);
     testObj->AddComponent<Scald::Renderer>();
 }
 
@@ -836,7 +838,7 @@ VOID Engine::CreatePointLights(ID3D12GraphicsCommandList* pCommandList)
         {
             int index = k*n + j;
             
-            const float lightRange = ScaldMath::RandF(2.5, 3.0f);
+            const float lightRange = Scald::RandF(2.5, 3.0f);
             XMVECTOR pos = XMVectorSet(x + j * dx, -0.5f, z + k * dz, 1.0f);
             // scale should be dependent from range of light source
             XMMATRIX world = XMMatrixScalingFromVector(XMVectorReplicate(lightRange)) * XMMatrixTranslationFromVector(pos);
@@ -844,9 +846,9 @@ VOID Engine::CreatePointLights(ID3D12GraphicsCommandList* pCommandList)
             XMStoreFloat4x4(&m_pointLightItem->Instances[index].World, world);
 
             XMStoreFloat3(&m_pointLightItem->Instances[index].Light.Position, pos);
-            m_pointLightItem->Instances[index].Light.FallOfStart = ScaldMath::RandF(1.0, 2.0f);
+            m_pointLightItem->Instances[index].Light.FallOfStart = Scald::RandF(1.0, 2.0f);
             m_pointLightItem->Instances[index].Light.FallOfEnd = lightRange;
-            m_pointLightItem->Instances[index].Light.Strength = { ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f) };
+            m_pointLightItem->Instances[index].Light.Strength = { Scald::RandF(0.0f, 1.0f), Scald::RandF(0.0f, 1.0f), Scald::RandF(0.0f, 1.0f) };
         }
     }
 }
@@ -1042,7 +1044,7 @@ void Engine::OnKeyboardInput(const ScaldTimer& st)
     if (GetAsyncKeyState(VK_DOWN) & 0x8000)
         m_sunPhi += 1.0f * dt;
 
-    m_sunPhi = ScaldMath::Clamp(m_sunPhi, 0.1f, XM_PIDIV2);
+    m_sunPhi = Scald::Clamp(m_sunPhi, 0.1f, XM_PIDIV2);
 
 #pragma endregion GlobalLightDirection
 }
@@ -1214,7 +1216,7 @@ void Engine::UpdateDeferredPassCB(const ScaldTimer& st)
 
 #pragma region DirLight
     // Invert sign because other way light would be pointing up
-    XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
+    XMVECTOR lightDir = -Scald::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
     XMStoreFloat3(&m_mainPassCBData.DirLight.Direction, lightDir);
     m_mainPassCBData.DirLight.Strength = { 1.0f, 1.0f, 0.9f };
 #pragma endregion DirLight
@@ -1433,7 +1435,7 @@ void Engine::DrawMesh(ID3D12GraphicsCommandList* pCommandList, const Mesh& mesh)
     pCommandList->IASetIndexBuffer(&currIBV);
 
     //[likely]
-    if (currIBV)
+    if (currIBV.SizeInBytes)
     {
         pCommandList->DrawIndexedInstanced(mesh.IndexCount, 1u, 0u, 0, 0u);
     }
@@ -1516,7 +1518,7 @@ std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, con
     }
     center /= (float)frustumCorners.size();
 
-    const XMMATRIX lightView = XMMatrixLookAtLH(center, center + XMVectorSet(lightDir.x, lightDir.y, lightDir.z, 1.0f), ScaldMath::UpVector);
+    const XMMATRIX lightView = XMMatrixLookAtLH(center, center + XMVectorSet(lightDir.x, lightDir.y, lightDir.z, 1.0f), Scald::UpVector);
 
     // Measuring cascade
     float minX = std::numeric_limits<float>::max();
