@@ -3,10 +3,6 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
-# Custom stuff ignore
-[Aa]utomation/
-*.bat
-
 # User-specific files
 *.rsuser
 *.suo
