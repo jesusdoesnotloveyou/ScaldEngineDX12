@@ -2,8 +2,6 @@
 
 #include "Common/DXHelper.h"
 
-using namespace Microsoft::WRL;
-
 class ShadowMap
 {
 public:

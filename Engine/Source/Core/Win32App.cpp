@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "Win32App.h"
-
-#include "D3D12/D3D12Sample.h"
+#include "D3D12Sample.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
@@ -135,6 +134,7 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
             return 0;
         }
 
+
         case WM_CREATE:
         {
             // Save the D3D12Sample* passed in to CreateWindow.
@@ -236,7 +236,7 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
         {
             const int x = LOWORD(lParam);
             const int y = HIWORD(lParam);
-            
+
             pSample->GetMouse()->OnWheelDelta(x, y, GET_WHEEL_DELTA_WPARAM(wParam));
             break;
         }
@@ -246,7 +246,7 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
         {
             UINT dataSize = {};
             GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize, sizeof(RAWINPUTHEADER));
-            
+
             if (dataSize > 0)
             {
                 // TO DO: Bad, heap alloc.

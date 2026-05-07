@@ -4,14 +4,14 @@
 
 namespace Scald
 {
-	class SObject;
+	class SEntity;
 
 	class SComponent : public std::enable_shared_from_this<SComponent>
 	{
-		friend class SObject;
+		friend class SEntity;
 		// to prevent manual creation
 	protected:
-		SComponent(std::shared_ptr<SObject> owner)
+		SComponent(std::shared_ptr<SEntity> owner)
 		{
 			m_owner = owner;
 		}
@@ -19,16 +19,15 @@ namespace Scald
 	public:
 		virtual ~SComponent() noexcept;
 
-		virtual void OnUpdate();
+		virtual void Initialize();
+		virtual void Update();
 		virtual void OnAttach();
 		virtual void OnDestroy();
 
-		std::shared_ptr<SObject> GetOwner() const
-		{
-			return m_owner.lock();
-		}
+		std::shared_ptr<SEntity> GetOwner() const;
+		void SetOwner(std::shared_ptr<SEntity>& owner);
 	
 	protected:
-		std::weak_ptr<SObject> m_owner;
+		std::weak_ptr<SEntity> m_owner;
 	};
 }

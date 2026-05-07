@@ -1,9 +1,7 @@
 #pragma once
 
-class ScaldMath
+namespace Scald
 {
-public:
-
 	template<typename T>
 	static T Min(const T& a, const T& b)
 	{
@@ -50,4 +48,4 @@ public:
 	static inline const XMVECTOR UpVector = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	static inline const XMVECTOR ZeroVector = XMVectorZero();
 	static inline const XMVECTOR One = XMVectorSet(1.0f, 1.0f, 1.0f, 1.0f);
-};
+}

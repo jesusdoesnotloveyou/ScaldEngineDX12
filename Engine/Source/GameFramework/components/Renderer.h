@@ -8,7 +8,7 @@ namespace Scald
 	{
 		using Super = SComponent;
 	public:
-		Renderer(std::shared_ptr<SObject> owner);
+		Renderer(std::shared_ptr<SEntity> owner);
 		virtual ~Renderer() noexcept override;
 
 		// For frustum culling

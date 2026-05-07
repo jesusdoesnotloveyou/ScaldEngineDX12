@@ -1,18 +1,17 @@
 #pragma once
 
-#include "D3D12/D3D12Sample.h"
+#include "D3D12Sample.h"
 
-#include "Common/Camera.h"
+#include "Camera.h"
 #include "FrameResource.h"
-
-#include "DeferredRendering/GBuffer.h"
-#include "Shadows/CascadeShadowMap.h"
-#include "SSAO/SSAO.h"
+#include "CascadeShadowMap.h"
+#include "GBuffer.h"
+#include "SSAO.h"
+#include "RootSignature.h"
+#include "Mesh.h"
 
 #include "GameFramework/Components/Scene.h"
-#include "GameFramework/Objects/SObject.h"
-
-class RootSignature;
+#include "GameFramework/Objects/SEntity.h"
 
 const int gNumFrameResources = 3;
 
@@ -20,8 +19,6 @@ const int gNumFrameResources = 3;
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
 // for the GPU lifetime of resources to avoid destroying objects that may still be referenced by the GPU.
 // An example of this can be found in the class method: OnDestroy().
-
-using Microsoft::WRL::ComPtr;
 
 struct Material
 {
@@ -189,8 +186,9 @@ private:
     // Should be smth like camera controller
     void UpdateCamera(const ScaldTimer& st);
     void OnKeyboardInput(const ScaldTimer& st);
-    
+
     void UpdateObjectsCB(const ScaldTimer& st);
+
     void UpdateMaterialBuffer(const ScaldTimer& st);
     void UpdateLightsBuffer(const ScaldTimer& st);
     void UpdateShadowTransform(const ScaldTimer& st);
@@ -199,7 +197,7 @@ private:
 
     void UpdateShadowPassCB(const ScaldTimer& st);
     void UpdateGeometryPassCB(const ScaldTimer& st);
-    void UpdateMainPassCB(const ScaldTimer& st);
+    void UpdateDeferredPassCB(const ScaldTimer& st);
     
 private:
 #pragma region Shadows
@@ -220,6 +218,10 @@ private:
     void RenderParticles(ID3D12GraphicsCommandList* pCommandList);
     void RenderUI(ID3D12GraphicsCommandList* pCommandList);
 
+    void DrawMesh(ID3D12GraphicsCommandList* pCommandList, const Mesh& mesh);
+    void DrawMeshes(ID3D12GraphicsCommandList* pCommandList);
+    void DrawInstancedMeshes(ID3D12GraphicsCommandList* pCommandList);
+
     void DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& renderItem);
     void DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
     void DrawInstancedRenderItem(ID3D12GraphicsCommandList* pCommandList, const std::unique_ptr<RenderItem>& renderItem);
@@ -227,7 +229,7 @@ private:
 private:
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
     FrameResource* m_currFrameResource = nullptr;
-    int m_currentFrameResourceIndex = 0;
+    int m_currFrameResourceIndex = 0;
 
     UINT m_passCbvOffset = 0u;
 
@@ -261,7 +263,7 @@ private:
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::unique_ptr<RenderItem> m_skyRenderItem;
 
-    std::vector<Scald::SObject> m_sceneObjects;
+    std::vector<Scald::SEntity> m_sceneObjects;
     std::unique_ptr<RenderItem> m_pointLightItem;
     std::unique_ptr<RenderItem> m_spotLightItem;
     std::vector<RenderItem*> m_opaqueItems;

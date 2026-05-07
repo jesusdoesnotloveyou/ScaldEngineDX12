@@ -8,16 +8,21 @@ namespace Scald
 {
     class SComponent;
 
-    class SObject : public std::enable_shared_from_this<SObject>
+    class SEntity : public std::enable_shared_from_this<SEntity>
 	{
 	public:
-		SObject() = default;
-		virtual ~SObject() noexcept = default;
+        explicit SEntity(std::string& entityName);
+		virtual /*for polymorphic call when object is destructed*/ ~SEntity() noexcept = default;
 	
-		virtual void OnInit() {};
-        virtual void OnUpdate() {};
+		virtual void Initialize();
+        virtual void Update();
 		virtual void OnBegin() {};
 		virtual void OnDestroy() {};
+
+        bool IsActive() const { mIsActive; }
+        void SetActive(bool isActive) { mIsActive = isActive; }
+
+        const std::string GetName() const { return m_name; }
 
         template <typename T>
         const std::vector<std::shared_ptr<T>>& GetComponents() const
@@ -54,14 +59,36 @@ namespace Scald
         }
 
         template<typename T, typename... Args>
-        void AddComponent(Args&&... args)
+        T* AddComponent(Args&&... args)
         {
+            static_assert(std::is_base_of<SComponent, T>::value, "T must be derived from Component");
+
             auto comp = ComponentManager::Get().CreateDefaultSubobject<T>(shared_from_this(), std::forward<Args>(args)...);
             comp->OnAttach();
             m_components.push_back(comp);
+            return comp.get();
+        }
+
+        template<typename T>
+        bool RemoveComponent()
+        {
+            static_assert(std::is_base_of<SComponent, T>::value, "T must be derived from Component");
+
+            for (auto it = m_components.begin(); it != m_components.end(); it++)
+            {
+                if (std::dynamic_pointer_cast<T>(*it))
+                {
+                    m_components.erase(it);
+                    return true;
+                }
+            }
+            return false;
         }
 
 	protected:
-		std::vector<std::shared_ptr<SComponent>> m_components;
+        std::string m_name;
+		std::vector<std::shared_ptr<SComponent>> m_components; // in Vulkan doc about engine architecture components are stored as unique ptrs
+        
+        bool mIsActive = true;
 	};
 }

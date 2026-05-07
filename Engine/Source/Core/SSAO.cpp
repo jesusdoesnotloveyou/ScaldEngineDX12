@@ -222,7 +222,7 @@ void SSAO::BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList)
         for (int j = 0; j < 256; ++j)
         {
             // Random vector in [0,1].  We will decompress in shader to [-1,1].
-            XMFLOAT3 v(ScaldMath::RandF(), ScaldMath::RandF(), ScaldMath::RandF());
+            XMFLOAT3 v(Scald::RandF(), Scald::RandF(), Scald::RandF());
 
             initData[i * 256 + j] = XMCOLOR(v.x, v.y, v.z, 0.0f);
         }
@@ -274,7 +274,7 @@ void SSAO::BuildOffsetVectors()
     for (int i = 0; i < 14; ++i)
     {
         // Create random lengths in [0.25, 1.0].
-        float s = ScaldMath::RandF(0.25f, 1.0f);
+        float s = Scald::RandF(0.25f, 1.0f);
 
         XMVECTOR v = s * XMVector4Normalize(XMLoadFloat4(&m_offsets[i]));
 

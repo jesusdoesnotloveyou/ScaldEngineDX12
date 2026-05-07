@@ -190,7 +190,7 @@ struct ParticleConstantBuffer
 	XMVECTOR gEyePos = XMVectorZero();
 };
 
-struct Camera—onstantBuffer
+struct CameraConstantBuffer
 {
 	XMMATRIX gView = XMMatrixIdentity();
 	XMMATRIX gProjection = XMMatrixIdentity();

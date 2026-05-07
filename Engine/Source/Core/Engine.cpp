@@ -2,12 +2,12 @@
 #include "Engine.h"
 
 #include "Common/ScaldMath.h"
+#include "CommandQueue.h"
+#include "RootSignature.h"
+
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
-
-#include "D3D12/CommandQueue.h"
-#include "D3D12/RootSignature.h"
 
 #include <imgui_impl_dx12.h>
 
@@ -577,6 +577,7 @@ VOID Engine::CreatePSO()
 VOID Engine::LoadScene()
 {
     m_scene = std::make_shared<Scald::Scene>();
+    CreateSceneObjects();
 }
 
 VOID Engine::LoadTextures(ID3D12GraphicsCommandList* pCommandList)
@@ -919,8 +920,8 @@ VOID Engine::CreateGeometryMaterials()
 
 VOID Engine::CreateSceneObjects()
 {
-    auto testObj = std::make_shared<Scald::SObject>();
-    testObj->AddComponent<Scald::Transform>(ScaldMath::ZeroVector, ScaldMath::ZeroVector, ScaldMath::One);
+    auto testObj = std::make_shared<Scald::SEntity>(std::string("test_entity"));
+    testObj->AddComponent<Scald::Transform>(Scald::ZeroVector, Scald::ZeroVector, Scald::One);
     testObj->AddComponent<Scald::Renderer>();
 }
 
@@ -1046,7 +1047,7 @@ VOID Engine::CreatePointLights(ID3D12GraphicsCommandList* pCommandList)
         {
             int index = k*n + j;
             
-            const float lightRange = ScaldMath::RandF(2.5, 3.0f);
+            const float lightRange = Scald::RandF(2.5, 3.0f);
             XMVECTOR pos = XMVectorSet(x + j * dx, -0.5f, z + k * dz, 1.0f);
             // scale should be dependent from range of light source
             XMMATRIX world = XMMatrixScalingFromVector(XMVectorReplicate(lightRange)) * XMMatrixTranslationFromVector(pos);
@@ -1054,9 +1055,9 @@ VOID Engine::CreatePointLights(ID3D12GraphicsCommandList* pCommandList)
             XMStoreFloat4x4(&m_pointLightItem->Instances[index].World, world);
 
             XMStoreFloat3(&m_pointLightItem->Instances[index].Light.Position, pos);
-            m_pointLightItem->Instances[index].Light.FallOfStart = ScaldMath::RandF(1.0, 2.0f);
+            m_pointLightItem->Instances[index].Light.FallOfStart = Scald::RandF(1.0, 2.0f);
             m_pointLightItem->Instances[index].Light.FallOfEnd = lightRange;
-            m_pointLightItem->Instances[index].Light.Strength = { ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f), ScaldMath::RandF(0.0f, 1.0f) };
+            m_pointLightItem->Instances[index].Light.Strength = { Scald::RandF(0.0f, 1.0f), Scald::RandF(0.0f, 1.0f), Scald::RandF(0.0f, 1.0f) };
         }
     }
 }
@@ -1123,8 +1124,8 @@ void Engine::OnUpdate(const ScaldTimer& st)
     OnKeyboardInput(st);
     
     // Cycle through the circular frame resource array.
-    m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1u) % gNumFrameResources;
-    m_currFrameResource = m_frameResources[m_currentFrameResourceIndex].get();
+    m_currFrameResourceIndex = (m_currFrameResourceIndex + 1u) % gNumFrameResources;
+    m_currFrameResource = m_frameResources[m_currFrameResourceIndex].get();
 
     // Has the GPU finished processing the commands of the current frame resource?
     // If not, wait until the GPU has completed commands up to this fence point.
@@ -1142,7 +1143,7 @@ void Engine::OnUpdate(const ScaldTimer& st)
     UpdateShadowTransform(st);
     UpdateShadowPassCB(st); // pass
     UpdateGeometryPassCB(st); // pass
-    UpdateMainPassCB(st); // pass
+    UpdateDeferredPassCB(st); // pass
 }
 
 // Render the scene.
@@ -1245,7 +1246,7 @@ void Engine::OnKeyboardInput(const ScaldTimer& st)
     if (GetAsyncKeyState(VK_DOWN) & 0x8000)
         m_sunPhi += 1.0f * dt;
 
-    m_sunPhi = ScaldMath::Clamp(m_sunPhi, 0.1f, XM_PIDIV2);
+    m_sunPhi = Scald::Clamp(m_sunPhi, 0.1f, XM_PIDIV2);
 
 #pragma endregion GlobalLightDirection
 }
@@ -1433,7 +1434,7 @@ void Engine::UpdateGeometryPassCB(const ScaldTimer& st)
     currPassCB->CopyData(static_cast<int>(EPassType::DeferredGeometry), m_geometryPassCBData);
 }
 
-void Engine::UpdateMainPassCB(const ScaldTimer& st)
+void Engine::UpdateDeferredPassCB(const ScaldTimer& st)
 {
     XMMATRIX view = m_camera->GetViewMatrix();
     XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
@@ -1457,7 +1458,7 @@ void Engine::UpdateMainPassCB(const ScaldTimer& st)
 
 #pragma region DirLight
     // Invert sign because other way light would be pointing up
-    XMVECTOR lightDir = -ScaldMath::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
+    XMVECTOR lightDir = -Scald::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
     XMStoreFloat3(&m_mainPassCBData.DirLight.Direction, lightDir);
     m_mainPassCBData.DirLight.Strength = { 1.0f, 1.0f, 0.9f };
 #pragma endregion DirLight
@@ -1688,6 +1689,36 @@ void Engine::RenderUI(ID3D12GraphicsCommandList* pCommandList)
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
 }
 
+void Engine::DrawMesh(ID3D12GraphicsCommandList* pCommandList, const Mesh& mesh)
+{
+    auto currIBV = mesh.IndexBufferView();
+    auto currVBV = mesh.VertexBufferView();
+
+    pCommandList->IASetPrimitiveTopology(mesh.PrimitiveTopologyType);
+    pCommandList->IASetVertexBuffers(0u, 1u, &currVBV);
+    pCommandList->IASetIndexBuffer(&currIBV);
+
+    //[likely]
+    if (currIBV.SizeInBytes)
+    {
+        pCommandList->DrawIndexedInstanced(mesh.IndexCount, 1u, 0u, 0, 0u);
+    }
+    else
+    {
+        pCommandList->DrawInstanced(mesh.VertexCount, 1u, 0u, 0u);
+    }
+
+}
+
+void Engine::DrawMeshes(ID3D12GraphicsCommandList* pCommandList)
+{
+    
+}
+
+void Engine::DrawInstancedMeshes(ID3D12GraphicsCommandList* pCommandList)
+{
+}
+
 void Engine::DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& ri)
 {
     UINT objCBByteSize = (UINT)ScaldUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
@@ -1751,7 +1782,7 @@ std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, con
     }
     center /= (float)frustumCorners.size();
 
-    const XMMATRIX lightView = XMMatrixLookAtLH(center, center + XMVectorSet(lightDir.x, lightDir.y, lightDir.z, 1.0f), ScaldMath::UpVector);
+    const XMMATRIX lightView = XMMatrixLookAtLH(center, center + XMVectorSet(lightDir.x, lightDir.y, lightDir.z, 1.0f), Scald::UpVector);
 
     // Measuring cascade
     float minX = std::numeric_limits<float>::max();

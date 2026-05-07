@@ -87,7 +87,6 @@ protected:
     VOID Present();
 
 protected:
-
     KeyboardDevice m_keyboard;
     MousePad m_mouse;
 

@@ -96,6 +96,7 @@ void MousePad::OnMouseMove(const int x, const int y) noexcept
     TrimBuffer();
 }
 
+// Important detail: note that mouse raw input doesn't update x and y MousePad class members
 void MousePad::OnMouseMoveRaw(const int x, const int y) noexcept
 {
     m_mouseBuffer.push(MouseEvent(MouseEvent::RawMove, x, y));
