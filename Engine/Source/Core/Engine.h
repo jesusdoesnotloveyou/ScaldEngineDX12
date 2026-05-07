@@ -1,0 +1,359 @@
+#pragma once
+
+#include "D3D12Sample.h"
+
+#include "Camera.h"
+#include "FrameResource.h"
+#include "CascadeShadowMap.h"
+#include "GBuffer.h"
+#include "SSAO.h"
+#include "RootSignature.h"
+#include "Mesh.h"
+
+#include "GameFramework/Components/Scene.h"
+#include "GameFramework/Objects/SEntity.h"
+
+const int gNumFrameResources = 3;
+
+// Note that while ComPtr is used to manage the lifetime of resources on the CPU,
+// it has no understanding of the lifetime of resources on the GPU. Apps must account
+// for the GPU lifetime of resources to avoid destroying objects that may still be referenced by the GPU.
+// An example of this can be found in the class method: OnDestroy().
+
+struct Material
+{
+    Material(const char* name)
+        : Name(std::string(name))
+    {
+    }
+
+    Material(const char* name, int materialBufferIndex, int diffuseSrvHeapIndex, int normalSrvHeapIndex = -1)
+        : Name(std::string(name))
+        , MatBufferIndex(materialBufferIndex)
+        , DiffuseSrvHeapIndex(diffuseSrvHeapIndex)
+        , NormalSrvHeapIndex(normalSrvHeapIndex)
+    {
+
+    }
+
+    std::string Name;
+
+    // Index into constant/structured buffer corresponding to this material (to map with render item).
+    int MatBufferIndex = -1;
+
+    // Index into SRV heap for diffuse texture. Index of corresponding texture in Texture2D[n]
+    int DiffuseSrvHeapIndex = -1;
+
+    // Index into SRV heap for normal texture.
+    int NormalSrvHeapIndex = -1;
+
+    int NumFramesDirty = gNumFrameResources;
+
+    DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
+    float Roughness = 0.25f;
+
+    // could be used for material animation (water for instance)
+    XMMATRIX MatTransform = XMMatrixIdentity();
+};
+
+// F. Luna stuff: lightweight structure that stores parameters to draw a shape.
+struct RenderItem
+{
+    RenderItem(int objectCBIndex = -1)
+        : ObjCBIndex(objectCBIndex)
+    {
+    }
+
+    XMMATRIX World = XMMatrixIdentity();
+    // could be used for texture tiling
+    XMMATRIX TexTransform = XMMatrixIdentity();
+
+    BoundingBox Bounds;
+    std::vector<InstanceData> Instances; // for spot and point lights for now
+    
+    int NumFramesDirty = gNumFrameResources;
+
+    // Index into GPU constant buffer corresponding to the ObjectCB for this render item.
+    UINT ObjCBIndex = -1;
+
+    MeshGeometry* Geo = nullptr;
+    Material* Mat = nullptr;
+
+    D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopologyType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+
+    // DrawIndexedInstanced parameters.
+    UINT InstanceCount = 0u;            // for spot and point lights for now
+    UINT IndexCount = 0u;
+    UINT StartIndexLocation = 0u;
+    int BaseVertexLocation = 0;
+};
+
+class Engine : public D3D12Sample
+{
+    using Super = D3D12Sample;
+public:
+    enum ERootParameter : UINT
+    {
+        PerObjectDataCB = 0u,
+        PerPassDataCB,
+        MaterialDataSB,
+        PointLightsDataSB,
+        SpotLightsDataSB,
+        CascadedShadowMaps,
+        GBufferTextures,
+        SSAOTexture,
+        SkyBox,
+        Textures,
+
+        NumRootParameters
+    };
+
+    enum EPsoType : UINT
+    {
+        CascadedShadowsOpaque = 0u,
+        
+        DeferredGeometry,
+        Wireframe,
+        Ssao,
+        SsaoBlur,
+
+        DeferredDirectional,
+        DeferredPointWithinFrustum,
+        DeferredPointIntersectsFarPlane,
+        DeferredPointFullQuad,
+        DeferredSpot,
+
+        Transparency,
+        Sky,
+
+        Particles,
+
+        NumPipelineStates
+    };
+
+    enum EShaderType : UINT
+    {
+        // Forward rendering
+        DefaultVS = 0,
+        DefaultOpaquePS,
+
+        CascadeShadowsVS,
+        CascadeShadowsGS,
+
+        SsaoVS,
+        SsaoPS,
+        SsaoBlurVS,
+        SsaoBlurPS,
+
+        DeferredGeometryVS,
+        DeferredGeometryPS,
+        DeferredDirVS,
+        DeferredDirPS,
+        DeferredPointVS,
+        DeferredPointPS,
+        DeferredSpotVS,
+        DeferredSpotPS,
+
+        SkyBoxVS,
+        SkyBoxPS,
+
+        ParticlesCS,
+        EmitCS,
+        SimulateCS,
+        BitonicSortCS,
+        BitonicTransposeCS,
+        ParticlesVS,
+        ParticlesBillboardGS,
+        ParticlesPS,
+
+        NumShaders
+    };
+
+public:
+    Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className);
+    virtual ~Engine() override;
+
+    virtual void OnInit() override;
+    virtual void OnUpdate(const ScaldTimer& st) override;
+    virtual void OnRender(const ScaldTimer& st) override;
+    virtual void OnDestroy() override;
+
+    virtual void OnKeyDown(UINT8 key) override {}
+    virtual void OnKeyUp(UINT8 key) override {}
+
+private:
+    // Should be smth like camera controller
+    void UpdateCamera(const ScaldTimer& st);
+    void OnKeyboardInput(const ScaldTimer& st);
+
+    void UpdateObjectsCB(const ScaldTimer& st);
+
+    void UpdateMaterialBuffer(const ScaldTimer& st);
+    void UpdateLightsBuffer(const ScaldTimer& st);
+    void UpdateShadowTransform(const ScaldTimer& st);
+
+    void UpdateSsaoCB(const ScaldTimer& st);
+
+    void UpdateShadowPassCB(const ScaldTimer& st);
+    void UpdateGeometryPassCB(const ScaldTimer& st);
+    void UpdateDeferredPassCB(const ScaldTimer& st);
+    
+private:
+#pragma region Shadows
+    void RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList);
+#pragma endregion Shadows
+#pragma region DeferredShading
+    void RenderGeometryPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderSSAOPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderLightingPass(ID3D12GraphicsCommandList* pCommandList);
+    void DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandList);
+    void DeferredPointLightPass(ID3D12GraphicsCommandList* pCommandList);
+    void DeferredSpotLightPass(ID3D12GraphicsCommandList* pCommandList);
+#pragma endregion DeferredShading
+
+    void RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList);
+    void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
+    void RenderParticles(ID3D12GraphicsCommandList* pCommandList);
+    void RenderUI(ID3D12GraphicsCommandList* pCommandList);
+
+    void DrawMesh(ID3D12GraphicsCommandList* pCommandList, const Mesh& mesh);
+    void DrawMeshes(ID3D12GraphicsCommandList* pCommandList);
+    void DrawInstancedMeshes(ID3D12GraphicsCommandList* pCommandList);
+
+    void DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique_ptr<RenderItem>& renderItem);
+    void DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vector<std::unique_ptr<RenderItem>>& renderItems);
+    void DrawInstancedRenderItem(ID3D12GraphicsCommandList* pCommandList, const std::unique_ptr<RenderItem>& renderItem);
+
+private:
+    std::vector<std::unique_ptr<FrameResource>> m_frameResources;
+    FrameResource* m_currFrameResource = nullptr;
+    int m_currFrameResourceIndex = 0;
+
+    UINT m_passCbvOffset = 0u;
+
+    float m_sunPhi = XM_PI / 3;
+    float m_sunTheta = 1.25f * XM_PI;
+    
+    // should be placed in RenderPass abstraction class
+    std::shared_ptr<RootSignature> m_rootSignature;
+    std::shared_ptr<RootSignature> m_ssaoRootSignature;
+    std::shared_ptr<RootSignature> m_particlesComputeRootSignature;
+    std::shared_ptr<RootSignature> m_commonComputeRootSignature;
+
+    std::unordered_map<EShaderType, ComPtr<ID3DBlob>> m_shaders;
+    std::unordered_map<EPsoType, ComPtr<ID3D12PipelineState>> m_pipelineStates;
+
+    ObjectConstants m_perObjectCBData;
+    PassConstants m_shadowPassCBData;
+    PassConstants m_geometryPassCBData;
+    PassConstants m_mainPassCBData; // deferred color(light) pass
+    
+    MaterialData m_perMaterialSBData;
+    InstanceData m_perInstanceSBData;
+
+    std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_geometries;
+    std::unordered_map<std::string, std::unique_ptr<Material>> m_materials;
+
+    std::unordered_map<std::string, std::unique_ptr<Texture>> m_diffuseTextures;
+    std::unordered_map<std::string, std::unique_ptr<Texture>> m_normalTextures;
+    std::unordered_map<std::string, std::unique_ptr<Texture>> m_skyTextures;
+
+    std::vector<std::unique_ptr<RenderItem>> m_renderItems;
+    std::unique_ptr<RenderItem> m_skyRenderItem;
+
+    std::vector<Scald::SEntity> m_sceneObjects;
+    std::unique_ptr<RenderItem> m_pointLightItem;
+    std::unique_ptr<RenderItem> m_spotLightItem;
+    std::vector<RenderItem*> m_opaqueItems;
+
+    std::unique_ptr<Camera> m_camera;
+    std::shared_ptr<Scald::Scene> m_scene;
+
+    std::unique_ptr<SSAO> m_SSAO;
+    UINT m_SSAOTexturesSrvHeapStartIndex = 0u;
+
+#pragma region DeferredShading
+    std::unique_ptr<GBuffer> m_GBuffer;
+    UINT m_GBufferTexturesSrvHeapStartIndex = 0u;
+#pragma endregion DeferredShading
+
+#pragma region CascadedShadows
+    UINT m_cascadesShadowSrvHeapStartIndex = 0;
+    std::unique_ptr<ShadowMap> m_cascadeShadowMap;
+#pragma endregion CascadedShadows
+
+#pragma region TexturesAndSky
+    UINT m_skyCubeSrvHeapStartIndex = 0u;
+    UINT m_texturesSrvHeapStartIndex = 0u;
+    UINT m_normalSrvHeapStartIndex = 0u;
+#pragma endregion TexturesAndSky
+
+#pragma region Particles
+    UINT m_particlesSrvHeapStartIndex = 0u;
+#pragma endregion Particles
+
+    bool m_bIsGraphicsFeaturesLoaded = false;
+
+private:
+    VOID LoadPipeline() override;
+    VOID LoadGraphicsFeatures();
+    VOID LoadCSMResources();
+    VOID LoadDeferredRenderingResources();
+    
+    VOID Reset() override;
+    VVOID CreateRtvAndDsvDescriptorHeaps() override;
+    
+    VOID LoadAssets();
+
+    VOID CreateRootSignatures();
+    VOID CreateDefaultRootSignature();
+    VOID CreateSsaoRootSignature();
+    VOID CreateParticlesRootSignature();
+    VOID CreateCommomComputeRootSignature();
+    VOID CreateShaders();
+    VOID CreatePSO();
+    
+    VOID LoadScene();
+    VOID LoadTextures(ID3D12GraphicsCommandList* pCommandList);
+    // Shapes
+    VOID CreateGeometry(ID3D12GraphicsCommandList* pCommandList);
+    // Propertirs of shapes' surfaces to model light interaction
+    VOID CreateGeometryMaterials();
+    // Shapes could constist of some items to render
+    VOID CreateSceneObjects();
+    VOID CreateRenderItems();
+    VOID CreatePointLights(ID3D12GraphicsCommandList* pCommandList);
+    VOID CreateFrameResources();
+    // Heaps are created if there are root descriptor tables in root signature 
+    VOID CreateSrvAndSamplerDescriptorHeaps();
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index)const
+    {
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize);
+    }
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index)const
+    {
+        return CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize);
+    }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index)const
+    {
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_dsvDescriptorSize);
+    }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index)const
+    {
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_rtvDescriptorSize);
+    }
+
+    VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
+
+    std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
+
+    // TO DO: use static array instead of vector to avoid allocation in heap
+    void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
+    std::vector<XMVECTOR> GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection);
+};

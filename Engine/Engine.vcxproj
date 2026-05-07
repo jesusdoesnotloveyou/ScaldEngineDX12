@@ -11,123 +11,72 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="External\imgui\backends\imgui_impl_dx12.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="External\imgui\backends\imgui_impl_win32.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="External\imgui\imgui.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="External\imgui\imgui_demo.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="External\imgui\imgui_draw.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="External\imgui\imgui_tables.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="External\imgui\imgui_widgets.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="External\imgui\misc\cpp\imgui_stdlib.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="External\imgui\misc\fonts\binary_to_compressed_c.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="src\Common\KeyboardDevice.cpp" />
-    <ClCompile Include="src\Common\MousePad.cpp" />
-    <ClCompile Include="Src\Core\D3D12\CommandQueue.cpp" />
-    <ClCompile Include="Src\Core\D3D12\RootSignature.cpp" />
-    <ClCompile Include="Src\Core\SSAO\SSAO.cpp" />
-    <ClCompile Include="Src\GameFramework\Components\Renderer.cpp" />
-    <ClCompile Include="Src\GameFramework\Components\Scene.cpp" />
-    <ClCompile Include="Src\GameFramework\Components\SComponent.cpp" />
-    <ClCompile Include="Src\GameFramework\Components\Transform.cpp" />
-    <ClCompile Include="Src\Common\Camera.cpp">
+    <ClCompile Include="Source\Core\CommandQueue.cpp" />
+    <ClCompile Include="Source\Core\RootSignature.cpp" />
+    <ClCompile Include="Source\GameFramework\Components\Renderer.cpp" />
+    <ClCompile Include="Source\GameFramework\Components\Scene.cpp" />
+    <ClCompile Include="Source\GameFramework\Components\SComponent.cpp" />
+    <ClCompile Include="Source\GameFramework\Components\Transform.cpp" />
+    <ClCompile Include="Source\Core\Camera.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Src\Core\Shadows\CascadeShadowMap.cpp" />
-    <ClCompile Include="Src\Core\D3D12\D3D12Sample.cpp" />
-    <ClCompile Include="Src\Common\DDSTextureLoader.cpp" />
-    <ClCompile Include="Src\Core\D3D12\Device.cpp" />
-    <ClCompile Include="Src\Core\Engine.cpp" />
-    <ClCompile Include="Src\Core\FrameResource.cpp" />
-    <ClCompile Include="Src\Core\DeferredRendering\GBuffer.cpp" />
-    <ClCompile Include="Src\Core\Main.cpp" />
-    <ClCompile Include="Src\Common\ScaldTimer.cpp" />
-    <ClCompile Include="Src\Common\ScaldUtil.cpp" />
-    <ClCompile Include="Src\Core\Shadows\ShadowMap.cpp" />
-    <ClCompile Include="Src\Common\Shapes.cpp">
+    <ClCompile Include="Source\Core\CascadeShadowMap.cpp" />
+    <ClCompile Include="Source\Core\D3D12Sample.cpp" />
+    <ClCompile Include="Source\Core\Device.cpp" />
+    <ClCompile Include="Source\Core\Engine.cpp" />
+    <ClCompile Include="Source\Core\FrameResource.cpp" />
+    <ClCompile Include="Source\Core\GBuffer.cpp" />
+    <ClCompile Include="Source\Core\Main.cpp" />
+	<ClCompile Include="Source\Common\KeyboardDevice.cpp" />
+	<ClCompile Include="Source\Common\MousePad.cpp" />
+	<ClCompile Include="Source\Common\DDSTextureLoader.cpp" />
+    <ClCompile Include="Source\Common\ScaldTimer.cpp" />
+    <ClCompile Include="Source\Common\ScaldUtil.cpp" />
+    <ClCompile Include="Source\Core\ShadowMap.cpp" />
+    <ClCompile Include="Source\Core\Shapes.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Src\stdafx.cpp">
+    <ClCompile Include="Source\GameFramework\objects\SEntity.cpp" />
+    <ClCompile Include="Source\stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Src\Core\Win32App.cpp" />
+    <ClCompile Include="Source\Core\Win32App.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\framework.h" />
-    <ClInclude Include="External\imgui\backends\imgui_impl_dx12.h" />
-    <ClInclude Include="External\imgui\backends\imgui_impl_win32.h" />
-    <ClInclude Include="External\imgui\examples\example_allegro5\imconfig_allegro5.h" />
-    <ClInclude Include="External\imgui\examples\libs\emscripten\emscripten_mainloop_stub.h" />
-    <ClInclude Include="External\imgui\examples\libs\glfw\include\GLFW\glfw3.h" />
-    <ClInclude Include="External\imgui\examples\libs\glfw\include\GLFW\glfw3native.h" />
-    <ClInclude Include="External\imgui\imconfig.h" />
-    <ClInclude Include="External\imgui\imgui.h" />
-    <ClInclude Include="External\imgui\imgui_internal.h" />
-    <ClInclude Include="External\imgui\imstb_rectpack.h" />
-    <ClInclude Include="External\imgui\imstb_textedit.h" />
-    <ClInclude Include="External\imgui\imstb_truetype.h" />
-    <ClInclude Include="External\imgui\misc\cpp\imgui_stdlib.h" />
-    <ClInclude Include="External\imgui\misc\single_file\imgui_single_file.h" />
-    <ClInclude Include="src\Common\KeyboardDevice.h" />
-    <ClInclude Include="src\Common\MousePad.h" />
-    <ClInclude Include="Src\Common\ScaldCoreDefines.h" />
-    <ClInclude Include="Src\Common\VertexTypes.h" />
-    <ClInclude Include="Src\Core\D3D12\CommandQueue.h" />
-    <ClInclude Include="Src\Core\D3D12\RootSignature.h" />
-    <ClInclude Include="Src\Core\SSAO\SSAO.h" />
-    <ClInclude Include="Src\GameFramework\Components\ComponentManager.h" />
-    <ClInclude Include="Src\GameFramework\Components\Renderer.h" />
-    <ClInclude Include="Src\GameFramework\Components\Scene.h" />
-    <ClInclude Include="Src\GameFramework\Components\Transform.h" />
-    <ClInclude Include="Src\Common\Camera.h" />
-    <ClInclude Include="Src\GameFramework\Components\SComponent.h" />
-    <ClInclude Include="Src\Core\Shadows\CascadeShadowMap.h" />
-    <ClInclude Include="Src\Core\D3D12\D3D12Sample.h" />
-    <ClInclude Include="Src\Common\d3dx12.h" />
-    <ClInclude Include="Src\Common\DDSTextureLoader.h" />
-    <ClInclude Include="Src\Common\DXHelper.h" />
-    <ClInclude Include="Src\Core\D3D12\Device.h" />
-    <ClInclude Include="Src\Core\Engine.h" />
-    <ClInclude Include="Src\Core\FrameResource.h" />
-    <ClInclude Include="Src\Core\DeferredRendering\GBuffer.h" />
-    <ClInclude Include="Src\GameFramework\Objects\SObject.h" />
-    <ClInclude Include="Src\Common\ScaldCoreTypes.h" />
-    <ClInclude Include="Src\Common\ScaldMath.h" />
-    <ClInclude Include="Src\Common\ScaldTimer.h" />
-    <ClInclude Include="Src\Common\ScaldUtil.h" />
-    <ClInclude Include="Src\GameFramework\Objects\Actor.h" />
-    <ClInclude Include="Src\Core\Shadows\ShadowMap.h" />
-    <ClInclude Include="Src\Common\Shapes.h" />
-    <ClInclude Include="Src\stdafx.h" />
-    <ClInclude Include="Src\Core\UploadBuffer.h" />
-    <ClInclude Include="Src\Core\Win32App.h" />
+    <ClInclude Include="Source\Common\KeyboardDevice.h" />
+    <ClInclude Include="Source\Common\MousePad.h" />
+    <ClInclude Include="Source\Common\ScaldCoreDefines.h" />
+    <ClInclude Include="Source\Common\VertexTypes.h" />
+    <ClInclude Include="Source\Core\CommandQueue.h" />
+    <ClInclude Include="Source\Core\Mesh.h" />
+    <ClInclude Include="Source\Core\RootSignature.h" />
+    <ClInclude Include="Source\GameFramework\Components\ComponentManager.h" />
+    <ClInclude Include="Source\GameFramework\Components\Renderer.h" />
+    <ClInclude Include="Source\GameFramework\Components\Scene.h" />
+    <ClInclude Include="Source\GameFramework\Components\Transform.h" />
+    <ClInclude Include="Source\Core\Camera.h" />
+    <ClInclude Include="Source\GameFramework\Components\SComponent.h" />
+    <ClInclude Include="Source\Core\CascadeShadowMap.h" />
+    <ClInclude Include="Source\Core\D3D12Sample.h" />
+    <ClInclude Include="Source\Common\d3dx12.h" />
+    <ClInclude Include="Source\Common\DDSTextureLoader.h" />
+    <ClInclude Include="Source\Common\DXHelper.h" />
+    <ClInclude Include="Source\Core\Device.h" />
+    <ClInclude Include="Source\Core\Engine.h" />
+    <ClInclude Include="Source\Core\FrameResource.h" />
+    <ClInclude Include="Source\Core\GBuffer.h" />
+    <ClInclude Include="Source\GameFramework\Objects\SEntity.h" />
+    <ClInclude Include="Source\Common\ScaldCoreTypes.h" />
+    <ClInclude Include="Source\Common\ScaldMath.h" />
+    <ClInclude Include="Source\Common\ScaldTimer.h" />
+    <ClInclude Include="Source\Common\ScaldUtil.h" />
+    <ClInclude Include="Source\Core\ShadowMap.h" />
+    <ClInclude Include="Source\Core\Shapes.h" />
+    <ClInclude Include="Source\stdafx.h" />
+    <ClInclude Include="Source\Core\UploadBuffer.h" />
+    <ClInclude Include="Source\Core\Win32App.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\Common.hlsl">
@@ -248,12 +197,6 @@
     <None Include="External\imgui\misc\debuggers\imgui.natstepfilter" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="External\imgui\misc\debuggers\README.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <Natvis Include="External\imgui\misc\debuggers\imgui.natvis" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="Assets\Shaders\SkyBox.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
@@ -357,7 +300,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <AdditionalIncludeDirectories>$(SolutionDir)\$(ProjectName)\Src;$(SolutionDir)\$(ProjectName)\Assets\Shaders;$(SolutionDir)\$(ProjectName)\External\imgui;$(SolutionDir)\$(ProjectName)\External\imgui\backends;$(SolutionDir)\$(ProjectName)\External\imgui\misc\debuggers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\$(ProjectName)\Source;$(SolutionDir)\$(ProjectName)\Assets\Shaders;$(SolutionDir)\$(ProjectName)\External\imgui;$(SolutionDir)\$(ProjectName)\External\imgui\backends;$(SolutionDir)\$(ProjectName)\External\imgui\misc\debuggers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -381,7 +324,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <AdditionalIncludeDirectories>$(SolutionDir)\$(ProjectName)\Src;$(SolutionDir)\$(ProjectName)\Assets\Shaders;$(SolutionDir)\$(ProjectName)\External\imgui;$(SolutionDir)\$(ProjectName)\External\imgui\backends;$(SolutionDir)\$(ProjectName)\External\imgui\misc\debuggers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\$(ProjectName)\Source;$(SolutionDir)\$(ProjectName)\Assets\Shaders;$(SolutionDir)\$(ProjectName)\External\imgui;$(SolutionDir)\$(ProjectName)\External\imgui\backends;$(SolutionDir)\$(ProjectName)\External\imgui\misc\debuggers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
