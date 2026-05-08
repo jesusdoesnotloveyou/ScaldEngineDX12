@@ -1,5 +1,3 @@
-#include "stdafx.h"
-
 #include "ScaldUtil.h"
 
 void ScaldUtil::TransitionResource(ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)

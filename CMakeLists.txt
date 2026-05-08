@@ -10,7 +10,7 @@ project(${PROJECT_NAME}
 
 # common options
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-# directory for static library artifact
+# directory for libraries artifacts
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
@@ -27,8 +27,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #build options
 set(CMAKE_CONFIGURATION_TYPES
 	${CMAKE_CONFIGURATION_TYPES} # to save its current value
-        Development 	# from Blainnflare
-        Shipping 	# from Blainnflare
+        Development 			 # from Blainnflare
+        Shipping 				 # from Blainnflare
 )
 
 # source files
@@ -36,14 +36,8 @@ set(SOURCES
 	Engine/Source/Common/DDSTextureLoader.cpp
 	Engine/Source/Common/KeyboardDevice.cpp
 	Engine/Source/Common/MousePad.cpp
-	Engine/Source/Common/ScaldTimer.cpp
 	Engine/Source/Common/ScaldUtil.cpp
 
-	Engine/Source/GameFramework/components/Renderer.cpp
-	Engine/Source/GameFramework/components/Scene.cpp
-	Engine/Source/GameFramework/components/SComponent.cpp
-	Engine/Source/GameFramework/components/Transform.cpp
-	Engine/Source/GameFramework/objects/SEntity.cpp
 
 	Engine/Source/Core/Camera.cpp
 	Engine/Source/Core/CascadeShadowMap.cpp
@@ -56,30 +50,19 @@ set(SOURCES
 	Engine/Source/Core/Main.cpp
 	Engine/Source/Core/RootSignature.cpp
 	Engine/Source/Core/ShadowMap.cpp
-	Engine/Source/Core/Shapes.cpp
 	Engine/Source/Core/SSAO.cpp
 	Engine/Source/Core/Win32App.cpp
 )
 	
 set(INCLUDES
-	Engine/Source/Common/d3dx12.h
 	Engine/Source/Common/DDSTextureLoader.h
-	Engine/Source/Common/DXHelper.h
+	Engine/Source/Common/d3dx12.h
 	Engine/Source/Common/KeyboardDevice.h
 	Engine/Source/Common/MousePad.h
 	Engine/Source/Common/ScaldCoreDefines.h
 	Engine/Source/Common/ScaldCoreTypes.h
-	Engine/Source/Common/ScaldMath.h
-	Engine/Source/Common/ScaldTimer.h
 	Engine/Source/Common/ScaldUtil.h
 	Engine/Source/Common/VertexTypes.h
-	
-	Engine/Source/GameFramework/components/ComponentManager.h
-	Engine/Source/GameFramework/components/Renderer.h
-	Engine/Source/GameFramework/components/Scene.h
-	Engine/Source/GameFramework/components/SComponent.h
-	Engine/Source/GameFramework/components/Transform.h
-	Engine/Source/GameFramework/objects/SEntity.h
 	
 	Engine/Source/Core/Camera.h
 	Engine/Source/Core/CascadeShadowMap.h
@@ -92,13 +75,41 @@ set(INCLUDES
 	Engine/Source/Core/Mesh.h
 	Engine/Source/Core/RootSignature.h
 	Engine/Source/Core/ShadowMap.h
-	Engine/Source/Core/Shapes.h
 	Engine/Source/Core/SSAO.h
 	Engine/Source/Core/UploadBuffer.h
 	Engine/Source/Core/Win32App.h
 
 	Engine/Source/stdafx.h # optional, just for VS visibility
 )
+
+# sources for libraries (static, dynamic)
+set(SCALD_COMMON_INCLUDES
+	Engine/Source/Common/DXHelper.h
+	Engine/Source/Common/ScaldCommonDefines.h
+	Engine/Source/Common/ScaldTimer.h
+	Engine/Source/Core/Shapes.h
+)
+set(SCALD_COMMON_SOURCES
+	Engine/Source/Common/ScaldTimer.cpp
+	Engine/Source/Core/Shapes.cpp
+)
+
+set(GAME_FRAMEWORK_INCLUDES
+	Engine/Source/GameFramework/components/ComponentManager.h
+	Engine/Source/GameFramework/components/Renderer.h
+	Engine/Source/GameFramework/components/Scene.h
+	Engine/Source/GameFramework/components/SComponent.h
+	Engine/Source/GameFramework/components/Transform.h
+	Engine/Source/GameFramework/objects/SEntity.h)
+set(GAME_FRAMEWORK_SOURCES
+	Engine/Source/GameFramework/components/Renderer.cpp
+	Engine/Source/GameFramework/components/Scene.cpp
+	Engine/Source/GameFramework/components/SComponent.cpp
+	Engine/Source/GameFramework/components/Transform.cpp
+	Engine/Source/GameFramework/objects/SEntity.cpp)
+
+set(MATH_INCLUDES Engine/Source/Common/ScaldMath.h)
+set(MATH_SOURCES Engine/Source/Common/ScaldMath.cpp)
 
 # filters
 #source_group("Source files/<SUBFOLDER_FILTER_NAME>" FILES "Source/<SUBFOLDER_NAME>/FileName.cpp")
@@ -138,30 +149,31 @@ endif()
 
 add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${INCLUDES})
 
-#add_executable(${PROJECT_NAME} [WIN32] [MACOSX_BUNDLE]
-#		[EXCLUDE_FROM_ALL]
-#		source1 [source2 ...] 
-#		[EXCLUDE_FROM_ALL] ALL ALL_BUILD
-#)
-
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
 )
 
+
+add_library(MathLib STATIC ${MATH_INCLUDES} ${MATH_SOURCES})
+add_library(ScaldCommonLib STATIC ${SCALD_COMMON_INCLUDES} ${SCALD_COMMON_SOURCES})
+add_library(GameLib SHARED ${GAME_FRAMEWORK_INCLUDES} ${GAME_FRAMEWORK_SOURCES})
+
 # pch
-target_precompile_headers(${PROJECT_NAME}
-	PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source/stdafx.h)
+target_precompile_headers(ScaldCommonLib PUBLIC # PUBLIC to expand using of this pch for ALL users of ScaldCommonLib
+	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source/stdafx.h
+)
 
 # includes
 target_include_directories(${PROJECT_NAME} PUBLIC
-	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source
 	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Assets/Shaders
 )
 
-#add_library(targetName, [STATIC | SHARED | MODULE]
-#		[EXCLUDE_FROM_ALL]
-#		source1 [source2 ...]
-#)
+target_include_directories(ScaldCommonLib PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source
+)
+
+target_compile_definitions(GameLib PRIVATE _EXPORTING) # PRIVATE to prevent _exporing move to target we will link DDSLib to
+target_compile_definitions(${PROJECT_NAME} PUBLIC _IMPORTING)
 
 # manually define imgui as a library since it has no CMakeLists.txt
 set(IMGUI_SOURCES
@@ -187,22 +199,32 @@ target_include_directories(imgui PUBLIC
     ${imgui_SOURCE_DIR}/backends
 )
 
+# link libraries to different targets
+target_link_libraries(ScaldCommonLib
+	PUBLIC dxgi.lib d3d12.lib d3dcompiler.lib # PUBLIC for all users of ScaldCommonLib
+)
+
+target_link_libraries(GameLib
+	PRIVATE ScaldCommonLib
+)
+
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE assimp::assimp DirectXTex imgui
-	PRIVATE dxgi.lib d3d12.lib d3dcompiler.lib # DirectX	
+	PUBLIC MathLib # probably should be moved to ScaldCommon
+	PRIVATE ScaldCommonLib
+	PRIVATE GameLib
 )
+
 
 # compile options for target
 # force UTF8
-target_compile_options(
-		${PROJECT_NAME}
-		PRIVATE
+target_compile_options(${PROJECT_NAME} PRIVATE
 		$<$<CXX_COMPILER_ID:MSVC>:/utf-8>
 		$<$<CXX_COMPILER_ID:Clang>:/utf-8>
 )
 
 if (MSVC)
-     target_compile_definitions(${PROJECT_NAME} PUBLIC UNICODE _UNICODE)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC UNICODE _UNICODE) # CHAR WCHAR windows stuff
 endif()
 
 ########### other actions

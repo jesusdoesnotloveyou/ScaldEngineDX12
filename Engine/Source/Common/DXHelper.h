@@ -11,11 +11,13 @@
 #include "Common/d3dx12.h"
 #include "Common/ScaldCoreTypes.h"
 #include "Common/ScaldCoreDefines.h"
+#include "Common/ScaldCommonDefines.h"
 
 #include <unordered_map>
 #include <string>
 #include <cstring>
 #include <vector>
+#include <memory>
 
 using Microsoft::WRL::ComPtr;
 

@@ -4,7 +4,7 @@
 
 namespace Scald
 {
-class Renderer : public SComponent
+class SCALD_API Renderer : public SComponent
 {
     using Super = SComponent;
 
