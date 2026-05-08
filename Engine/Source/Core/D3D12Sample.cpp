@@ -12,11 +12,11 @@ using namespace Microsoft::WRL;
 struct ExampleDescriptorHeapAllocator
 {
     ID3D12DescriptorHeap* Heap = nullptr;
-    D3D12_DESCRIPTOR_HEAP_TYPE  HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+    D3D12_DESCRIPTOR_HEAP_TYPE HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
     D3D12_CPU_DESCRIPTOR_HANDLE HeapStartCpu;
     D3D12_GPU_DESCRIPTOR_HANDLE HeapStartGpu;
-    UINT                        HeapHandleIncrement;
-    ImVector<int>               FreeIndices;
+    UINT HeapHandleIncrement;
+    ImVector<int> FreeIndices;
 
     void Create(ID3D12Device* device, ID3D12DescriptorHeap* heap)
     {
@@ -54,16 +54,15 @@ struct ExampleDescriptorHeapAllocator
 };
 
 D3D12Sample::D3D12Sample(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
-    :
-    m_width(width),
-    m_height(height),
-    m_useWarpDevice(false),
-    m_rtvDescriptorSize(0u),
-    m_dsvDescriptorSize(0u),
-    m_cbvSrvUavDescriptorSize(0u),
-    m_currBackBuffer(0),
-    m_title(name),
-    m_class(className)
+    : m_width(width),
+      m_height(height),
+      m_useWarpDevice(false),
+      m_rtvDescriptorSize(0u),
+      m_dsvDescriptorSize(0u),
+      m_cbvSrvUavDescriptorSize(0u),
+      m_currBackBuffer(0),
+      m_title(name),
+      m_class(className)
 {
     WCHAR assetsPath[512];
     GetAssetsPath(assetsPath, _countof(assetsPath));
@@ -72,9 +71,7 @@ D3D12Sample::D3D12Sample(UINT width, UINT height, const std::wstring& name, cons
     m_aspectRatio = static_cast<float>(width) / static_cast<float>(height);
 }
 
-D3D12Sample::~D3D12Sample()
-{
-}
+D3D12Sample::~D3D12Sample() {}
 
 static ExampleDescriptorHeapAllocator srvHeapAlloc;
 
@@ -91,12 +88,14 @@ int D3D12Sample::Run()
     init_info.DSVFormat = DepthStencilFormat;
 
     init_info.SrvDescriptorHeap = m_srvHeap.Get();
-    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return srvHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
-    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return srvHeapAlloc.Free(cpu_handle, gpu_handle); };
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
+    { return srvHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
+    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
+    { return srvHeapAlloc.Free(cpu_handle, gpu_handle); };
     ImGui_ImplDX12_Init(&init_info);
 
     // Main sample loop.
-    MSG msg = { 0 };
+    MSG msg = {0};
 
     m_timer.Reset();
 
@@ -155,7 +154,7 @@ void D3D12Sample::OnUpdate(const ScaldTimer& st)
         timeStep = 0.0f;
         // To check how much memory app is using from two pools: DXGI_MEMORY_SEGMENT_GROUP_LOCAL (L1) and DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL (L0)
         DXGI_QUERY_VIDEO_MEMORY_INFO videoMemoryInfo;
-        UINT nodeIndex = 0u; // Single-GPU
+        UINT nodeIndex = 0u;  // Single-GPU
         if (SUCCEEDED(m_hardwareAdapter->QueryVideoMemoryInfo(nodeIndex, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &videoMemoryInfo)))
         {
             std::wstring text = L"***VideoMemoryInfo***";
@@ -193,7 +192,7 @@ void D3D12Sample::LoadPipeline()
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
     CreateDebugLayer();
 #endif
-    
+
     CreateDevice();
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -246,8 +245,8 @@ void D3D12Sample::OnResize()
 
 void D3D12Sample::CalculateFrameStats()
 {
-    // Code computes the average frames per second, 
-    // and also the average time it takes to render one frame. 
+    // Code computes the average frames per second,
+    // and also the average time it takes to render one frame.
     // These stats are appended to the window caption bar.
     static int frameCnt = 0;
     static float timeElapsed = 0.0f;
@@ -257,7 +256,7 @@ void D3D12Sample::CalculateFrameStats()
     // Compute averages over one second period.
     if ((m_timer.TotalTime() - timeElapsed) >= 1.0f)
     {
-        float fps = (float)frameCnt; // fps = frameCnt / 1
+        float fps = (float)frameCnt;  // fps = frameCnt / 1
 
         float mspf = 1000.0f / fps;
 
@@ -280,11 +279,7 @@ std::wstring D3D12Sample::GetAssetFullPath(LPCWSTR assetName) const
 
 // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
 // If no such adapter can be found, *ppAdapter will be set to nullptr.
-_Use_decl_annotations_
-void D3D12Sample::GetHardwareAdapter(
-    IDXGIFactory1* pFactory,
-    IDXGIAdapter1** ppAdapter,
-    bool requestHighPerformanceAdapter)
+_Use_decl_annotations_ void D3D12Sample::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter)
 {
     *ppAdapter = nullptr;
 
@@ -293,13 +288,9 @@ void D3D12Sample::GetHardwareAdapter(
     ComPtr<IDXGIFactory6> factory6;
     if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
     {
-        for (
-            UINT adapterIndex = 0u;
-            SUCCEEDED(factory6->EnumAdapterByGpuPreference(
-                adapterIndex,
-                requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
-                IID_PPV_ARGS(&adapter)));
-                ++adapterIndex)
+        for (UINT adapterIndex = 0u; SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+                 adapterIndex, requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED, IID_PPV_ARGS(&adapter)));
+            ++adapterIndex)
         {
             DXGI_ADAPTER_DESC1 desc;
             adapter->GetDesc1(&desc);
@@ -385,9 +376,9 @@ VOID D3D12Sample::CreateDevice()
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
         GetHardwareAdapter(m_factory.Get(), &hardwareAdapter);
-     
+
         ThrowIfFailed(hardwareAdapter.As(&m_hardwareAdapter));
-        
+
         ThrowIfFailed(D3D12CreateDevice(m_hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
     }
 
@@ -456,8 +447,8 @@ VOID D3D12Sample::CreateSwapChain()
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
     swapChainDesc.Width = m_width;
     swapChainDesc.Height = m_height;
-    swapChainDesc.Format = BackBufferFormat; // Back buffer format
-    swapChainDesc.SampleDesc = m_is4xMsaaState ? DXGI_SAMPLE_DESC{ 4u, m_4xMsaaQuality - 1u } : DXGI_SAMPLE_DESC{ 1u, 0u }; // MSAA
+    swapChainDesc.Format = BackBufferFormat;                                                                             // Back buffer format
+    swapChainDesc.SampleDesc = m_is4xMsaaState ? DXGI_SAMPLE_DESC{4u, m_4xMsaaQuality - 1u} : DXGI_SAMPLE_DESC{1u, 0u};  // MSAA
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.BufferCount = SwapChainFrameCount;
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
@@ -469,14 +460,8 @@ VOID D3D12Sample::CreateSwapChain()
     swapChainFullScreenDesc.Windowed = TRUE;
 
     ComPtr<IDXGISwapChain1> swapChain;
-    ThrowIfFailed(m_factory->CreateSwapChainForHwnd(
-        m_commandQueue->GetCommandQueue().Get(),        // Swap chain needs the queue so that it can force a flush on it.
-        Win32App::GetHwnd(),
-        &swapChainDesc,
-        &swapChainFullScreenDesc,
-        nullptr,
-        &swapChain
-    ));
+    ThrowIfFailed(m_factory->CreateSwapChainForHwnd(m_commandQueue->GetCommandQueue().Get(),  // Swap chain needs the queue so that it can force a flush on it.
+        Win32App::GetHwnd(), &swapChainDesc, &swapChainFullScreenDesc, nullptr, &swapChain));
 
     // This sample does not support fullscreen transitions.
     ThrowIfFailed(m_factory->MakeWindowAssociation(Win32App::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
@@ -503,12 +488,7 @@ VOID D3D12Sample::Reset()
     m_depthStencilBuffer.Reset();
 
     // Resize the swap chain
-    ThrowIfFailed(m_swapChain->ResizeBuffers(
-        SwapChainFrameCount,
-        m_width,
-        m_height,
-        BackBufferFormat,
-        DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+    ThrowIfFailed(m_swapChain->ResizeBuffers(SwapChainFrameCount, m_width, m_height, BackBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
     m_currBackBuffer = 0u;
 
@@ -533,8 +513,8 @@ VOID D3D12Sample::Reset()
         depthStencilDesc.Height = m_height;
         depthStencilDesc.DepthOrArraySize = 1;
         depthStencilDesc.MipLevels = 1;
-        depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; // 24 bits for depth, 8 bits for stencil
-        depthStencilDesc.SampleDesc = m_is4xMsaaState ? DXGI_SAMPLE_DESC{ 4u, m_4xMsaaQuality - 1u } : DXGI_SAMPLE_DESC{ 1u, 0u }; // MSAA: same settings as back buffer
+        depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;                                                                   // 24 bits for depth, 8 bits for stencil
+        depthStencilDesc.SampleDesc = m_is4xMsaaState ? DXGI_SAMPLE_DESC{4u, m_4xMsaaQuality - 1u} : DXGI_SAMPLE_DESC{1u, 0u};  // MSAA: same settings as back buffer
 
         depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -544,13 +524,8 @@ VOID D3D12Sample::Reset()
         optClear.DepthStencil.Depth = 1.0f;
         optClear.DepthStencil.Stencil = 0u;
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed (from CPU) */),
-            D3D12_HEAP_FLAG_NONE,
-            &depthStencilDesc,
-            D3D12_RESOURCE_STATE_COMMON,
-            &optClear,
-            IID_PPV_ARGS(m_depthStencilBuffer.GetAddressOf())));
+        ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed (from CPU) */), D3D12_HEAP_FLAG_NONE,
+            &depthStencilDesc, D3D12_RESOURCE_STATE_COMMON, &optClear, IID_PPV_ARGS(m_depthStencilBuffer.GetAddressOf())));
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -563,11 +538,11 @@ VOID D3D12Sample::Reset()
         m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvDesc, dsvHandle);
         m_depthStencilBuffer->SetName(L"DepthStencilBuffer");
     }
-    
+
     // Transition the resource from its initial state to be used as a depth buffer.
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
-    // Execute the resize commands. 
+    // Execute the resize commands.
     m_commandQueue->ExecuteCommandList(commandList);
 
     // Wait until resize is complete.
@@ -599,13 +574,11 @@ VOID D3D12Sample::Present()
 }
 
 // Helper function for parsing any supplied command line args.
-_Use_decl_annotations_
-void D3D12Sample::ParseCommandLineArgs(WCHAR* argv[], int argc)
+_Use_decl_annotations_ void D3D12Sample::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
     for (int i = 1; i < argc; ++i)
     {
-        if (_wcsnicmp(argv[i], L"-warp", wcslen(argv[i])) == 0 ||
-            _wcsnicmp(argv[i], L"/warp", wcslen(argv[i])) == 0)
+        if (_wcsnicmp(argv[i], L"-warp", wcslen(argv[i])) == 0 || _wcsnicmp(argv[i], L"/warp", wcslen(argv[i])) == 0)
         {
             m_useWarpDevice = true;
             m_title = m_title + L" (WARP)";
@@ -679,10 +652,7 @@ void D3D12Sample::LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format)
         UINT n = x.RefreshRate.Numerator;
         UINT d = x.RefreshRate.Denominator;
         std::wstring text =
-            L"Width = " + std::to_wstring(x.Width) + L" " +
-            L"Height = " + std::to_wstring(x.Height) + L" " +
-            L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) +
-            L"\n";
+            L"Width = " + std::to_wstring(x.Width) + L" " + L"Height = " + std::to_wstring(x.Height) + L" " + L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) + L"\n";
 
         ::OutputDebugString(text.c_str());
     }

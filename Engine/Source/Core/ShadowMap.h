@@ -5,62 +5,58 @@
 class ShadowMap
 {
 public:
-	ShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount = 0u);
-	ShadowMap(const ShadowMap& lhs) = delete;
-	ShadowMap& operator=(const ShadowMap& lhs) = delete;
+    ShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount = 0u);
+    ShadowMap(const ShadowMap& lhs) = delete;
+    ShadowMap& operator=(const ShadowMap& lhs) = delete;
 
-	virtual ~ShadowMap() noexcept;
+    virtual ~ShadowMap() noexcept;
 
 public:
-	FORCEINLINE UINT GetWidth()const { return m_mapWidth; }
-	FORCEINLINE UINT GetHeight()const { return m_mapHeight; }
+    FORCEINLINE UINT GetWidth() const { return m_mapWidth; }
+    FORCEINLINE UINT GetHeight() const { return m_mapHeight; }
 
-	ID3D12Resource* Get();
+    ID3D12Resource* Get();
 
-	FORCEINLINE CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrv()const { return m_hGpuSrv; }
-	FORCEINLINE CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv()const { return m_hCpuDsv; }
-	
-	FORCEINLINE D3D12_VIEWPORT GetViewport()const { return m_viewport; }
-	FORCEINLINE D3D12_RECT GetScissorRect()const { return m_scissorRect; }
+    FORCEINLINE CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrv() const { return m_hGpuSrv; }
+    FORCEINLINE CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv() const { return m_hCpuDsv; }
 
-	void CreateDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv);
+    FORCEINLINE D3D12_VIEWPORT GetViewport() const { return m_viewport; }
+    FORCEINLINE D3D12_RECT GetScissorRect() const { return m_scissorRect; }
 
-	void OnResize(UINT newWidth, UINT newHeight);
+    void CreateDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv, CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv, CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv);
 
-	FORCEINLINE float GetCascadeLevel(UINT level) const
-	{
-		return m_shadowCascadeLevels[level];
-	}
+    void OnResize(UINT newWidth, UINT newHeight);
 
-	// could be updatable if we are changing frustum in runtime 
-	void CreateShadowCascadeSplits(float nearZ, float farZ);
+    FORCEINLINE float GetCascadeLevel(UINT level) const { return m_shadowCascadeLevels[level]; }
+
+    // could be updatable if we are changing frustum in runtime
+    void CreateShadowCascadeSplits(float nearZ, float farZ);
 
 protected:
-	virtual void CreateDescriptors();
+    virtual void CreateDescriptors();
+
 private:
-	void CreateResource();
+    void CreateResource();
 
 protected:
-	ID3D12Device* m_device = nullptr;
+    ID3D12Device* m_device = nullptr;
 
-	D3D12_VIEWPORT m_viewport;
-	D3D12_RECT m_scissorRect;
+    D3D12_VIEWPORT m_viewport;
+    D3D12_RECT m_scissorRect;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE m_hGpuSrv;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuDsv;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuSrv;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_hGpuSrv;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuDsv;
 
-	DXGI_FORMAT m_format = DXGI_FORMAT_R24G8_TYPELESS;
+    DXGI_FORMAT m_format = DXGI_FORMAT_R24G8_TYPELESS;
 
-	UINT m_mapWidth = 0u;
-	UINT m_mapHeight = 0u;
+    UINT m_mapWidth = 0u;
+    UINT m_mapHeight = 0u;
 
-	UINT m_cascadesCount = 0u;
+    UINT m_cascadesCount = 0u;
 
-	// actual gpu resource
-	ComPtr<ID3D12Resource> m_shadowMap = nullptr;
+    // actual gpu resource
+    ComPtr<ID3D12Resource> m_shadowMap = nullptr;
 
-	float m_shadowCascadeLevels[MaxCascades] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float m_shadowCascadeLevels[MaxCascades] = {0.0f, 0.0f, 0.0f, 0.0f};
 };

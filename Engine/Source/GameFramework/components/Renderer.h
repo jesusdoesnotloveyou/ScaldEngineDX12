@@ -4,18 +4,19 @@
 
 namespace Scald
 {
-	class Renderer : public SComponent
-	{
-		using Super = SComponent;
-	public:
-		Renderer(std::shared_ptr<SEntity> owner);
-		virtual ~Renderer() noexcept override;
+class Renderer : public SComponent
+{
+    using Super = SComponent;
 
-		// For frustum culling
-		BoundingBox Bounds;
+public:
+    Renderer(std::shared_ptr<SEntity> owner);
+    virtual ~Renderer() noexcept override;
 
-		XMMATRIX World = XMMatrixIdentity();
-		// could be used for texture tiling
-		XMMATRIX TexTransform = XMMatrixIdentity();
-	};
-}
+    // For frustum culling
+    BoundingBox Bounds;
+
+    XMMATRIX World = XMMatrixIdentity();
+    // could be used for texture tiling
+    XMMATRIX TexTransform = XMMatrixIdentity();
+};
+}  // namespace Scald

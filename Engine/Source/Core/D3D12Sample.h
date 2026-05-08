@@ -6,12 +6,12 @@
 #include "Common/KeyboardDevice.h"
 #include "Common/MousePad.h"
 
-//#include "DescriptorHeaps.h"
+// #include "DescriptorHeaps.h"
 
 // target_link_libraries(${PROJECT_NAME} PRIVATE DirectXTK d3dcompiler dxguid dxgi d3d11 assimp)
-//#pragma comment(lib, "d3dcompiler.lib")
-//#pragma comment(lib, "d3d12.lib")
-//#pragma comment(lib, "dxgi.lib")
+// #pragma comment(lib, "d3dcompiler.lib")
+// #pragma comment(lib, "d3d12.lib")
+// #pragma comment(lib, "dxgi.lib")
 
 class CommandQueue;
 
@@ -22,7 +22,6 @@ public:
     virtual ~D3D12Sample();
 
 public:
-
     int Run();
 
     VVOID OnInit() = 0;
@@ -30,7 +29,7 @@ public:
     VVOID OnRender(const ScaldTimer& st) = 0;
     VVOID OnDestroy() = 0;
 
-    bool Get4xMsaaState()const;
+    bool Get4xMsaaState() const;
     void Set4xMsaaState(bool value);
 
     VVOID LoadPipeline();
@@ -66,15 +65,12 @@ public:
 protected:
     std::wstring GetAssetFullPath(LPCWSTR assetName) const;
 
-    void GetHardwareAdapter(
-        _In_ IDXGIFactory1* pFactory,
-        _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter,
-        bool requestHighPerformanceAdapter = true);
+    void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = true);
 
     void LogAdapters();
     void LogAdapterOutputs(IDXGIAdapter* adapter);
     void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
-    
+
     void CheckFeatureSupport();
     void SetCustomWindowText(LPCWSTR text) const;
 
@@ -109,9 +105,9 @@ protected:
     bool m_is4xMsaaState = false;
     UINT m_4xMsaaQuality = 0u;
 
-    UINT m_rtvDescriptorSize;       // see m_rtvHeap
-    UINT m_dsvDescriptorSize;       // see m_dsvHeap
-    UINT m_cbvSrvUavDescriptorSize; // see m_cbvHeap
+    UINT m_rtvDescriptorSize;        // see m_rtvHeap
+    UINT m_dsvDescriptorSize;        // see m_dsvHeap
+    UINT m_cbvSrvUavDescriptorSize;  // see m_cbvHeap
 
     static const UINT SwapChainFrameCount = 2u;
     static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -124,10 +120,10 @@ protected:
 
     ComPtr<IDXGIAdapter3> m_hardwareAdapter;
 
-    //DescriptorHeaps
+    // DescriptorHeaps
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_srvHeap; // Heap for shader resources
+    ComPtr<ID3D12DescriptorHeap> m_srvHeap;  // Heap for shader resources
 
     std::shared_ptr<CommandQueue> m_commandQueue = nullptr;
     // Temporary allocator that is needed only for initialization stage (but could be used for smth else)
@@ -138,7 +134,7 @@ protected:
 
     // Synchronization objects.
     UINT m_currBackBuffer = 0u;
-    
+
     D3D12_VIEWPORT m_viewport;
     D3D12_RECT m_scissorRect;
 
@@ -156,13 +152,7 @@ private:
     ScaldTimer m_timer;
 
 protected:
-    D3D12_CPU_DESCRIPTOR_HANDLE GetRTV()
-    {
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currBackBuffer, m_rtvDescriptorSize);
-    }
+    D3D12_CPU_DESCRIPTOR_HANDLE GetRTV() { return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currBackBuffer, m_rtvDescriptorSize); }
 
-    D3D12_CPU_DESCRIPTOR_HANDLE GetDSV()
-    {
-        return m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-    }
+    D3D12_CPU_DESCRIPTOR_HANDLE GetDSV() { return m_dsvHeap->GetCPUDescriptorHandleForHeapStart(); }
 };

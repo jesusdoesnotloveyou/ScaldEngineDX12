@@ -43,7 +43,7 @@ def remove_build_folder():
 def get_cmake_command(action):
     cmake_flags = {
         "generator" : f'-G "{Config.CMAKE_GENERATOR}"',
-        "platform" : f"-A {Config.PLATFORM}",
+        "platform" : f"-A {Config.PLATFORM.value}",
         "fresh" : "--fresh" if Config.FRESH == True else "",
         "clean_first" : "--clean-first" if Config.CLEAN == True else "",
         "verbose" : "--verbose" if Config.VERBOSE == True else "",
@@ -57,7 +57,7 @@ def get_cmake_command(action):
             if action == Action.BUILD_DEBUG
             else Configuration.Release
         )
-        return f'cmake --build . {cmake_flags["clean_first"]} {cmake_flags["verbose"]} --config{configuration.value}'
+        return f'cmake --build . {cmake_flags["clean_first"]} {cmake_flags["verbose"]} --config {configuration.value}'
     return None
 
 def run_command(command):
@@ -79,11 +79,13 @@ def generate_project_files():
         print(f"Failed to generate project files!!!")
     os.chdir("..")
 
+# default configuration = release
 def build_project(configuration=Configuration.Release):
     if not os.path.exists(Config.BUILD_FOLDER):
         print(f'{Config.BUILD_FOLDER} folder does not exist. Please generate project files first!')
         return
     
+    os.chdir(Config.BUILD_FOLDER)
     command = get_cmake_command(
         Action.BUILD_DEBUG if configuration == Configuration.Debug
         else Action.BUILD_RELEASE
@@ -127,8 +129,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     action_map = {
-        Action.CLEAN: remove_build_folder(),
-        Action.GENERATE: generate_project_files(),
+        Action.CLEAN: lambda: remove_build_folder(),
+        Action.GENERATE: lambda: generate_project_files(),
         Action.BUILD_DEBUG: lambda: build_project(Configuration.Debug),
         Action.BUILD_RELEASE: lambda: build_project(Configuration.Release),
         Action.CLANG_FORMAT: lambda: run_clang_format(Config.SOURCE_DIR)

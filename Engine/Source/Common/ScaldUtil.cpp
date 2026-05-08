@@ -13,22 +13,12 @@ ComPtr<ID3D12Resource> ScaldUtil::CreateDefaultBuffer(ID3D12Device* device, ID3D
     ComPtr<ID3D12Resource> defaultBuffer;
 
     // Create the actual default buffer resource
-    ThrowIfFailed(device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(byteSize),
-        D3D12_RESOURCE_STATE_COMMON,
-        nullptr,
-        IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+        D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
 
     // In order to copy CPU memory data into out default buffer, we need to create an intermediate upload heap
-    ThrowIfFailed(device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(byteSize),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
 
     // Describe the data we want to copy into the default buffer.
     D3D12_SUBRESOURCE_DATA subResourceData = {};
@@ -47,7 +37,7 @@ ComPtr<ID3D12Resource> ScaldUtil::CreateDefaultBuffer(ID3D12Device* device, ID3D
     return defaultBuffer;
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS ScaldUtil::GetGPUVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS address, UINT byteStride, UINT index/*= 0u*/)
+D3D12_GPU_VIRTUAL_ADDRESS ScaldUtil::GetGPUVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS address, UINT byteStride, UINT index /*= 0u*/)
 {
     return address + (UINT64)(byteStride * index);
 }
@@ -71,11 +61,9 @@ ComPtr<ID3DBlob> ScaldUtil::CompileShader(const std::wstring& fileName, const D3
     ComPtr<ID3DBlob> byteCode = nullptr;
     ComPtr<ID3DBlob> errors;
 
-    hr = D3DCompileFromFile(fileName.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-        entrypoint.c_str(), target.c_str(), compileFlags, 0u, &byteCode, &errors);
+    hr = D3DCompileFromFile(fileName.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE, entrypoint.c_str(), target.c_str(), compileFlags, 0u, &byteCode, &errors);
 
-    if (errors != nullptr)
-        OutputDebugStringA((char*)errors->GetBufferPointer());
+    if (errors != nullptr) OutputDebugStringA((char*)errors->GetBufferPointer());
 
     ThrowIfFailed(hr);
 

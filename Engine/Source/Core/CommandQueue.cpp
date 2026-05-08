@@ -5,9 +5,9 @@
 #include "CommandQueue.h"
 
 CommandQueue::CommandQueue(const ComPtr<ID3D12Device2>& device, D3D12_COMMAND_LIST_TYPE type)
-    : m_device(device)
-    , m_fenceValue((UINT64)0u)
-    , m_commandListType(type)
+    : m_device(device),
+      m_fenceValue((UINT64)0u),
+      m_commandListType(type)
 {
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = type;
@@ -18,13 +18,13 @@ CommandQueue::CommandQueue(const ComPtr<ID3D12Device2>& device, D3D12_COMMAND_LI
     ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
     SCALD_NAME_D3D12_OBJECT(m_commandQueue, L"Command Queue");
 
-    ThrowIfFailed(m_device->CreateFence(m_fenceValue, 
+    ThrowIfFailed(m_device->CreateFence(m_fenceValue,
         /*D3D12_FENCE_FLAG_SHARED | D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER,*/
         D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
     SCALD_NAME_D3D12_OBJECT(m_fence, L"Fence");
 
     m_fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-    //assert(m_fenceEvent && "Failed to create fence event handle.");
+    // assert(m_fenceEvent && "Failed to create fence event handle.");
     if (m_fenceEvent == nullptr)
     {
         ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
@@ -48,7 +48,7 @@ bool CommandQueue::IsFenceComplete(UINT64 fenceValue) const
     /*
      * GetCompletedValue()
      * Returns the current value of the fence. If the device has been removed, the return value will be UINT64_MAX.
-    */
+     */
     return fenceValue <= m_fence->GetCompletedValue();
 }
 
@@ -59,9 +59,9 @@ void CommandQueue::WaitForFenceValue(UINT64 fenceValue)
         /*
          * SetEventOnCompletion(fenceValue, fenceEvent)
          * Specifies an event that's raised when the fence reaches a certain value.
-        */
+         */
         m_fence->SetEventOnCompletion(fenceValue, m_fenceEvent);
-        WaitForSingleObject(m_fenceEvent, INFINITE); // WaitForSingleObjecEx(m_fenceEvent, INFINITE, FALSE)
+        WaitForSingleObject(m_fenceEvent, INFINITE);  // WaitForSingleObjecEx(m_fenceEvent, INFINITE, FALSE)
     }
 }
 
@@ -112,7 +112,7 @@ ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList(ID3D12CommandAll
 void CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> commandList)
 {
     ThrowIfFailed(commandList->Close());
-    ID3D12CommandList* const ppCommandLists[] = { commandList.Get() };
+    ID3D12CommandList* const ppCommandLists[] = {commandList.Get()};
     m_commandQueue->ExecuteCommandLists(1u, ppCommandLists);
 
     m_commandListQueue.push(commandList);

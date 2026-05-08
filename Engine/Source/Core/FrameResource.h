@@ -17,7 +17,7 @@ struct FrameResource
     std::unique_ptr<UploadBuffer<SSAOConstants>> SsaoCB = nullptr;
     std::unique_ptr<UploadBuffer<MaterialData>> MaterialSB = nullptr;
     std::unique_ptr<UploadBuffer<InstanceData>> PointLightSB = nullptr;
-    
+
     // Fence value to mark commands up to this fence point.  This lets us
     // check if these frame resources are still in use by the GPU.
     UINT64 Fence = 0;

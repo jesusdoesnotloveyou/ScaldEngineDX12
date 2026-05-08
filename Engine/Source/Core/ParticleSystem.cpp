@@ -14,19 +14,18 @@ const UINT MATRIX_WIDTH = BITONIC_BLOCK_SIZE;
 const UINT MATRIX_HEIGHT = NUM_ELEMENTS / BITONIC_BLOCK_SIZE;
 
 ParticleSystem::ParticleSystem(ID3D12Device* device, int maxParticles, XMVECTOR origin, class Camera* camera)
-    :
-    m_device(device),
-    maxParticles(maxParticles),
-    origin(origin),
-    camera(camera)
+    : m_device(device),
+      maxParticles(maxParticles),
+      origin(origin),
+      camera(camera)
 {
-    //ThrowIfFailed(CreateWICTextureFromFile(mDevice, L"./Data/Textures/pop_cat_color.png", nullptr, &mBillboardTexture));
+    // ThrowIfFailed(CreateWICTextureFromFile(mDevice, L"./Data/Textures/pop_cat_color.png", nullptr, &mBillboardTexture));
 }
 
 void ParticleSystem::Render()
 {
-    //mDeviceContext->PSSetShaderResources(0u, 1u, mBillboardTexture.GetAddressOf());
-    //mDeviceContext->PSSetSamplers(0u, 1u, mParticleSamplerClamp.GetAddressOf());
+    // mDeviceContext->PSSetShaderResources(0u, 1u, mBillboardTexture.GetAddressOf());
+    // mDeviceContext->PSSetSamplers(0u, 1u, mParticleSamplerClamp.GetAddressOf());
 }
 
 void ParticleSystem::Emit(int numParticles)
@@ -100,7 +99,7 @@ void ParticleSystem::InitializeSystem()
 
     for (UINT i = 0; i < maxParticles; ++i)
     {
-        sort[i] = { i, std::numeric_limits<float>().max() };
+        sort[i] = {i, std::numeric_limits<float>().max()};
         deadIndeces[i] = i;
     }
     mParticleData.numAliveParticles = 0u;
@@ -114,7 +113,7 @@ void ParticleSystem::InitializeSystem()
     sortListUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
     sortListUAVDesc.Buffer.FirstElement = 0u;
     sortListUAVDesc.Buffer.NumElements = maxParticles;
-    sortListUAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE; // was D3D11_BUFFER_UAV_FLAG_COUNTER
+    sortListUAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;  // was D3D11_BUFFER_UAV_FLAG_COUNTER
     m_device->CreateUnorderedAccessView(sortListBuffer, nullptr, &sortListUAVDesc, mSortListBufferUAV);
     m_device->CreateUnorderedAccessView(sortListBuffer2, nullptr, &sortListUAVDesc, mSortListBufferUAV2);
 
@@ -170,8 +169,7 @@ void ParticleSystem::SortParticles()
         mDeviceContext->CSSetUnorderedAccessViews(0u, 1u, mSortListBufferUAV.GetAddressOf(), nullptr);
         mDeviceContext->CSSetShader(mBitonicSortShader.Get(), nullptr, 0u);
 
-        if (maxParticles / BITONIC_BLOCK_SIZE > 0u)
-            mDeviceContext->Dispatch(maxParticles / BITONIC_BLOCK_SIZE, 1u, 1u);
+        if (maxParticles / BITONIC_BLOCK_SIZE > 0u) mDeviceContext->Dispatch(maxParticles / BITONIC_BLOCK_SIZE, 1u, 1u);
     }
 
     // Then sort the rows and columns for the levels > than the block size
@@ -192,8 +190,7 @@ void ParticleSystem::SortParticles()
         // Sort the transposed column data
         mDeviceContext->CSSetUnorderedAccessViews(0u, 1u, mSortListBufferUAV2.GetAddressOf(), nullptr);
         mDeviceContext->CSSetShader(mBitonicSortShader.Get(), nullptr, 0u);
-        if (maxParticles / BITONIC_BLOCK_SIZE > 0u)
-            mDeviceContext->Dispatch(maxParticles / BITONIC_BLOCK_SIZE, 1u, 1u);
+        if (maxParticles / BITONIC_BLOCK_SIZE > 0u) mDeviceContext->Dispatch(maxParticles / BITONIC_BLOCK_SIZE, 1u, 1u);
 
         SetConstBuffer(BITONIC_BLOCK_SIZE, level, MATRIX_HEIGHT, MATRIX_WIDTH);
 
@@ -208,8 +205,7 @@ void ParticleSystem::SortParticles()
         // Sort the row data
         mDeviceContext->CSSetUnorderedAccessViews(0u, 1u, mSortListBufferUAV.GetAddressOf(), nullptr);
         mDeviceContext->CSSetShader(mBitonicSortShader.Get(), nullptr, 0u);
-        if (maxParticles / BITONIC_BLOCK_SIZE > 0u)
-            mDeviceContext->Dispatch(maxParticles / BITONIC_BLOCK_SIZE, 1u, 1u);
+        if (maxParticles / BITONIC_BLOCK_SIZE > 0u) mDeviceContext->Dispatch(maxParticles / BITONIC_BLOCK_SIZE, 1u, 1u);
 
         mDeviceContext->CSSetUnorderedAccessViews(0u, 1u, &nullUAV, nullptr);
     }
@@ -219,7 +215,7 @@ void ParticleSystem::SortParticles()
 
 void ParticleSystem::SetConstBuffer(UINT iLevel, UINT iLevelMask, UINT iWidth, UINT iHeight)
 {
-    mSortData = { iLevel, iLevelMask, iWidth, iHeight };
+    mSortData = {iLevel, iLevelMask, iWidth, iHeight};
     mCBSort.SetAndApplyData(mSortData);
     mDeviceContext->CSSetConstantBuffers(0u, 1u, mCBSort.GetAddressOf());
 }
@@ -289,25 +285,24 @@ HRESULT ParticleSystem::CreateBufferSRV(ID3D11Device* pDevice, ID3D11Buffer* pBu
         desc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
         desc.BufferEx.NumElements = descBuf.ByteWidth / 4;
     }
-    else
-        if (descBuf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED)
-        {
-            // This is a Structured Buffer
+    else if (descBuf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED)
+    {
+        // This is a Structured Buffer
 
-            desc.Format = DXGI_FORMAT_UNKNOWN;
-            desc.BufferEx.NumElements = descBuf.ByteWidth / descBuf.StructureByteStride;
-        }
-        else
-        {
-            return E_INVALIDARG;
-        }
+        desc.Format = DXGI_FORMAT_UNKNOWN;
+        desc.BufferEx.NumElements = descBuf.ByteWidth / descBuf.StructureByteStride;
+    }
+    else
+    {
+        return E_INVALIDARG;
+    }
 
     return pDevice->CreateShaderResourceView(pBuffer, &desc, ppSRVOut);
 }
 
 //--------------------------------------------------------------------------------------
 // Create Unordered Access View for Structured or Raw Buffers
-//-------------------------------------------------------------------------------------- 
+//--------------------------------------------------------------------------------------
 HRESULT ParticleSystem::CreateBufferUAV(ID3D11Device* pDevice, ID3D11Buffer* pBuffer, ID3D11UnorderedAccessView** ppUAVOut)
 {
     D3D11_BUFFER_DESC descBuf = {};
@@ -321,22 +316,21 @@ HRESULT ParticleSystem::CreateBufferUAV(ID3D11Device* pDevice, ID3D11Buffer* pBu
     {
         // This is a Raw Buffer
 
-        desc.Format = DXGI_FORMAT_R32_TYPELESS; // Format must be DXGI_FORMAT_R32_TYPELESS, when creating Raw Unordered Access View
+        desc.Format = DXGI_FORMAT_R32_TYPELESS;  // Format must be DXGI_FORMAT_R32_TYPELESS, when creating Raw Unordered Access View
         desc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
         desc.Buffer.NumElements = descBuf.ByteWidth / 4;
     }
-    else
-        if (descBuf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED)
-        {
-            // This is a Structured Buffer
+    else if (descBuf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED)
+    {
+        // This is a Structured Buffer
 
-            desc.Format = DXGI_FORMAT_UNKNOWN;      // Format must be must be DXGI_FORMAT_UNKNOWN, when creating a View of a Structured Buffer
-            desc.Buffer.NumElements = descBuf.ByteWidth / descBuf.StructureByteStride;
-        }
-        else
-        {
-            return E_INVALIDARG;
-        }
+        desc.Format = DXGI_FORMAT_UNKNOWN;  // Format must be must be DXGI_FORMAT_UNKNOWN, when creating a View of a Structured Buffer
+        desc.Buffer.NumElements = descBuf.ByteWidth / descBuf.StructureByteStride;
+    }
+    else
+    {
+        return E_INVALIDARG;
+    }
 
     return pDevice->CreateUnorderedAccessView(pBuffer, &desc, ppUAVOut);
 }

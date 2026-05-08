@@ -4,31 +4,31 @@
 
 namespace Scald
 {
-	class SComponent;
-	class SEntity;
-	
-	class ComponentManager
-	{
-	public:
-		static ComponentManager& Get()
-		{
-			static ComponentManager inst;
-			return inst;
-		}
+class SComponent;
+class SEntity;
 
-		template<typename T = SComponent, typename... Args>
-		std::shared_ptr<T> CreateDefaultSubobject(std::shared_ptr<SEntity> owner, Args&&... args)
-		{
-			return std::make_shared<T>(owner, std::forward<Args>(args)...);
-		}
+class ComponentManager
+{
+public:
+    static ComponentManager& Get()
+    {
+        static ComponentManager inst;
+        return inst;
+    }
 
-	private:
-		ComponentManager() = default;
-		~ComponentManager() = default;
+    template <typename T = SComponent, typename... Args>
+    std::shared_ptr<T> CreateDefaultSubobject(std::shared_ptr<SEntity> owner, Args&&... args)
+    {
+        return std::make_shared<T>(owner, std::forward<Args>(args)...);
+    }
 
-		ComponentManager(const ComponentManager&) = delete;
-		ComponentManager& operator=(const ComponentManager&) = delete;
-		ComponentManager(ComponentManager&&) = delete;
-		ComponentManager& operator=(ComponentManager&&) = delete;
-	};
-}
+private:
+    ComponentManager() = default;
+    ~ComponentManager() = default;
+
+    ComponentManager(const ComponentManager&) = delete;
+    ComponentManager& operator=(const ComponentManager&) = delete;
+    ComponentManager(ComponentManager&&) = delete;
+    ComponentManager& operator=(ComponentManager&&) = delete;
+};
+}  // namespace Scald
