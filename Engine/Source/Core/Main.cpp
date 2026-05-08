@@ -7,8 +7,7 @@ INT WindowHeight;
 WCHAR WindowTitle[MAX_NAME_STRING];
 WCHAR WindowClass[MAX_NAME_STRING];
 
-_Use_decl_annotations_
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int nCmdShow)
+_Use_decl_annotations_ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int nCmdShow)
 {
     // Enable run-time memory check for debug builds.
 #if defined(DEBUG) | defined(_DEBUG)
@@ -27,7 +26,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int nCmdShow)
     return Win32App::Run(&engine, HInstance(), nCmdShow);
 #endif
 #ifdef __linux__
-    return 0; // Vulkan or OpenGL
+    return 0;  // Vulkan or OpenGL
 #endif
 }
 

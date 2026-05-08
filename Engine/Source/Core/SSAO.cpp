@@ -9,9 +9,9 @@
 using namespace DirectX::PackedVector;
 
 SSAO::SSAO(ID3D12Device* device, ID3D12GraphicsCommandList* pCommandList, UINT width, UINT height)
-	: m_device(device)
+    : m_device(device)
 {
-	OnResize(width, height);
+    OnResize(width, height);
 
     BuildOffsetVectors();
     BuildRandomVectorTexture(pCommandList);
@@ -19,22 +19,22 @@ SSAO::SSAO(ID3D12Device* device, ID3D12GraphicsCommandList* pCommandList, UINT w
 
 void SSAO::OnResize(UINT newWidth, UINT newHeight)
 {
-	if (m_renderTargetWidth != newWidth || m_renderTargetHeight != newHeight)
-	{
-		m_renderTargetWidth = newWidth;
-		m_renderTargetHeight = newHeight;
+    if (m_renderTargetWidth != newWidth || m_renderTargetHeight != newHeight)
+    {
+        m_renderTargetWidth = newWidth;
+        m_renderTargetHeight = newHeight;
 
-		m_viewport.TopLeftX = 0.0f;
-		m_viewport.TopLeftY = 0.0f;
-		m_viewport.Width = m_renderTargetWidth / 2.0f;
-		m_viewport.Height = m_renderTargetHeight / 2.0f;
-		m_viewport.MinDepth = 0.0f;
-		m_viewport.MaxDepth = 1.0f;
+        m_viewport.TopLeftX = 0.0f;
+        m_viewport.TopLeftY = 0.0f;
+        m_viewport.Width = m_renderTargetWidth / 2.0f;
+        m_viewport.Height = m_renderTargetHeight / 2.0f;
+        m_viewport.MinDepth = 0.0f;
+        m_viewport.MaxDepth = 1.0f;
 
-		m_scissorRect = { 0L, 0L, static_cast<LONG>(m_renderTargetWidth / 2), static_cast<LONG>(m_renderTargetHeight / 2) };
+        m_scissorRect = {0L, 0L, static_cast<LONG>(m_renderTargetWidth / 2), static_cast<LONG>(m_renderTargetHeight / 2)};
 
-		BuildResources();
-	}
+        BuildResources();
+    }
 }
 
 void SSAO::BuildResources()
@@ -61,20 +61,10 @@ void SSAO::BuildResources()
     CD3DX12_CLEAR_VALUE optClear = CD3DX12_CLEAR_VALUE(AmbientMapFormat, ambientClearColor);
 
     ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &texDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        &optClear,
-        IID_PPV_ARGS(&m_ambientMap0)));
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_ambientMap0)));
 
     ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &texDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        &optClear,
-        IID_PPV_ARGS(&m_ambientMap1)));
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_ambientMap1)));
 
     SCALD_NAME_D3D12_OBJECT(m_ambientMap0, L"AmbientMap0");
     SCALD_NAME_D3D12_OBJECT(m_ambientMap1, L"AmbientMap1");
@@ -95,7 +85,7 @@ std::vector<float> SSAO::CalcGaussWeights(float sigma)
     float twoSigma2 = 2.0f * sigma * sigma;
 
     // Estimate the blur radius based on sigma since sigma controls the "width" of the bell curve.
-    // For example, for sigma = 3, the width of the bell curve is 
+    // For example, for sigma = 3, the width of the bell curve is
     int blurRadius = (int)ceil(2.0f * sigma);
 
     assert(blurRadius <= MaxBlurRadius);
@@ -123,13 +113,8 @@ std::vector<float> SSAO::CalcGaussWeights(float sigma)
     return weights;
 }
 
-void SSAO::BuildDescriptors(
-    ID3D12Resource* depthStencilBuffer,
-    CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
-    CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-    CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv,
-    const UINT cbvSrvUavDescriptorSize,
-    const UINT rtvDescriptorSize)
+void SSAO::BuildDescriptors(ID3D12Resource* depthStencilBuffer, CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv, CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv, CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv,
+    const UINT cbvSrvUavDescriptorSize, const UINT rtvDescriptorSize)
 {
     // Save references to the descriptors. The Ssao reserves heap space for 3 contiguous Srvs and 2 contiguous Rtvs
 
@@ -189,32 +174,22 @@ void SSAO::BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList)
     texDesc.DepthOrArraySize = (UINT16)1u;
     texDesc.MipLevels = (UINT16)1u;
     texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    texDesc.SampleDesc = { 1u, 0u };
+    texDesc.SampleDesc = {1u, 0u};
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
     ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &texDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&m_randomVectorMap)));
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_randomVectorMap)));
 
     SCALD_NAME_D3D12_OBJECT(m_randomVectorMap, L"RandomVectorMap");
 
-    // In order to copy CPU memory data into our default buffer, we need to create an intermediate upload heap. 
+    // In order to copy CPU memory data into our default buffer, we need to create an intermediate upload heap.
 
     const UINT num2DSubresources = texDesc.DepthOrArraySize * texDesc.MipLevels;
     const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_randomVectorMap.Get(), 0u, num2DSubresources);
 
-    ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(m_randomVectorMapUploadBuffer.GetAddressOf())));
+    ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(m_randomVectorMapUploadBuffer.GetAddressOf())));
 
     XMCOLOR initData[256 * 256];
     for (int i = 0; i < 256; ++i)
@@ -244,7 +219,7 @@ void SSAO::BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList)
 void SSAO::BuildOffsetVectors()
 {
     // Start with 14 uniformly distributed vectors.  We choose the 8 corners of the cube
-    // and the 6 center points along each cube face.  We always alternate the points on 
+    // and the 6 center points along each cube face.  We always alternate the points on
     // opposites sides of the cubes.  This way we still get the vectors spread out even
     // if we choose to use less than 14 samples.
 
@@ -295,7 +270,7 @@ void SSAO::Compute(ID3D12GraphicsCommandList* pCommandList, FrameResource* currF
     pCommandList->ClearRenderTargetView(m_ssaoBuffer[ESSAOTextureType::AmbientMap0].m_hCpuRtv, ambientClearColor, 0u, nullptr);
 
     pCommandList->SetGraphicsRootConstantBufferView(0u, ssaoCB->GetGPUVirtualAddress());
-    pCommandList->SetGraphicsRoot32BitConstant(1u, 0u, 0u); // no blur
+    pCommandList->SetGraphicsRoot32BitConstant(1u, 0u, 0u);  // no blur
     pCommandList->SetGraphicsRootDescriptorTable(4u, m_ssaoBuffer[ESSAOTextureType::RandomVectors].m_hGpuSrv);
 
     pCommandList->SetPipelineState(m_ssaoPso);
@@ -306,12 +281,12 @@ void SSAO::Compute(ID3D12GraphicsCommandList* pCommandList, FrameResource* currF
 
     /*pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     pCommandList->DrawInstanced(6u, 1u, 0u, 0u);*/
-    
+
     pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     pCommandList->DrawInstanced(4u, 1u, 0u, 0u);
 
     ScaldUtil::TransitionResource(pCommandList, m_ambientMap0.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ);
-    
+
     BlurAmbientMap(pCommandList, currFrameResource, blurPassesCount);
 }
 

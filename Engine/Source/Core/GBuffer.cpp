@@ -2,16 +2,14 @@
 #include "GBuffer.h"
 
 GBuffer::GBuffer(ID3D12Device* device, UINT width, UINT height)
-    : m_device(device)
-    , m_width(width)
-    , m_height(height)
+    : m_device(device),
+      m_width(width),
+      m_height(height)
 {
     CreateResources();
 }
 
-GBuffer::~GBuffer() noexcept
-{
-}
+GBuffer::~GBuffer() noexcept {}
 
 void GBuffer::OnResize(UINT newWidth, UINT newHeight)
 {
@@ -19,7 +17,7 @@ void GBuffer::OnResize(UINT newWidth, UINT newHeight)
     {
         m_width = newWidth;
         m_height = newHeight;
-        
+
         CreateResources();
 
         // New resource, so we need new descriptors to that resource.
@@ -59,10 +57,7 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetDsv(unsigned layer) const
     return m_buffer[layer].m_hCpuRtvDsv;
 }
 
-void GBuffer::SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
-    CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-    CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtvDsv,
-    unsigned layer)
+void GBuffer::SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv, CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv, CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtvDsv, unsigned layer)
 {
     m_buffer[layer].m_hCpuSrv = hCpuSrv;
     m_buffer[layer].m_hGpuSrv = hGpuSrv;
@@ -97,7 +92,7 @@ void GBuffer::CreateDescriptors()
     auto depthIndex = static_cast<UINT>(EGBufferLayer::DEPTH);
     srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
     m_device->CreateShaderResourceView(m_buffer[depthIndex].m_resource.Get(), &srvDesc, m_buffer[depthIndex].m_hCpuSrv);
-    
+
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Format = m_bufferFormats[depthIndex];
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
@@ -107,7 +102,7 @@ void GBuffer::CreateDescriptors()
 
 void GBuffer::CreateResources()
 {
-	CD3DX12_RESOURCE_DESC texDesc = {};
+    CD3DX12_RESOURCE_DESC texDesc = {};
     ZeroMemory(&texDesc, sizeof(CD3DX12_RESOURCE_DESC));
     texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     texDesc.Alignment = (UINT64)0;
@@ -118,53 +113,43 @@ void GBuffer::CreateResources()
     texDesc.SampleDesc.Count = 1u;
     texDesc.SampleDesc.Quality = 0u;
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    
+
     D3D12_CLEAR_VALUE optClear = {};
     ZeroMemory(&optClear, sizeof(D3D12_CLEAR_VALUE));
-    
+
     // Create resources for GBuffer that aren't depth
     for (UINT i = 0; i < static_cast<UINT>(EGBufferLayer::DEPTH); i++)
     {
         texDesc.Format = m_bufferFormats[i];
         texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-        
+
         optClear.Format = texDesc.Format;
-        
-        if (i == EGBufferLayer::DIFFUSE_ALBEDO) // To clear background at desirable color
+
+        if (i == EGBufferLayer::DIFFUSE_ALBEDO)  // To clear background at desirable color
             memcpy(optClear.Color, Colors::LightSteelBlue, sizeof(optClear.Color));
         else if (i == EGBufferLayer::MOTION_VECTORS)
             memcpy(optClear.Color, Colors::Yellow, sizeof(optClear.Color));
-        else // To clear to zero
+        else  // To clear to zero
             memcpy(optClear.Color, m_defaultOptimizedClearColor, sizeof(optClear.Color));
-    
+
         ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-            D3D12_HEAP_FLAG_NONE,
-            &texDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            &optClear,
-            IID_PPV_ARGS(&m_buffer[i].m_resource)));
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_buffer[i].m_resource)));
     }
 
     auto depthIndex = static_cast<UINT>(EGBufferLayer::DEPTH);
     // Create resource for depth
     texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
     texDesc.Format = m_bufferFormats[depthIndex];
-    
+
     optClear.Format = m_bufferFormats[depthIndex];
     optClear.DepthStencil.Depth = 1.0f;
     optClear.DepthStencil.Stencil = (UINT8)0;
 
     ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &texDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        &optClear,
-        IID_PPV_ARGS(&m_buffer[depthIndex].m_resource)));
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_buffer[depthIndex].m_resource)));
 
     SCALD_NAME_D3D12_OBJECT(m_buffer[DIFFUSE_ALBEDO].m_resource, L"Diffuse Buffer");
-    SCALD_NAME_D3D12_OBJECT(m_buffer[AMBIENT_OCCLUSION].m_resource, L"WorldPos Buffer"); // SSAO will be
+    SCALD_NAME_D3D12_OBJECT(m_buffer[AMBIENT_OCCLUSION].m_resource, L"WorldPos Buffer");  // SSAO will be
     SCALD_NAME_D3D12_OBJECT(m_buffer[NORMAL].m_resource, L"Normal Buffer");
     SCALD_NAME_D3D12_OBJECT(m_buffer[SPECULAR].m_resource, L"Specular Buffer");
     SCALD_NAME_D3D12_OBJECT(m_buffer[MOTION_VECTORS].m_resource, L"Motion Vectors Buffer");

@@ -19,12 +19,18 @@
 
 using Microsoft::WRL::ComPtr;
 
-template<typename TVertex = VertexPositionNormalTangentUV, typename TIndex = uint16_t> 
+template <typename TVertex = VertexPositionNormalTangentUV, typename TIndex = uint16_t>
 struct MeshData
 {
-    static_assert(std::is_same<TIndex, unsigned>() || std::is_same<TIndex, unsigned short>()); // to make sure that index type either uint16_t or uint32_t
+    static_assert(std::is_same<TIndex, unsigned>() || std::is_same<TIndex, unsigned short>());  // to make sure that index type either uint16_t or uint32_t
 
-    MeshData(UINT numLODs = 1u) : LODVertices(numLODs), LODIndices(numLODs), LODBounds(numLODs), NumLODs(numLODs) {}
+    MeshData(UINT numLODs = 1u)
+        : LODVertices(numLODs),
+          LODIndices(numLODs),
+          LODBounds(numLODs),
+          NumLODs(numLODs)
+    {
+    }
 
     std::vector<std::vector<TVertex>> LODVertices;
     std::vector<std::vector<TIndex>> LODIndices;
@@ -37,7 +43,6 @@ struct MeshData
 // for the GPU lifetime of resources to avoid destroying objects that may still be
 // referenced by the GPU.
 
-
 inline std::string HrToString(HRESULT hr)
 {
     char s_str[64] = {};
@@ -48,13 +53,19 @@ inline std::string HrToString(HRESULT hr)
 class HrException : public std::runtime_error
 {
 public:
-    HrException(HRESULT hr) : std::runtime_error(HrToString(hr)), m_hr(hr) {}
+    HrException(HRESULT hr)
+        : std::runtime_error(HrToString(hr)),
+          m_hr(hr)
+    {
+    }
     HRESULT Error() const { return m_hr; }
+
 private:
     const HRESULT m_hr;
 };
 
-#define SAFE_RELEASE(p) if (p) (p)->Release()
+#define SAFE_RELEASE(p) \
+    if (p) (p)->Release()
 
 inline void ThrowIfFailed(HRESULT hr)
 {
@@ -65,41 +76,41 @@ inline void ThrowIfFailed(HRESULT hr)
 }
 
 #ifdef UNICODE
-    inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
+inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
+{
+    if (!path) throw std::exception();
+
+    DWORD size = GetModuleFileName(nullptr, path, pathSize);
+    if (size == 0 || size == pathSize)
     {
-        if (!path) throw std::exception();
-
-        DWORD size = GetModuleFileName(nullptr, path, pathSize);
-        if (size == 0 || size == pathSize)
-        {
-            // Method failed or path was truncated.
-            throw std::exception();
-        }
-
-        WCHAR* lastSlash = wcsrchr(path, '\\');
-        if (lastSlash)
-        {
-            *(lastSlash + 1) = L'\0';
-        }
+        // Method failed or path was truncated.
+        throw std::exception();
     }
+
+    WCHAR* lastSlash = wcsrchr(path, '\\');
+    if (lastSlash)
+    {
+        *(lastSlash + 1) = L'\0';
+    }
+}
 #else
-    inline void GetAssetsPath(_Out_writes_(pathSize) CHAR* path, UINT pathSize)
+inline void GetAssetsPath(_Out_writes_(pathSize) CHAR* path, UINT pathSize)
+{
+    if (!path) throw std::exception();
+
+    DWORD size = GetModuleFileName(nullptr, path, pathSize);
+    if (size == 0 || size == pathSize)
     {
-        if (!path) throw std::exception();
-
-        DWORD size = GetModuleFileName(nullptr, path, pathSize);
-        if (size == 0 || size == pathSize)
-        {
-            // Method failed or path was truncated.
-            throw std::exception();
-        }
-
-        CHAR* lastSlash = strrchr(path, '\\');
-        if (lastSlash)
-        {
-            *(lastSlash + 1) = L'\0';
-        }
+        // Method failed or path was truncated.
+        throw std::exception();
     }
+
+    CHAR* lastSlash = strrchr(path, '\\');
+    if (lastSlash)
+    {
+        *(lastSlash + 1) = L'\0';
+    }
+}
 #endif  // !UNICODE
 
 inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
@@ -117,7 +128,8 @@ inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
 
     Wrappers::FileHandle file(CreateFile2(filename, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &extendedParams));
 #else
-    Wrappers::FileHandle file(CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | SECURITY_SQOS_PRESENT | SECURITY_ANONYMOUS, nullptr));
+    Wrappers::FileHandle file(
+        CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | SECURITY_SQOS_PRESENT | SECURITY_ANONYMOUS, nullptr));
 #endif
     if (file.Get() == INVALID_HANDLE_VALUE)
     {
@@ -206,43 +218,43 @@ inline HRESULT ReadDataFromDDSFile(LPCWSTR filename, byte** data, UINT* offset, 
 
 // Assign a name to the object to aid with debugging.
 #if defined(_DEBUG) || defined(DEBUG)
-    #ifdef UNICODE
-        inline void SetName(ID3D12Object* pObject, LPCWSTR name)
-        {
-            pObject->SetName(name);
-        }
+#ifdef UNICODE
+inline void SetName(ID3D12Object* pObject, LPCWSTR name)
+{
+    pObject->SetName(name);
+}
 
-        inline void SetNameIndexed(ID3D12Object* pObject, LPCWSTR name, UINT index)
-        {
-            WCHAR fullName[50];
-            if (swprintf_s(fullName, L"%s[%u]", name, index) > 0)
-            {
-                pObject->SetName(fullName);
-            }
-        }
-    #else
-        // TODO: internet advices to use MultiByteToWideChar
-        inline std::wstring GetWSTR(const std::string& string)
-        {
-            return std::wstring(string.begin(), string.end());
-        }
+inline void SetNameIndexed(ID3D12Object* pObject, LPCWSTR name, UINT index)
+{
+    WCHAR fullName[50];
+    if (swprintf_s(fullName, L"%s[%u]", name, index) > 0)
+    {
+        pObject->SetName(fullName);
+    }
+}
+#else
+// TODO: internet advices to use MultiByteToWideChar
+inline std::wstring GetWSTR(const std::string& string)
+{
+    return std::wstring(string.begin(), string.end());
+}
 
-        inline void SetName(ID3D12Object* pObject, LPCSTR name)
-        {
-            const auto wide = GetWSTR(name); 
-            pObject->SetName(wide.c_str());
-        }
+inline void SetName(ID3D12Object* pObject, LPCSTR name)
+{
+    const auto wide = GetWSTR(name);
+    pObject->SetName(wide.c_str());
+}
 
-        inline void SetNameIndexed(ID3D12Object* pObject, LPCSTR name, UINT index)
-        {
-            CHAR fullName[50];
-            if (sprintf_s(fullName, "%s[%u]", name, index) > 0)
-            {
-                const auto wide = GetWSTR(fullName);
-                pObject->SetName(wide.c_str());
-            }
-        }
-    #endif  // !UNICODE
+inline void SetNameIndexed(ID3D12Object* pObject, LPCSTR name, UINT index)
+{
+    CHAR fullName[50];
+    if (sprintf_s(fullName, "%s[%u]", name, index) > 0)
+    {
+        const auto wide = GetWSTR(fullName);
+        pObject->SetName(wide.c_str());
+    }
+}
+#endif  // !UNICODE
 #endif  // !DEBUG
 
 // Naming helper for ComPtr<T>.
@@ -258,11 +270,7 @@ inline UINT CalculateConstantBufferByteSize(UINT byteSize)
 }
 
 #ifdef D3D_COMPILE_STANDARD_FILE_INCLUDE
-inline Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(
-    const std::wstring& filename,
-    const D3D_SHADER_MACRO* defines,
-    const std::string& entrypoint,
-    const std::string& target)
+inline Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines, const std::string& entrypoint, const std::string& target)
 {
     UINT compileFlags = 0;
 #if defined(_DEBUG) || defined(DBG)
@@ -273,8 +281,7 @@ inline Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(
 
     Microsoft::WRL::ComPtr<ID3DBlob> byteCode = nullptr;
     Microsoft::WRL::ComPtr<ID3DBlob> errors;
-    hr = D3DCompileFromFile(filename.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-        entrypoint.c_str(), target.c_str(), compileFlags, 0, &byteCode, &errors);
+    hr = D3DCompileFromFile(filename.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE, entrypoint.c_str(), target.c_str(), compileFlags, 0, &byteCode, &errors);
 
     if (errors != nullptr)
     {
@@ -287,7 +294,7 @@ inline Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(
 #endif
 
 // Resets all elements in a ComPtr array.
-template<class T>
+template <class T>
 void ResetComPtrArray(T* comPtrArray)
 {
     for (auto& i : *comPtrArray)
@@ -297,7 +304,7 @@ void ResetComPtrArray(T* comPtrArray)
 }
 
 // Resets all elements in a unique_ptr array.
-template<class T>
+template <class T>
 void ResetUniquePtrArray(T* uniquePtrArray)
 {
     for (auto& i : *uniquePtrArray)

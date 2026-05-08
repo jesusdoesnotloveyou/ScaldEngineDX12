@@ -28,12 +28,11 @@ struct Material
     }
 
     Material(const char* name, int materialBufferIndex, int diffuseSrvHeapIndex, int normalSrvHeapIndex = -1)
-        : Name(std::string(name))
-        , MatBufferIndex(materialBufferIndex)
-        , DiffuseSrvHeapIndex(diffuseSrvHeapIndex)
-        , NormalSrvHeapIndex(normalSrvHeapIndex)
+        : Name(std::string(name)),
+          MatBufferIndex(materialBufferIndex),
+          DiffuseSrvHeapIndex(diffuseSrvHeapIndex),
+          NormalSrvHeapIndex(normalSrvHeapIndex)
     {
-
     }
 
     std::string Name;
@@ -49,8 +48,8 @@ struct Material
 
     int NumFramesDirty = gNumFrameResources;
 
-    DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
+    DirectX::XMFLOAT4 DiffuseAlbedo = {1.0f, 1.0f, 1.0f, 1.0f};
+    DirectX::XMFLOAT3 FresnelR0 = {0.01f, 0.01f, 0.01f};
     float Roughness = 0.25f;
 
     // could be used for material animation (water for instance)
@@ -70,8 +69,8 @@ struct RenderItem
     XMMATRIX TexTransform = XMMatrixIdentity();
 
     BoundingBox Bounds;
-    std::vector<InstanceData> Instances; // for spot and point lights for now
-    
+    std::vector<InstanceData> Instances;  // for spot and point lights for now
+
     int NumFramesDirty = gNumFrameResources;
 
     // Index into GPU constant buffer corresponding to the ObjectCB for this render item.
@@ -83,7 +82,7 @@ struct RenderItem
     D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopologyType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
     // DrawIndexedInstanced parameters.
-    UINT InstanceCount = 0u;            // for spot and point lights for now
+    UINT InstanceCount = 0u;  // for spot and point lights for now
     UINT IndexCount = 0u;
     UINT StartIndexLocation = 0u;
     int BaseVertexLocation = 0;
@@ -92,6 +91,7 @@ struct RenderItem
 class Engine : public D3D12Sample
 {
     using Super = D3D12Sample;
+
 public:
     enum ERootParameter : UINT
     {
@@ -112,7 +112,7 @@ public:
     enum EPsoType : UINT
     {
         CascadedShadowsOpaque = 0u,
-        
+
         DeferredGeometry,
         Wireframe,
         Ssao,
@@ -198,7 +198,7 @@ private:
     void UpdateShadowPassCB(const ScaldTimer& st);
     void UpdateGeometryPassCB(const ScaldTimer& st);
     void UpdateDeferredPassCB(const ScaldTimer& st);
-    
+
 private:
 #pragma region Shadows
     void RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList);
@@ -235,7 +235,7 @@ private:
 
     float m_sunPhi = XM_PI / 3;
     float m_sunTheta = 1.25f * XM_PI;
-    
+
     // should be placed in RenderPass abstraction class
     std::shared_ptr<RootSignature> m_rootSignature;
     std::shared_ptr<RootSignature> m_ssaoRootSignature;
@@ -248,8 +248,8 @@ private:
     ObjectConstants m_perObjectCBData;
     PassConstants m_shadowPassCBData;
     PassConstants m_geometryPassCBData;
-    PassConstants m_mainPassCBData; // deferred color(light) pass
-    
+    PassConstants m_mainPassCBData;  // deferred color(light) pass
+
     MaterialData m_perMaterialSBData;
     InstanceData m_perInstanceSBData;
 
@@ -301,10 +301,10 @@ private:
     VOID LoadGraphicsFeatures();
     VOID LoadCSMResources();
     VOID LoadDeferredRenderingResources();
-    
+
     VOID Reset() override;
     VVOID CreateRtvAndDsvDescriptorHeaps() override;
-    
+
     VOID LoadAssets();
 
     VOID CreateRootSignatures();
@@ -314,7 +314,7 @@ private:
     VOID CreateCommomComputeRootSignature();
     VOID CreateShaders();
     VOID CreatePSO();
-    
+
     VOID LoadScene();
     VOID LoadTextures(ID3D12GraphicsCommandList* pCommandList);
     // Shapes
@@ -326,28 +326,16 @@ private:
     VOID CreateRenderItems();
     VOID CreatePointLights(ID3D12GraphicsCommandList* pCommandList);
     VOID CreateFrameResources();
-    // Heaps are created if there are root descriptor tables in root signature 
+    // Heaps are created if there are root descriptor tables in root signature
     VOID CreateSrvAndSamplerDescriptorHeaps();
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index)const
-    {
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize);
-    }
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index) const { return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize); }
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index)const
-    {
-        return CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize);
-    }
+    CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index) const { return CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize); }
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index)const
-    {
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_dsvDescriptorSize);
-    }
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index) const { return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_dsvDescriptorSize); }
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index)const
-    {
-        return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_rtvDescriptorSize);
-    }
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index) const { return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_rtvDescriptorSize); }
 
     VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
 

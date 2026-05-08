@@ -5,39 +5,39 @@
 
 namespace Scald
 {
-	enum EBuiltInMeshes
-	{
-		BOX = 0,
-		SPHERE,
-		GEOSPHERE,
-		GRID,
-		NUM_BUILTIN_MESHES
-	};
+enum EBuiltInMeshes
+{
+    BOX = 0,
+    SPHERE,
+    GEOSPHERE,
+    GRID,
+    NUM_BUILTIN_MESHES
+};
 
-	using MeshLookup_t = std::unordered_map<MeshID, MeshData<>>;
-	//using ModelLookup_t = std::unordered_map<ModelID, Model>;
-	
-	static MeshID LAST_USED_MESH_ID = EBuiltInMeshes::NUM_BUILTIN_MESHES;
+using MeshLookup_t = std::unordered_map<MeshID, MeshData<>>;
+// using ModelLookup_t = std::unordered_map<ModelID, Model>;
 
-	class Scene final
-	{
-		friend class Engine;
-	
-	private:
-		MeshLookup_t m_meshes;
-		//ModelLookup_t m_models;	
-		std::array<MeshData<>, EBuiltInMeshes::NUM_BUILTIN_MESHES> m_buildInMeshes;
+static MeshID LAST_USED_MESH_ID = EBuiltInMeshes::NUM_BUILTIN_MESHES;
 
-	public:
-		Scene();
-		~Scene() noexcept = default;
-		
-		MeshData<> GetBuiltInMesh(EBuiltInMeshes meshType);
+class Scene final
+{
+    friend class Engine;
 
-	private:
-		MeshID AddMesh(const MeshData<>& mesh);
-		MeshID AddMesh(MeshData<>&& mesh);
+private:
+    MeshLookup_t m_meshes;
+    // ModelLookup_t m_models;
+    std::array<MeshData<>, EBuiltInMeshes::NUM_BUILTIN_MESHES> m_buildInMeshes;
 
-		void CreateBuildInMeshes();
-	};
-}
+public:
+    Scene();
+    ~Scene() noexcept = default;
+
+    MeshData<> GetBuiltInMesh(EBuiltInMeshes meshType);
+
+private:
+    MeshID AddMesh(const MeshData<>& mesh);
+    MeshID AddMesh(MeshData<>&& mesh);
+
+    void CreateBuildInMeshes();
+};
+}  // namespace Scald
