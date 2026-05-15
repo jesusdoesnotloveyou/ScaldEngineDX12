@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Common/DXHelper.h"
-#include "Core/Shapes.h"
 
 namespace Scald
 {
@@ -19,7 +18,7 @@ using MeshLookup_t = std::unordered_map<MeshID, MeshData<>>;
 
 static MeshID LAST_USED_MESH_ID = EBuiltInMeshes::NUM_BUILTIN_MESHES;
 
-class Scene final
+class SCALD_API Scene final
 {
     friend class Engine;
 

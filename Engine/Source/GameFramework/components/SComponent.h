@@ -6,7 +6,7 @@ namespace Scald
 {
 class SEntity;
 
-class SComponent : public std::enable_shared_from_this<SComponent>
+class SCALD_API SComponent : public std::enable_shared_from_this<SComponent>
 {
     friend class SEntity;
     // to prevent manual creation

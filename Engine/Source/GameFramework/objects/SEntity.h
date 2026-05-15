@@ -1,14 +1,12 @@
 #pragma once
 
-#include "Common/DXHelper.h"
-#include "Common/ScaldTimer.h"
 #include "GameFrameWork/Components/ComponentManager.h"
 
 namespace Scald
 {
 class SComponent;
 
-class SEntity : public std::enable_shared_from_this<SEntity>
+class SCALD_API SEntity : public std::enable_shared_from_this<SEntity>
 {
 public:
     explicit SEntity(std::string& entityName);
@@ -19,7 +17,7 @@ public:
     virtual void OnBegin() {};
     virtual void OnDestroy() {};
 
-    bool IsActive() const { mIsActive; }
+    bool IsActive() const { return mIsActive; }
     void SetActive(bool isActive) { mIsActive = isActive; }
 
     const std::string GetName() const { return m_name; }

@@ -3,6 +3,14 @@
 #include "VertexTypes.h"
 #include <DirectXColors.h>
 
+#ifdef max
+#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif
+
 constexpr int INVALID_ID = -1;
 using ID_TYPE = int;
 

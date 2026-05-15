@@ -271,7 +271,7 @@ MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateGrid(float width
 
 MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateGeosphere(float radius, UINT numSubdivisions)
 {
-    MeshData meshData;
+    MeshData<VertexPositionNormalTangentUV, uint16_t> meshData;
 
     numSubdivisions = std::min<UINT>(numSubdivisions, 6u);
 
@@ -329,13 +329,13 @@ MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateGeosphere(float 
     return meshData;
 }
 
-void Shapes::Subdivide(MeshData<>& meshData)
+void Shapes::Subdivide(MeshData<VertexPositionNormalTangentUV, uint16_t>& meshData)
 {
     // Save a copy of the input geometry.
     MeshData<> inputCopy = meshData;
 
     meshData.LODVertices[0].resize(0);
-    meshData.LODVertices[0].resize(0);
+    meshData.LODIndices[0].resize(0);
 
     //       v1
     //       *

@@ -6,7 +6,7 @@ namespace Scald
 {
 class SObject;
 
-class Transform : public SComponent
+class SCALD_API Transform : public SComponent
 {
     using Super = SComponent;
 

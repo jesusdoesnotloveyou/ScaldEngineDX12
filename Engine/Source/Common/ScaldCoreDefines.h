@@ -1,24 +1,5 @@
 #pragma once
 
-#ifdef _EXPORTING
-#define SCALD_API __declspec(dllexport)
-#elif _IMPORTING
-#define SCALD_API __declspec(dllimport)
-#else
-#define SCALD_API
-#endif
-
-/*
- * Engine CPP wrappers
- */
-#ifndef FORCEINLINE
-#define FORCEINLINE __forceinline
-#endif
-
-#ifndef VVOID
-#define VVOID virtual void
-#endif
-
 /*
  * Memory conversions
  */

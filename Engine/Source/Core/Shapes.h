@@ -18,6 +18,6 @@ public:
     static MeshData<VertexPositionNormalTangentUV, uint16_t> CreateGeosphere(float radius, UINT numSubdivisions);
 
 private:
-    static void Subdivide(MeshData<>& meshData);
+    static void Subdivide(MeshData<VertexPositionNormalTangentUV, uint16_t>& meshData);
     static VertexPositionNormalTangentUV MidPoint(const VertexPositionNormalTangentUV& v0, const VertexPositionNormalTangentUV& v1);
 };
