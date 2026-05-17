@@ -23,6 +23,7 @@
 #include <cassert>
 #include <queue>
 #include <mutex>
+#include <filesystem>
 
 #define MAX_NAME_STRING 256
 #define HInstance() GetModuleHandle(NULL)

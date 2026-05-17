@@ -42,16 +42,16 @@ struct MeshGeometry
 
     // System memory copies.  Use Blobs because the vertex/index format can be generic.
     // It is up to the client to cast appropriately.
-    Microsoft::WRL::ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
-    Microsoft::WRL::ComPtr<ID3DBlob> IndexBufferCPU = nullptr;
+    ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
+    ComPtr<ID3DBlob> IndexBufferCPU = nullptr;
 
     // the actual default buffer resource
-    Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
+    ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
+    ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
 
     // an intermediate upload heap in order to copy CPU memory data into out default buffer
-    Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
+    ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
+    ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
 
     // Data about the buffers.
     UINT VertexByteStride = 0u;
@@ -141,20 +141,25 @@ struct Texture
 
     Texture() {}
 
-    Texture(const char* name, const wchar_t* fileName, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, TextureType type = TextureType::ALBEDO)
+    Texture(const char* name, const wchar_t* fileName, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, TextureType type = TextureType::ALBEDO, bool sRGB = false)
         : Name(std::string(name)),
           Filename(std::wstring(fileName)),
           Type(type)
     {
-        ThrowIfFailed(CreateDDSTextureFromFile12(device, cmdList, Filename.c_str(), Resource, UploadHeap));
+        //ThrowIfFailed(CreateDDSTextureFromFile12(device, cmdList, Filename.c_str(), Resource, UploadHeap));
+        CreateTexture(fileName, device, cmdList, sRGB);
     }
 
     TextureType Type = TextureType::NONE;
     // Unique material name for lookup.
     std::string Name;
-
     std::wstring Filename;
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
+    ComPtr<ID3D12Resource> Resource = nullptr;
+private:
+    // UploadHeap name is from Luna's book. It is an intermediate upload heap used to copy CPU memory data into the default buffer resource on the GPU.
+    ComPtr<ID3D12Resource> UploadHeap = nullptr;
+    
+private:
+    void CreateTexture(const wchar_t* fileName, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, bool sRGB);
 };

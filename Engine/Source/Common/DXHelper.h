@@ -3,12 +3,14 @@
 #include <stdexcept>
 #include <wrl.h>
 
+// That's the very important and very strange file at the same time, it's located at Src/ directoty of DirectXTK.
+// Probably the better way to use it is from the DirectX-Headers https://github.com/microsoft/DirectX-Headers.git
+#include <d3dx12.h>
 #include <dxgi1_4.h>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
 
-#include "DDSTextureLoader.h"
-#include "Common/d3dx12.h"
+#include "Common/ScaldMath.h"
 #include "Common/ScaldCoreTypes.h"
 #include "Common/ScaldCoreDefines.h"
 #include "Common/ScaldCommonDefines.h"
