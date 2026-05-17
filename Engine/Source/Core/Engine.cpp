@@ -971,9 +971,9 @@ VOID Engine::CreateFrameResources()
     }
 }
 
-VOID Engine::Reset()
+VOID Engine::OnResize()
 {
-    Super::Reset();
+    Super::OnResize();
 
     // Init/Reinit camera
     m_camera->Reset(75.0f, m_aspectRatio, 0.1f, 250.0f);
