@@ -1527,8 +1527,10 @@ void Engine::RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList)
     // forward-like
     // RenderTransparencyPass(pCommandList);
     RenderSkyBoxPass(pCommandList);
-    RenderUI(pCommandList);
 
+#ifdef ENABLE_IMGUI
+    RenderUI(pCommandList);
+#endif
     // Close accumulation buffer, that was opened in the light pass and indicate that the back buffer will now be used to present.
     ScaldUtil::TransitionResource(pCommandList, m_renderTargets[m_currBackBuffer].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 }
