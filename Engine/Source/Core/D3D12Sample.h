@@ -44,13 +44,17 @@ public:
 
     VVOID Pause();
     VVOID UnPause();
-    VVOID Resize();
+    VVOID SetResizing(bool bIsResizing = false);
     VVOID OnResize();
-    VVOID Reset();
 
+    void Minimize();
+    void Maximize();
+    void RestoreSize(bool bIsMinimized);
+
+    FORCEINLINE bool IsDeviceValid() const { return m_device != nullptr; }
+    FORCEINLINE bool IsResizing() const { return m_resizing; }
     // Timer stuff
     VOID CalculateFrameStats();
-
     // Accessors.
     FORCEINLINE UINT GetWidth() const { return m_width; }
     FORCEINLINE UINT GetHeight() const { return m_height; }
@@ -61,7 +65,6 @@ public:
     void SetHeight(WORD newHeigth) { m_height = newHeigth; }
 
     void ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc);
-
 protected:
     std::wstring GetAssetFullPath(LPCWSTR assetName) const;
 
@@ -73,6 +76,7 @@ protected:
 
     void CheckFeatureSupport();
     void SetCustomWindowText(LPCWSTR text) const;
+
 
     VOID CreateDebugLayer();
     VOID CreateDevice();

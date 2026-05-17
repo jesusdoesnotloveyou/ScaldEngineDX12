@@ -1,5 +1,5 @@
 #project info
-cmake_minimum_required(VERSION 3.21...4.0.3 FATAL_ERROR) 
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR) 
 
 set(PROJECT_NAME ScaldEngineDX12)
 
@@ -33,11 +33,9 @@ set(CMAKE_CONFIGURATION_TYPES
 
 # source files
 set(SOURCES
-	Engine/Source/Common/DDSTextureLoader.cpp
 	Engine/Source/Common/KeyboardDevice.cpp
 	Engine/Source/Common/MousePad.cpp
 	Engine/Source/Common/ScaldUtil.cpp
-
 
 	Engine/Source/Core/Camera.cpp
 	Engine/Source/Core/CascadeShadowMap.cpp
@@ -55,8 +53,6 @@ set(SOURCES
 )
 	
 set(INCLUDES
-	Engine/Source/Common/DDSTextureLoader.h
-	Engine/Source/Common/d3dx12.h
 	Engine/Source/Common/KeyboardDevice.h
 	Engine/Source/Common/MousePad.h
 	Engine/Source/Common/ScaldCoreDefines.h
@@ -137,14 +133,28 @@ message("Imgui source dir: ${imgui_SOURCE_DIR}")
 
 if(${WIN32})
 	FetchContent_Declare(
-    		DirectxTex
-    		GIT_REPOSITORY https://github.com/microsoft/DirectXTex.git
-    		GIT_TAG oct2025
-    		GIT_SHALLOW TRUE
+		DirectxTex
+		GIT_REPOSITORY https://github.com/microsoft/DirectXTex.git
+		GIT_TAG oct2025
+		GIT_SHALLOW TRUE
 	)
 	FetchContent_MakeAvailable(DirectxTex)
+
+	FetchContent_Declare(
+        DirectXTK
+        GIT_REPOSITORY https://github.com/microsoft/DirectXTK12.git
+        GIT_TAG may2026
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(DirectXTK)
+
+	get_property(_targets DIRECTORY "${directxtk_SOURCE_DIR}" PROPERTY BUILDSYSTEM_TARGETS)
+	message("DirectXTK12 targets: ${_targets}")
+	get_target_property(DXTK_INCLUDES DirectXTK12 INTERFACE_INCLUDE_DIRECTORIES)
+	message("DirectXTK12 includes: ${DXTK_INCLUDES}")
+
 else()
-    	message(WARNING "DirectXTex is WIN32 only library, it would not be loaded")
+    message(WARNING "DirectXTex and DirectXTK are WIN32 only libraries, they would not be loaded")
 endif()
 
 add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${INCLUDES})
@@ -170,6 +180,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 target_include_directories(ScaldCommonLib PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source
+	${directxtk_SOURCE_DIR}/Src # for d3dx12.h
 )
 
 target_compile_definitions(GameLib PRIVATE _EXPORTING) # PRIVATE to prevent _exporing move to target we will link DDSLib to
@@ -201,7 +212,9 @@ target_include_directories(imgui PUBLIC
 
 # link libraries to different targets
 target_link_libraries(ScaldCommonLib
-	PUBLIC dxgi.lib d3d12.lib d3dcompiler.lib # PUBLIC for all users of ScaldCommonLib
+	PUBLIC dxgi.lib dxguid.lib d3d12.lib d3dcompiler.lib # PUBLIC for all users of ScaldCommonLib
+	# TODO: I think it's better to separate DirectXTK12 to different library (to avoid linking to GameFramework), but for now it is here
+	PUBLIC DirectXTK12 						  # PUBLIC for all users of ScaldCommonLib 
 )
 
 target_link_libraries(GameLib
@@ -210,25 +223,23 @@ target_link_libraries(GameLib
 
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE assimp::assimp DirectXTex imgui
-	PUBLIC MathLib # probably should be moved to ScaldCommon
-	PRIVATE ScaldCommonLib
-	PRIVATE GameLib
+	PRIVATE ScaldCommonLib GameLib
+	PUBLIC MathLib # TODO: probably should be moved to ScaldCommon
 )
 
-
 # compile options for target
-# force UTF8
+# force UTF8, but looks like it does nothing
 target_compile_options(${PROJECT_NAME} PRIVATE
 		$<$<CXX_COMPILER_ID:MSVC>:/utf-8>
 		$<$<CXX_COMPILER_ID:Clang>:/utf-8>
 )
 
 if (MSVC)
-	target_compile_definitions(${PROJECT_NAME} PUBLIC UNICODE _UNICODE) # CHAR WCHAR windows stuff
+	target_compile_definitions(${PROJECT_NAME} PUBLIC UNICODE _UNICODE) # CHAR WCHAR windows stuff, UNICODE forces using of wide strings and so on
 endif()
 
 ########### other actions
-
+# for copying assets to the directory with the executable
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/Engine/Assets"

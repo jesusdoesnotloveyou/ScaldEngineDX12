@@ -174,13 +174,15 @@ public:
     Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className);
     virtual ~Engine() override;
 
-    virtual void OnInit() override;
-    virtual void OnUpdate(const ScaldTimer& st) override;
-    virtual void OnRender(const ScaldTimer& st) override;
-    virtual void OnDestroy() override;
+    VVOID OnInit() override;
+    VVOID OnUpdate(const ScaldTimer& st) override;
+    VVOID OnRender(const ScaldTimer& st) override;
+    VVOID OnDestroy() override;
 
-    virtual void OnKeyDown(UINT8 key) override {}
-    virtual void OnKeyUp(UINT8 key) override {}
+    VVOID OnKeyDown(UINT8 key) override {}
+    VVOID OnKeyUp(UINT8 key) override {}
+
+    VVOID OnResize() override;
 
 private:
     // Should be smth like camera controller
@@ -302,7 +304,6 @@ private:
     VOID LoadCSMResources();
     VOID LoadDeferredRenderingResources();
 
-    VOID Reset() override;
     VVOID CreateRtvAndDsvDescriptorHeaps() override;
 
     VOID LoadAssets();
