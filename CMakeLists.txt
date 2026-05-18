@@ -22,8 +22,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # build options
 set(CMAKE_CONFIGURATION_TYPES
 	${CMAKE_CONFIGURATION_TYPES} # to save its current value
-        Development 			 # from Blainnflare
-        Shipping 				 # from Blainnflare
+        #Development 			 # from Blainnflare
+        #Shipping 				 # from Blainnflare
 )
 
 # source files
