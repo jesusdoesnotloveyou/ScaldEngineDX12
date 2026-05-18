@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(WIN32) || defined(_WIN32)
+#if defined(WIN32) || defined(_WINDOWS)
     #ifdef _EXPORTING
         #define SCALD_API __declspec(dllexport)
     #elif defined(_IMPORTING)
@@ -8,14 +8,8 @@
     #else
         #define SCALD_API
     #endif
-#else
-    #ifdef _EXPORTING
+#elif defined(__linux__)
         #define SCALD_API __attribute__((visibility("default")))
-    #elif _IMPORTING
-        #define SCALD_API __attribute__((visibility("default")))
-    #else
-        #define SCALD_API
-    #endif
 #endif
 
 /*
