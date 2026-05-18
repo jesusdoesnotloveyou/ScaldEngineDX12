@@ -1,12 +1,7 @@
 #project info
 cmake_minimum_required(VERSION 3.21 FATAL_ERROR) 
-
 set(PROJECT_NAME ScaldEngineDX12)
-
-project(${PROJECT_NAME}
-		VERSION 0.0.1
-		LANGUAGES CXX C
-)
+project(${PROJECT_NAME} VERSION 0.0.1 LANGUAGES CXX C)
 
 # common options
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -24,11 +19,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # global compile options
 #add_compile_options()
 
-#build options
+# build options
 set(CMAKE_CONFIGURATION_TYPES
 	${CMAKE_CONFIGURATION_TYPES} # to save its current value
-        Development 			 # from Blainnflare
-        Shipping 				 # from Blainnflare
+        #Development 			 # from Blainnflare
+        #Shipping 				 # from Blainnflare
 )
 
 # source files
@@ -157,16 +152,41 @@ else()
     message(WARNING "DirectXTex and DirectXTK are WIN32 only libraries, they would not be loaded")
 endif()
 
-add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${INCLUDES})
+# manually define imgui as a library since it has no CMakeLists.txt
+set(IMGUI_SOURCES
+	${imgui_SOURCE_DIR}/imgui.cpp
+	${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+   	${imgui_SOURCE_DIR}/imgui_demo.cpp
+)
+if(${WIN32}) # dx12 + win32
+	set(IMGUI_SOURCES
+		${IMGUI_SOURCES}
+    	${imgui_SOURCE_DIR}/backends/imgui_impl_dx12.cpp
+    	${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
+	)
+endif()
 
+# targets
+add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${INCLUDES})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
 )
 
-
 add_library(MathLib STATIC ${MATH_INCLUDES} ${MATH_SOURCES})
 add_library(ScaldCommonLib STATIC ${SCALD_COMMON_INCLUDES} ${SCALD_COMMON_SOURCES})
 add_library(GameLib SHARED ${GAME_FRAMEWORK_INCLUDES} ${GAME_FRAMEWORK_SOURCES})
+add_library(imgui STATIC ${IMGUI_SOURCES})
+
+target_compile_definitions(GameLib PRIVATE _EXPORTING) # PRIVATE to prevent _exporing move to target we will link DDSLib to
+target_compile_definitions(${PROJECT_NAME} PUBLIC _IMPORTING)
+
+# options
+option(ENABLE_IMGUI_OPT "Enable/disable ImGUI" ON)
+if(ENABLE_IMGUI_OPT)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC ENABLE_IMGUI)
+endif()
 
 # pch
 target_precompile_headers(ScaldCommonLib PUBLIC # PUBLIC to expand using of this pch for ALL users of ScaldCommonLib
@@ -177,34 +197,10 @@ target_precompile_headers(ScaldCommonLib PUBLIC # PUBLIC to expand using of this
 target_include_directories(${PROJECT_NAME} PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Assets/Shaders
 )
-
 target_include_directories(ScaldCommonLib PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source
 	${directxtk_SOURCE_DIR}/Src # for d3dx12.h
 )
-
-target_compile_definitions(GameLib PRIVATE _EXPORTING) # PRIVATE to prevent _exporing move to target we will link DDSLib to
-target_compile_definitions(${PROJECT_NAME} PUBLIC _IMPORTING)
-
-# manually define imgui as a library since it has no CMakeLists.txt
-set(IMGUI_SOURCES
-	${imgui_SOURCE_DIR}/imgui.cpp
-	${imgui_SOURCE_DIR}/imgui_draw.cpp
-    ${imgui_SOURCE_DIR}/imgui_tables.cpp
-    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-   	${imgui_SOURCE_DIR}/imgui_demo.cpp
-)
-
-if(${WIN32}) # dx12 + win32
-	set(IMGUI_SOURCES
-		${IMGUI_SOURCES}
-    	${imgui_SOURCE_DIR}/backends/imgui_impl_dx12.cpp
-    	${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
-	)
-endif()
-
-add_library(imgui STATIC ${IMGUI_SOURCES})
-
 target_include_directories(imgui PUBLIC
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
@@ -216,11 +212,9 @@ target_link_libraries(ScaldCommonLib
 	# TODO: I think it's better to separate DirectXTK12 to different library (to avoid linking to GameFramework), but for now it is here
 	PUBLIC DirectXTK12 						  # PUBLIC for all users of ScaldCommonLib 
 )
-
 target_link_libraries(GameLib
 	PRIVATE ScaldCommonLib
 )
-
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE assimp::assimp DirectXTex imgui
 	PRIVATE ScaldCommonLib GameLib
