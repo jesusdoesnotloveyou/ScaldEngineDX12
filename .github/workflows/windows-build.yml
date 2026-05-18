@@ -32,3 +32,9 @@ jobs:
 
     - name: Archive Artifacts
       run: Compress-Archive -Path build/bin/* -DestinationPath ${{env.TARGET}}--${{env.BUILD_TYPE}}.zip
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{env.TARGET}}--${{env.BUILD_TYPE}}
+        path: ${{env.TARGET}}--${{env.BUILD_TYPE}}.zip
