@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "Scene.h"
-#include "Core/Shapes.h"
+#include "Common/Shapes.h"
 
 Scald::Scene::Scene()
 {
