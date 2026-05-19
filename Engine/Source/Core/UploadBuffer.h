@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common/ScaldUtil.h"
+#include "ScaldUtil.h"
 
 template <typename T>
 class UploadBuffer

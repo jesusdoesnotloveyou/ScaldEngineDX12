@@ -30,7 +30,6 @@ set(CMAKE_CONFIGURATION_TYPES
 set(SOURCES
 	Engine/Source/Common/KeyboardDevice.cpp
 	Engine/Source/Common/MousePad.cpp
-	Engine/Source/Common/ScaldUtil.cpp
 
 	Engine/Source/Core/Camera.cpp
 	Engine/Source/Core/CascadeShadowMap.cpp
@@ -42,6 +41,7 @@ set(SOURCES
 	Engine/Source/Core/GBuffer.cpp
 	Engine/Source/Core/Main.cpp
 	Engine/Source/Core/RootSignature.cpp
+	Engine/Source/Core/ScaldUtil.cpp
 	Engine/Source/Core/ShadowMap.cpp
 	Engine/Source/Core/SSAO.cpp
 	Engine/Source/Core/Win32App.cpp
@@ -50,10 +50,6 @@ set(SOURCES
 set(INCLUDES
 	Engine/Source/Common/KeyboardDevice.h
 	Engine/Source/Common/MousePad.h
-	Engine/Source/Common/ScaldCoreDefines.h
-	Engine/Source/Common/ScaldCoreTypes.h
-	Engine/Source/Common/ScaldUtil.h
-	Engine/Source/Common/VertexTypes.h
 	
 	Engine/Source/Core/Camera.h
 	Engine/Source/Core/CascadeShadowMap.h
@@ -65,42 +61,17 @@ set(INCLUDES
 	Engine/Source/Core/GBuffer.h
 	Engine/Source/Core/Mesh.h
 	Engine/Source/Core/RootSignature.h
+	Engine/Source/Core/ScaldCoreDefines.h
+	Engine/Source/Core/ScaldCoreTypes.h
+	Engine/Source/Core/ScaldUtil.h
 	Engine/Source/Core/ShadowMap.h
 	Engine/Source/Core/SSAO.h
 	Engine/Source/Core/UploadBuffer.h
+	Engine/Source/Core/VertexTypes.h
 	Engine/Source/Core/Win32App.h
 
 	Engine/Source/stdafx.h # optional, just for VS visibility
 )
-
-# sources for libraries (static, dynamic)
-set(SCALD_COMMON_INCLUDES
-	Engine/Source/Common/DXHelper.h
-	Engine/Source/Common/ScaldCommonDefines.h
-	Engine/Source/Common/ScaldTimer.h
-	Engine/Source/Core/Shapes.h
-)
-set(SCALD_COMMON_SOURCES
-	Engine/Source/Common/ScaldTimer.cpp
-	Engine/Source/Core/Shapes.cpp
-)
-
-set(GAME_FRAMEWORK_INCLUDES
-	Engine/Source/GameFramework/components/ComponentManager.h
-	Engine/Source/GameFramework/components/Renderer.h
-	Engine/Source/GameFramework/components/Scene.h
-	Engine/Source/GameFramework/components/SComponent.h
-	Engine/Source/GameFramework/components/Transform.h
-	Engine/Source/GameFramework/objects/SEntity.h)
-set(GAME_FRAMEWORK_SOURCES
-	Engine/Source/GameFramework/components/Renderer.cpp
-	Engine/Source/GameFramework/components/Scene.cpp
-	Engine/Source/GameFramework/components/SComponent.cpp
-	Engine/Source/GameFramework/components/Transform.cpp
-	Engine/Source/GameFramework/objects/SEntity.cpp)
-
-set(MATH_INCLUDES Engine/Source/Common/ScaldMath.h)
-set(MATH_SOURCES Engine/Source/Common/ScaldMath.cpp)
 
 # filters
 #source_group("Source files/<SUBFOLDER_FILTER_NAME>" FILES "Source/<SUBFOLDER_NAME>/FileName.cpp")
@@ -174,12 +145,15 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
 )
 
-add_library(MathLib STATIC ${MATH_INCLUDES} ${MATH_SOURCES})
-add_library(ScaldCommonLib STATIC ${SCALD_COMMON_INCLUDES} ${SCALD_COMMON_SOURCES})
-add_library(GameLib SHARED ${GAME_FRAMEWORK_INCLUDES} ${GAME_FRAMEWORK_SOURCES})
 add_library(imgui STATIC ${IMGUI_SOURCES})
 
-target_compile_definitions(GameLib PRIVATE _EXPORTING) # PRIVATE to prevent _exporing move to target we will link DDSLib to
+# specify nested source directories with CMakeLists files inside
+# and
+# sources for libraries (static, dynamic)
+add_subdirectory(Engine/Source/Common)
+add_subdirectory(Engine/Source/GameFramework)
+
+# import definitions for dll
 target_compile_definitions(${PROJECT_NAME} PUBLIC _IMPORTING)
 
 # options
@@ -188,18 +162,9 @@ if(ENABLE_IMGUI_OPT)
 	target_compile_definitions(${PROJECT_NAME} PUBLIC ENABLE_IMGUI)
 endif()
 
-# pch
-target_precompile_headers(ScaldCommonLib PUBLIC # PUBLIC to expand using of this pch for ALL users of ScaldCommonLib
-	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source/stdafx.h
-)
-
 # includes
 target_include_directories(${PROJECT_NAME} PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Assets/Shaders
-)
-target_include_directories(ScaldCommonLib PUBLIC
-	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source
-	${directxtk_SOURCE_DIR}/Src # for d3dx12.h
 )
 target_include_directories(imgui PUBLIC
     ${imgui_SOURCE_DIR}
@@ -207,11 +172,6 @@ target_include_directories(imgui PUBLIC
 )
 
 # link libraries to different targets
-target_link_libraries(ScaldCommonLib
-	PUBLIC dxgi.lib dxguid.lib d3d12.lib d3dcompiler.lib # PUBLIC for all users of ScaldCommonLib
-	# TODO: I think it's better to separate DirectXTK12 to different library (to avoid linking to GameFramework), but for now it is here
-	PUBLIC DirectXTK12 						  # PUBLIC for all users of ScaldCommonLib 
-)
 target_link_libraries(GameLib
 	PRIVATE ScaldCommonLib
 )

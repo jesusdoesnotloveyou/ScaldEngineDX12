@@ -11,9 +11,9 @@
 #include <DirectXCollision.h>
 
 #include "Common/ScaldMath.h"
-#include "Common/ScaldCoreTypes.h"
-#include "Common/ScaldCoreDefines.h"
 #include "Common/ScaldCommonDefines.h"
+#include "Core/ScaldCoreTypes.h"
+#include "Core/ScaldCoreDefines.h"
 
 #include <unordered_map>
 #include <string>
