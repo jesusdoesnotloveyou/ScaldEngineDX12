@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Engine.h"
+#include "Win32App.h"
 
 INT WindowWidth;
 INT WindowHeight;

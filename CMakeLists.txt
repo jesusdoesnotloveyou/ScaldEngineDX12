@@ -37,13 +37,17 @@ set(SOURCES
 	Engine/Source/Core/D3D12Sample.cpp
 	Engine/Source/Core/Device.cpp
 	Engine/Source/Core/Engine.cpp
+	Engine/Source/Core/FileSystemObject.cpp
 	Engine/Source/Core/FrameResource.cpp
 	Engine/Source/Core/GBuffer.cpp
 	Engine/Source/Core/Main.cpp
+	Engine/Source/Core/Material.cpp
+	Engine/Source/Core/Model.cpp
 	Engine/Source/Core/RootSignature.cpp
 	Engine/Source/Core/ScaldUtil.cpp
 	Engine/Source/Core/ShadowMap.cpp
 	Engine/Source/Core/SSAO.cpp
+	Engine/Source/Core/Texture.cpp
 	Engine/Source/Core/Win32App.cpp
 )
 	
@@ -51,21 +55,26 @@ set(INCLUDES
 	Engine/Source/Common/KeyboardDevice.h
 	Engine/Source/Common/MousePad.h
 	
+	Engine/Source/Core/AssetLoader.h
 	Engine/Source/Core/Camera.h
 	Engine/Source/Core/CascadeShadowMap.h
 	Engine/Source/Core/CommandQueue.h
 	Engine/Source/Core/D3D12Sample.h
 	Engine/Source/Core/Device.h
 	Engine/Source/Core/Engine.h
+	Engine/Source/Core/FileSystemObject.h
 	Engine/Source/Core/FrameResource.h
 	Engine/Source/Core/GBuffer.h
+	Engine/Source/Core/Material.h
 	Engine/Source/Core/Mesh.h
+	Engine/Source/Core/Model.h
 	Engine/Source/Core/RootSignature.h
 	Engine/Source/Core/ScaldCoreDefines.h
 	Engine/Source/Core/ScaldCoreTypes.h
 	Engine/Source/Core/ScaldUtil.h
 	Engine/Source/Core/ShadowMap.h
 	Engine/Source/Core/SSAO.h
+	Engine/Source/Core/Texture.h
 	Engine/Source/Core/UploadBuffer.h
 	Engine/Source/Core/VertexTypes.h
 	Engine/Source/Core/Win32App.h
@@ -153,6 +162,8 @@ add_library(imgui STATIC ${IMGUI_SOURCES})
 add_subdirectory(Engine/Source/Common)
 add_subdirectory(Engine/Source/GameFramework)
 
+include(${CMAKE_SOURCE_DIR}/Automation/CMAKE/CMakeHelpers.cmake)
+
 # import definitions for dll
 target_compile_definitions(${PROJECT_NAME} PUBLIC _IMPORTING)
 
@@ -202,25 +213,5 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 
 # =============================================================
 # debug info
-if(${WIN32})
-	message("Running on Windows")
-elseif(${LINUX})
-	message("Running on Linux")
-endif()
 
-if(${MSVC})
-	message("MSVC version: ${MSVC_VERSION}")
-	message("MSVC toolset version: ${MSVC_TOOLSET_VERSION}")
-endif()
-
-message("Using ${CMAKE_CXX_COMPILER_ID} compiler")
-message("Compiler flags: ${CMAKE_CXX_FLAGS}")
-message("Compiler debug flags: ${CMAKE_CXX_FLAGS_DEBUG}")
-message("Compiler release flags: ${CMAKE_CXX_FLAGS_RELEASE}")
-
-message("CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}")
-message("CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
-message("CMAKE_CURRENT_SOURCE_DIR: ${CMAKE_CURRENT_SOURCE_DIR}")
-message("CMAKE_RUNTIME_OUTPUT_DIRECTORY: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-
-message("Configuration types: ${CMAKE_CONFIGURATION_TYPES}")
+print_system_info()

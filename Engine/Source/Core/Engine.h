@@ -1,19 +1,23 @@
 #pragma once
 
 #include "D3D12Sample.h"
-
-#include "Camera.h"
-#include "FrameResource.h"
-#include "CascadeShadowMap.h"
-#include "GBuffer.h"
-#include "SSAO.h"
-#include "RootSignature.h"
-#include "Mesh.h"
-
 #include "GameFramework/Components/Scene.h"
 #include "GameFramework/Objects/SEntity.h"
 
 const int gNumFrameResources = 3;
+
+class Camera;
+class FrameResource;
+class ShadowMap;
+class GBuffer;
+class SSAO;
+class RootSignature;
+struct Mesh;
+struct MeshGeometry;
+struct Material;
+struct Texture;
+
+class AssetLoader;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
@@ -178,10 +182,6 @@ public:
     VVOID OnUpdate(const ScaldTimer& st) override;
     VVOID OnRender(const ScaldTimer& st) override;
     VVOID OnDestroy() override;
-
-    VVOID OnKeyDown(UINT8 key) override {}
-    VVOID OnKeyUp(UINT8 key) override {}
-
     VVOID OnResize() override;
 
 private:
@@ -198,6 +198,8 @@ private:
     void UpdateSsaoCB(const ScaldTimer& st);
 
     void UpdateShadowPassCB(const ScaldTimer& st);
+
+    void SetupCommonShaderDataForPass(PassConstants* passConstants, float deltaTime);
     void UpdateGeometryPassCB(const ScaldTimer& st);
     void UpdateDeferredPassCB(const ScaldTimer& st);
 
@@ -229,11 +231,11 @@ private:
     void DrawInstancedRenderItem(ID3D12GraphicsCommandList* pCommandList, const std::unique_ptr<RenderItem>& renderItem);
 
 private:
+    std::unique_ptr<AssetLoader> m_assetLoader;
+
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
     FrameResource* m_currFrameResource = nullptr;
     int m_currFrameResourceIndex = 0;
-
-    UINT m_passCbvOffset = 0u;
 
     float m_sunPhi = XM_PI / 3;
     float m_sunTheta = 1.25f * XM_PI;
@@ -249,8 +251,7 @@ private:
 
     ObjectConstants m_perObjectCBData;
     PassConstants m_shadowPassCBData;
-    PassConstants m_geometryPassCBData;
-    PassConstants m_mainPassCBData;  // deferred color(light) pass
+    PassConstants m_deferredPassesCBData; // Used for both geometry and light passes
 
     MaterialData m_perMaterialSBData;
     InstanceData m_perInstanceSBData;
@@ -299,10 +300,10 @@ private:
     bool m_bIsGraphicsFeaturesLoaded = false;
 
 private:
-    VOID LoadPipeline() override;
     VOID LoadGraphicsFeatures();
     VOID LoadCSMResources();
     VOID LoadDeferredRenderingResources();
+    VOID LoadSSAOResources(ID3D12GraphicsCommandList2* commandList);
 
     VVOID CreateRtvAndDsvDescriptorHeaps() override;
 
@@ -342,7 +343,7 @@ private:
 
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
 
-    // TO DO: use static array instead of vector to avoid allocation in heap
+    // TODO: use static array instead of vector to avoid allocation in heap
     void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
     std::vector<XMVECTOR> GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection);
 };
