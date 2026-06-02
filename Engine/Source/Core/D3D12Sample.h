@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common/DXHelper.h"
+#include "DXHelper.h"
 #include "Common/ScaldTimer.h"
 #include "Common/KeyboardDevice.h"
 #include "Common/MousePad.h"

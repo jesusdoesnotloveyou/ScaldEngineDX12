@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "Transform.h"
 
 Scald::Transform::Transform(std::shared_ptr<Scald::SEntity> owner, XMVECTOR pos, XMVECTOR rot, XMVECTOR scale)

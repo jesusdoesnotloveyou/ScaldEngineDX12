@@ -1,7 +1,5 @@
-#include "stdafx.h"
-
 #include "SSAO.h"
-#include "Core/FrameResource.h"
+#include "FrameResource.h"
 #include "Common/ScaldMath.h"
 
 #include <DirectXPackedVector.h>

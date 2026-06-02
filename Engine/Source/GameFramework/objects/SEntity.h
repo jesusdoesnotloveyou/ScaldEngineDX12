@@ -1,6 +1,8 @@
 #pragma once
 
 #include "GameFrameWork/Components/ComponentManager.h"
+#include "Common/ScaldCommonDefines.h"
+#include <memory>
 
 namespace Scald
 {

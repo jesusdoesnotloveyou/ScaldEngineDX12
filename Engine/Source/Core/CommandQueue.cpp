@@ -1,6 +1,5 @@
 #pragma once
 
-#include "stdafx.h"
 #include "ScaldCoreDefines.h"
 #include "CommandQueue.h"
 

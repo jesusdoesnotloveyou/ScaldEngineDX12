@@ -2,6 +2,8 @@
 
 #include "SComponent.h"
 
+using namespace DirectX;
+
 namespace Scald
 {
 class SObject;

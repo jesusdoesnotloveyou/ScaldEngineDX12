@@ -1,5 +1,4 @@
-#include "stdafx.h"
-#include "FileSystem.h"
+#include "FileSystemObject.h"
 
 FileSystemObject::FileSystemObject(const Path& relativePath)
     : m_path(relativePath)

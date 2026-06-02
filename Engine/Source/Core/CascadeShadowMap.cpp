@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "CascadeShadowMap.h"
 
 CascadeShadowMap::CascadeShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount)

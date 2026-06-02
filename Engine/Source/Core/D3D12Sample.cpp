@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "D3D12Sample.h"
 #include "CommandQueue.h"
 

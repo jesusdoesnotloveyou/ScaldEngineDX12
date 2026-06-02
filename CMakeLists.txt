@@ -4,9 +4,9 @@ set(PROJECT_NAME ScaldEngineDX12)
 project(${PROJECT_NAME} VERSION 0.0.1 LANGUAGES CXX C)
 
 # common options
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-# directory for libraries artifacts
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # Output directory for executables (.EXE)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # Output directory for static lib (.LIB)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # Output directory for shared lib (.DLL)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -27,58 +27,8 @@ set(CMAKE_CONFIGURATION_TYPES
 )
 
 # source files
-set(SOURCES
-	Engine/Source/Common/KeyboardDevice.cpp
-	Engine/Source/Common/MousePad.cpp
-
-	Engine/Source/Core/Camera.cpp
-	Engine/Source/Core/CascadeShadowMap.cpp
-	Engine/Source/Core/CommandQueue.cpp
-	Engine/Source/Core/D3D12Sample.cpp
-	Engine/Source/Core/Device.cpp
-	Engine/Source/Core/Engine.cpp
-	Engine/Source/Core/FileSystemObject.cpp
-	Engine/Source/Core/FrameResource.cpp
-	Engine/Source/Core/GBuffer.cpp
-	Engine/Source/Core/Main.cpp
-	Engine/Source/Core/Material.cpp
-	Engine/Source/Core/Model.cpp
-	Engine/Source/Core/RootSignature.cpp
-	Engine/Source/Core/ScaldUtil.cpp
-	Engine/Source/Core/ShadowMap.cpp
-	Engine/Source/Core/SSAO.cpp
-	Engine/Source/Core/Texture.cpp
-	Engine/Source/Core/Win32App.cpp
-)
-	
+set(SOURCES Engine/Source/Core/Main.cpp)
 set(INCLUDES
-	Engine/Source/Common/KeyboardDevice.h
-	Engine/Source/Common/MousePad.h
-	
-	Engine/Source/Core/AssetLoader.h
-	Engine/Source/Core/Camera.h
-	Engine/Source/Core/CascadeShadowMap.h
-	Engine/Source/Core/CommandQueue.h
-	Engine/Source/Core/D3D12Sample.h
-	Engine/Source/Core/Device.h
-	Engine/Source/Core/Engine.h
-	Engine/Source/Core/FileSystemObject.h
-	Engine/Source/Core/FrameResource.h
-	Engine/Source/Core/GBuffer.h
-	Engine/Source/Core/Material.h
-	Engine/Source/Core/Mesh.h
-	Engine/Source/Core/Model.h
-	Engine/Source/Core/RootSignature.h
-	Engine/Source/Core/ScaldCoreDefines.h
-	Engine/Source/Core/ScaldCoreTypes.h
-	Engine/Source/Core/ScaldUtil.h
-	Engine/Source/Core/ShadowMap.h
-	Engine/Source/Core/SSAO.h
-	Engine/Source/Core/Texture.h
-	Engine/Source/Core/UploadBuffer.h
-	Engine/Source/Core/VertexTypes.h
-	Engine/Source/Core/Win32App.h
-
 	Engine/Source/stdafx.h # optional, just for VS visibility
 )
 
@@ -149,23 +99,26 @@ if(${WIN32}) # dx12 + win32
 endif()
 
 # targets
+add_library(imgui STATIC ${IMGUI_SOURCES})
+
 add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${INCLUDES})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
 )
-
-add_library(imgui STATIC ${IMGUI_SOURCES})
+# place current executable in its own folder named after itself
+# set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${PROJECT_NAME})
 
 # specify nested source directories with CMakeLists files inside
 # and
-# sources for libraries (static, dynamic)
-add_subdirectory(Engine/Source/Common)
-add_subdirectory(Engine/Source/GameFramework)
+# sources for libraries
+add_subdirectory(Engine/Source/Common) # static
+add_subdirectory(Engine/Source/Core) # static
+add_subdirectory(Engine/Source/GameFramework) # dynamic
 
 include(${CMAKE_SOURCE_DIR}/Automation/CMAKE/CMakeHelpers.cmake)
 
 # import definitions for dll
-target_compile_definitions(${PROJECT_NAME} PUBLIC _IMPORTING)
+target_compile_definitions(${PROJECT_NAME} PUBLIC _IMPORTING) # current executable takes IMPORTING
 
 # options
 option(ENABLE_IMGUI_OPT "Enable/disable ImGUI" ON)
@@ -174,22 +127,27 @@ if(ENABLE_IMGUI_OPT)
 endif()
 
 # includes
-target_include_directories(${PROJECT_NAME} PUBLIC
-	${CMAKE_CURRENT_SOURCE_DIR}/Engine/Assets/Shaders
+include_directories(
+	${CMAKE_SOURCE_DIR}/Engine/Source # for all subdirectories
 )
+# includes for targets
 target_include_directories(imgui PUBLIC
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
 )
 
-# link libraries to different targets
-target_link_libraries(GameLib
+# link targets to different targets
+target_link_libraries(GameFrameworkLib
 	PRIVATE ScaldCommonLib
 )
+target_link_libraries(ScaldCoreLib
+	PUBLIC ScaldCommonLib # to access from other current project too
+	PRIVATE GameFrameworkLib
+	PRIVATE assimp::assimp imgui
+)
+
 target_link_libraries(${PROJECT_NAME}
-	PRIVATE assimp::assimp DirectXTex imgui
-	PRIVATE ScaldCommonLib GameLib
-	PUBLIC MathLib # TODO: probably should be moved to ScaldCommon
+	PRIVATE ScaldCoreLib
 )
 
 # compile options for target
@@ -213,5 +171,4 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 
 # =============================================================
 # debug info
-
 print_system_info()

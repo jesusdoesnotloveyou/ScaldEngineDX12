@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "Engine.h"
 
 #include "Common/ScaldMath.h"
@@ -13,7 +12,6 @@
 #include "SSAO.h"
 #include "Mesh.h"
 
-#include "GameFramework/Components/Scene.h"
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
 

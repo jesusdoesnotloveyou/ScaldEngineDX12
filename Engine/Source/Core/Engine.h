@@ -1,8 +1,9 @@
 #pragma once
 
 #include "D3D12Sample.h"
-#include "GameFramework/Components/Scene.h"
-#include "GameFramework/Objects/SEntity.h"
+
+#include "Scene.h"
+#include <GameFramework/objects/SEntity.h>
 
 const int gNumFrameResources = 3;
 
