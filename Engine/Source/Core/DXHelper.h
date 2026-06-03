@@ -12,35 +12,17 @@
 
 #include "Common/ScaldMath.h"
 #include "Common/ScaldCommonDefines.h"
-#include "Core/ScaldCoreTypes.h"
-#include "Core/ScaldCoreDefines.h"
+#include "ScaldCoreTypes.h"
+#include "ScaldCoreDefines.h"
 
 #include <unordered_map>
 #include <string>
 #include <cstring>
 #include <vector>
+#include <array>
 #include <memory>
 
 using Microsoft::WRL::ComPtr;
-
-template <typename TVertex = VertexPositionNormalTangentUV, typename TIndex = uint16_t>
-struct MeshData
-{
-    static_assert(std::is_same<TIndex, unsigned>() || std::is_same<TIndex, unsigned short>());  // to make sure that index type either uint16_t or uint32_t
-
-    MeshData(UINT numLODs = 1u)
-        : LODVertices(numLODs),
-          LODIndices(numLODs),
-          LODBounds(numLODs),
-          NumLODs(numLODs)
-    {
-    }
-
-    std::vector<std::vector<TVertex>> LODVertices;
-    std::vector<std::vector<TIndex>> LODIndices;
-    std::vector<BoundingBox> LODBounds;
-    UINT NumLODs;
-};
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account

@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "Shapes.h"
 
 MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateBox(float width, float height, float depth)

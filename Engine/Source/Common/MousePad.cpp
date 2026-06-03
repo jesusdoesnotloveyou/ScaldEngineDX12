@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "MousePad.h"
 
 void MousePad::OnLeftPressed(const int x, const int y) noexcept

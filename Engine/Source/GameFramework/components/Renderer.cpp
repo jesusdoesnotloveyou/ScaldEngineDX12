@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "Renderer.h"
 
 Scald::Renderer::Renderer(std::shared_ptr<SEntity> owner)

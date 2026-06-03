@@ -13,10 +13,10 @@ public:
     virtual ~Renderer() noexcept override;
 
     // For frustum culling
-    BoundingBox Bounds;
+    //BoundingBox Bounds;
 
-    XMMATRIX World = XMMatrixIdentity();
-    // could be used for texture tiling
-    XMMATRIX TexTransform = XMMatrixIdentity();
+    //XMMATRIX World = XMMatrixIdentity();
+    //// could be used for texture tiling
+    //XMMATRIX TexTransform = XMMatrixIdentity();
 };
 }  // namespace Scald

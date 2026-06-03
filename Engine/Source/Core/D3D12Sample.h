@@ -1,8 +1,7 @@
 #pragma once
 
-#include "Common/DXHelper.h"
+#include "DXHelper.h"
 #include "Common/ScaldTimer.h"
-#include "Core/Win32App.h"
 #include "Common/KeyboardDevice.h"
 #include "Common/MousePad.h"
 
@@ -24,7 +23,10 @@ public:
 public:
     int Run();
 
-    VVOID OnInit() = 0;
+    VVOID OnInit() = 0
+    {
+        LoadPipeline();
+    }
     VVOID OnUpdate(const ScaldTimer& st) = 0;
     VVOID OnRender(const ScaldTimer& st) = 0;
     VVOID OnDestroy() = 0;
@@ -32,24 +34,24 @@ public:
     bool Get4xMsaaState() const;
     void Set4xMsaaState(bool value);
 
-    VVOID LoadPipeline();
+    // Load the rendering pipeline dependencies.
+    void LoadPipeline();
 
     // Convenience overrides for handling mouse input.
     MousePad* GetMouse();
     KeyboardDevice* GetKeyboard();
 
     // Samples override the event handlers to handle specific messages.
-    VVOID OnKeyDown(UINT8 /*key*/) {}
-    VVOID OnKeyUp(UINT8 /*key*/) {}
+    VOID OnKeyDown(UINT8 /*key*/) {}
+    VOID OnKeyUp(UINT8 /*key*/) {}
 
-    VVOID Pause();
-    VVOID UnPause();
-    VVOID SetResizing(bool bIsResizing = false);
+    VOID Pause();
+    VOID UnPause();
+    VOID SetResizing(bool bIsResizing = false);
     VVOID OnResize();
-
-    void Minimize();
-    void Maximize();
-    void RestoreSize(bool bIsMinimized);
+    VOID Minimize();
+    VOID Maximize();
+    VOID RestoreSize(bool bIsMinimized);
 
     FORCEINLINE bool IsDeviceValid() const { return m_device != nullptr; }
     FORCEINLINE bool IsResizing() const { return m_resizing; }
@@ -76,7 +78,6 @@ protected:
 
     void CheckFeatureSupport();
     void SetCustomWindowText(LPCWSTR text) const;
-
 
     VOID CreateDebugLayer();
     VOID CreateDevice();

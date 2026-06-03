@@ -1,11 +1,17 @@
-#include "stdafx.h"
 #include "Engine.h"
 
 #include "Common/ScaldMath.h"
 #include "CommandQueue.h"
 #include "RootSignature.h"
 
-#include "GameFramework/Components/Scene.h"
+#include "AssetLoader.h"
+#include "Camera.h"
+#include "FrameResource.h"
+#include "CascadeShadowMap.h"
+#include "GBuffer.h"
+#include "SSAO.h"
+#include "Mesh.h"
+
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
 
@@ -29,17 +35,11 @@ Engine::~Engine()
 
 void Engine::OnInit()
 {
-    LoadPipeline();
+    Super::OnInit();
 
     LoadGraphicsFeatures();
 
     LoadAssets();
-}
-
-// Load the rendering pipeline dependencies.
-VOID Engine::LoadPipeline()
-{
-    Super::LoadPipeline();
 }
 
 VOID Engine::LoadGraphicsFeatures()
@@ -48,11 +48,9 @@ VOID Engine::LoadGraphicsFeatures()
 
     LoadCSMResources();
     LoadDeferredRenderingResources();
-
-    m_SSAO = std::make_unique<SSAO>(m_device.Get(), commandList.Get(), m_width, m_height);
-
+    LoadSSAOResources(commandList.Get());
+    
     m_bIsGraphicsFeaturesLoaded = true;
-
     m_commandQueue->ExecuteCommandList(commandList);
     m_commandQueue->Flush();
 }
@@ -68,17 +66,31 @@ VOID Engine::LoadDeferredRenderingResources()
     m_GBuffer = std::make_unique<GBuffer>(m_device.Get(), m_width, m_height);
 }
 
+VOID Engine::LoadSSAOResources(ID3D12GraphicsCommandList2* commandList)
+{
+    m_SSAO = std::make_unique<SSAO>(m_device.Get(), commandList, m_width, m_height);
+}
+
 // Load the sample assets.
 VOID Engine::LoadAssets()
 {
     auto commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get());
+    
+    m_assetLoader = std::make_unique<AssetLoader>();
+
+    //m_assetLoader->LoadScene();
+
 
     LoadScene();
     LoadTextures(commandList.Get());
+
     CreateSrvAndSamplerDescriptorHeaps();
+    
     CreateGeometry(commandList.Get());
     CreateGeometryMaterials();
+    
     CreateRenderItems();
+
     CreatePointLights(commandList.Get());
     CreateFrameResources();
     CreateRootSignatures();
@@ -980,9 +992,14 @@ VOID Engine::OnResize()
 
     if (!m_bIsGraphicsFeaturesLoaded) return;
 
-    m_GBuffer->OnResize(m_width, m_height);
-    m_cascadeShadowMap->OnResize(2048u, 2048u);
-
+    if (m_GBuffer)
+    {
+        m_GBuffer->OnResize(m_width, m_height);
+    }
+    if (m_cascadeShadowMap)
+    {
+        m_cascadeShadowMap->OnResize(2048u, 2048u);
+    }
     if (m_SSAO)
     {
         m_SSAO->OnResize(m_width, m_height);
@@ -1237,8 +1254,8 @@ void Engine::UpdateShadowTransform(const ScaldTimer& st)
         XMMATRIX shadowTransform = lightSpaceMatrices[i].first * lightSpaceMatrices[i].second;
         m_shadowPassCBData.Cascades.CascadeViewProj[i] = XMMatrixTranspose(shadowTransform);
 
-        m_mainPassCBData.Cascades.CascadeViewProj[i] = XMMatrixTranspose(shadowTransform);
-        m_mainPassCBData.Cascades.Distances[i] = m_cascadeShadowMap->GetCascadeLevel(i);
+        m_deferredPassesCBData.Cascades.CascadeViewProj[i] = XMMatrixTranspose(shadowTransform);
+        m_deferredPassesCBData.Cascades.Distances[i] = m_cascadeShadowMap->GetCascadeLevel(i);
     }
 }
 
@@ -1294,61 +1311,50 @@ void Engine::UpdateShadowPassCB(const ScaldTimer& st)
     currPassCB->CopyData(static_cast<int>(EPassType::DepthShadow), m_shadowPassCBData);
 }
 
-void Engine::UpdateGeometryPassCB(const ScaldTimer& st)
+void Engine::SetupCommonShaderDataForPass(PassConstants* passConstants, float deltaTime)
 {
     XMMATRIX view = m_camera->GetViewMatrix();
     XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
     XMMATRIX viewProj = XMMatrixMultiply(view, proj);
     XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
-    XMStoreFloat4x4(&m_geometryPassCBData.View, XMMatrixTranspose(view));
-    XMStoreFloat4x4(&m_geometryPassCBData.Proj, XMMatrixTranspose(proj));
-    XMStoreFloat4x4(&m_geometryPassCBData.ViewProj, XMMatrixTranspose(viewProj));
-    XMStoreFloat4x4(&m_geometryPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
+    XMStoreFloat4x4(&passConstants->View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&passConstants->Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&passConstants->ViewProj, XMMatrixTranspose(viewProj));
+    XMStoreFloat4x4(&passConstants->InvViewProj, XMMatrixTranspose(invViewProj));
 
-    m_geometryPassCBData.EyePosW = m_camera->GetPosition3f();
-    m_geometryPassCBData.RenderTargetSize = XMFLOAT2((float)m_width, (float)m_height);
-    m_geometryPassCBData.InvRenderTargetSize = XMFLOAT2(1.0f / m_width, 1.0f / m_height);
-    m_geometryPassCBData.NearZ = m_camera->GetNearZ();
-    m_geometryPassCBData.FarZ = m_camera->GetFarZ();
-    m_geometryPassCBData.DeltaTime = st.DeltaTime();
-    m_geometryPassCBData.TotalTime = st.TotalTime();
+    passConstants->EyePosW = m_camera->GetPosition3f();
+    passConstants->RenderTargetSize = XMFLOAT2((float)m_width, (float)m_height);
+    passConstants->InvRenderTargetSize = XMFLOAT2(1.0f / m_width, 1.0f / m_height);
+    passConstants->NearZ = m_camera->GetNearZ();
+    passConstants->FarZ = m_camera->GetFarZ();
+    passConstants->DeltaTime = deltaTime;
+    passConstants->TotalTime = deltaTime;
+}
+
+void Engine::UpdateGeometryPassCB(const ScaldTimer& st)
+{
+    SetupCommonShaderDataForPass(&m_deferredPassesCBData, st.DeltaTime());
 
     auto currPassCB = m_currFrameResource->PassCB.get();
-    currPassCB->CopyData(static_cast<int>(EPassType::DeferredGeometry), m_geometryPassCBData);
+    currPassCB->CopyData(static_cast<int>(EPassType::DeferredGeometry), m_deferredPassesCBData);
 }
 
 void Engine::UpdateDeferredPassCB(const ScaldTimer& st)
 {
-    XMMATRIX view = m_camera->GetViewMatrix();
-    XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
-    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+    SetupCommonShaderDataForPass(&m_deferredPassesCBData, st.DeltaTime());
 
-    XMStoreFloat4x4(&m_mainPassCBData.View, XMMatrixTranspose(view));
-    XMStoreFloat4x4(&m_mainPassCBData.Proj, XMMatrixTranspose(proj));
-    XMStoreFloat4x4(&m_mainPassCBData.ViewProj, XMMatrixTranspose(viewProj));
-    XMStoreFloat4x4(&m_mainPassCBData.InvViewProj, XMMatrixTranspose(invViewProj));
-
-    m_mainPassCBData.EyePosW = m_camera->GetPosition3f();
-    m_mainPassCBData.RenderTargetSize = XMFLOAT2((float)m_width, (float)m_height);
-    m_mainPassCBData.InvRenderTargetSize = XMFLOAT2(1.0f / m_width, 1.0f / m_height);
-    m_mainPassCBData.NearZ = m_camera->GetNearZ();
-    m_mainPassCBData.FarZ = m_camera->GetFarZ();
-    m_mainPassCBData.DeltaTime = st.DeltaTime();
-    m_mainPassCBData.TotalTime = st.TotalTime();
-
-    m_mainPassCBData.Ambient = {0.25f, 0.25f, 0.35f, 1.0f};
+    m_deferredPassesCBData.Ambient = {0.25f, 0.25f, 0.35f, 1.0f};
 
 #pragma region DirLight
     // Invert sign because other way light would be pointing up
     XMVECTOR lightDir = -Scald::SphericalToCarthesian(1.0f, m_sunTheta, m_sunPhi);
-    XMStoreFloat3(&m_mainPassCBData.DirLight.Direction, lightDir);
-    m_mainPassCBData.DirLight.Strength = {1.0f, 1.0f, 0.9f};
+    XMStoreFloat3(&m_deferredPassesCBData.DirLight.Direction, lightDir);
+    m_deferredPassesCBData.DirLight.Strength = {1.0f, 1.0f, 0.9f};
 #pragma endregion DirLight
 
     auto currPassCB = m_currFrameResource->PassCB.get();
-    currPassCB->CopyData(static_cast<int>(EPassType::DeferredLighting), m_mainPassCBData);
+    currPassCB->CopyData(static_cast<int>(EPassType::DeferredLighting), m_deferredPassesCBData);
 }
 
 VOID Engine::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList)
@@ -1481,7 +1487,7 @@ void Engine::DeferredDirectionalLightPass(ID3D12GraphicsCommandList* pCommandLis
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currBackBuffer, m_rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-    const float* clearColor = &m_mainPassCBData.FogColor.x;
+    const float* clearColor = &m_deferredPassesCBData.FogColor.x;
     pCommandList->OMSetRenderTargets(1u, &rtvHandle, TRUE, &dsvHandle);
     pCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
     pCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0u, 0u, nullptr);
@@ -1646,9 +1652,7 @@ void Engine::DrawInstancedRenderItem(ID3D12GraphicsCommandList* pCommandList, co
 
 std::pair<XMMATRIX, XMMATRIX> Engine::GetLightSpaceMatrix(const float nearZ, const float farZ)
 {
-    const auto directionalLight = m_mainPassCBData.DirLight;
-
-    const XMFLOAT3 lightDir = directionalLight.Direction;
+    const XMFLOAT3 lightDir = m_deferredPassesCBData.DirLight.Direction;
 
     const auto cameraProj = XMMatrixPerspectiveFovLH(m_camera->GetFovYRad(), m_aspectRatio, nearZ, farZ);
     const auto frustumCorners = GetFrustumCornersWorldSpace(m_camera->GetViewMatrix(), cameraProj);

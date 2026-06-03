@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common/DXHelper.h"
+#include "DXHelper.h"
 
 class ScaldUtil
 {

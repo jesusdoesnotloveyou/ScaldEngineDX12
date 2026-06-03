@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common/DXHelper.h"
+#include "DXHelper.h"
 #include <cstdint>
 
 enum class QueueType : uint8_t

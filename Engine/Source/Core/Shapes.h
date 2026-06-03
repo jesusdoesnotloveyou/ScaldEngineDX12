@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Common/DXHelper.h"
+#include "DXHelper.h"
+#include "Mesh.h"
 
 class Shapes
 {

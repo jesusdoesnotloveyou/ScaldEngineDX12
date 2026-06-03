@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "GBuffer.h"
 
 GBuffer::GBuffer(ID3D12Device* device, UINT width, UINT height)

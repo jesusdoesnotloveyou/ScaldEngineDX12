@@ -3,6 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# exclude gitmodules for now
+.gitmodules
+[Gg]oogletest/ 
+
 # User-specific files
 *.rsuser
 *.suo

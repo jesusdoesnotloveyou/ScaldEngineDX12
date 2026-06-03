@@ -1,6 +1,25 @@
 #pragma once
 
-#include "Common/DXHelper.h"
+#include "DXHelper.h"
+
+template <typename TVertex = VertexPositionNormalTangentUV, typename TIndex = uint16_t>
+struct MeshData
+{
+    static_assert(std::is_same<TIndex, unsigned>() || std::is_same<TIndex, unsigned short>());  // to make sure that index type either uint16_t or uint32_t
+
+    MeshData(UINT numLODs = 1u)
+        : LODVertices(numLODs),
+          LODIndices(numLODs),
+          LODBounds(numLODs),
+          NumLODs(numLODs)
+    {
+    }
+
+    std::vector<std::vector<TVertex>> LODVertices;
+    std::vector<std::vector<TIndex>> LODIndices;
+    std::vector<BoundingBox> LODBounds;
+    UINT NumLODs;
+};
 
 struct Mesh
 {

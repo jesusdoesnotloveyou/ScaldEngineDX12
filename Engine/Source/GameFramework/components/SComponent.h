@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Common/DXHelper.h"
+#include "Common/ScaldCommonDefines.h"
+#include <memory>
 
 namespace Scald
 {
