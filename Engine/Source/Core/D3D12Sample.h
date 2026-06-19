@@ -27,6 +27,7 @@ public:
     {
         LoadPipeline();
     }
+
     VVOID OnUpdate(const ScaldTimer& st) = 0;
     VVOID OnRender(const ScaldTimer& st) = 0;
     VVOID OnDestroy() = 0;

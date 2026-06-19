@@ -1,5 +1,5 @@
-#include "Engine.h"
-#include "Win32App.h"
+#include "Core/Engine.h"
+#include "Core/Win32App.h"
 
 INT WindowWidth;
 INT WindowHeight;

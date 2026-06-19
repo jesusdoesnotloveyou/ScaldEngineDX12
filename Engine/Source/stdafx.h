@@ -1,3 +1,4 @@
+// this pch is supposed to be for the Engine
 #pragma once
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -29,9 +30,9 @@
 #define HInstance() GetModuleHandle(NULL)
 
 #ifdef max
-#undef max
+    #undef max
 #endif
 
 #ifdef min
-#undef min
+    #undef min
 #endif
