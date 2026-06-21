@@ -1,3 +1,4 @@
+// this pch is supposed to be for the Engine
 #pragma once
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -18,20 +19,22 @@
 #include <unordered_set>
 #include <memory>
 #include <string>
+#include <cstring>
 #include <array>
 #include <vector>
 #include <cassert>
 #include <queue>
 #include <mutex>
 #include <filesystem>
+#include <string_view>
 
 #define MAX_NAME_STRING 256
 #define HInstance() GetModuleHandle(NULL)
 
 #ifdef max
-#undef max
+    #undef max
 #endif
 
 #ifdef min
-#undef min
+    #undef min
 #endif
