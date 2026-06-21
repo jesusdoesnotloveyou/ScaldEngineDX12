@@ -1,0 +1,7 @@
+#pragma once
+
+#define Engine_VESION_MAJOR @ScaldEngine_VERSION_MAJOR@
+#define Engine_VESION_MINOR @ScaldEngine_VERSION_MINOR@
+#define Engine_VESION_PATCH @ScaldEngine_VERSION_PATCH@
+
+#define Engine_VERSION_STRING "@ScaldEngine_VERSION@"

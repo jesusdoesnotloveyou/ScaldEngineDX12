@@ -2,8 +2,13 @@
 
 #include "D3D12Sample.h"
 
+#include "EngineConfig.h"
+
 #include "Scene.h"
-#include <GameFramework/objects/SEntity.h>
+#include "GameFramework/objects/SEntity.h"
+
+#include <unordered_map>
+#include <string_view>
 
 const int gNumFrameResources = 3;
 
@@ -93,7 +98,7 @@ struct RenderItem
     int BaseVertexLocation = 0;
 };
 
-class Engine : public D3D12Sample
+class Engine final : public D3D12Sample
 {
     using Super = D3D12Sample;
 
@@ -178,6 +183,11 @@ public:
 public:
     Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className);
     virtual ~Engine() override;
+
+    static constexpr std::string_view Version()
+    {
+        return Engine_VERSION_STRING;
+    }
 
     VVOID OnInit() override;
     VVOID OnUpdate(const ScaldTimer& st) override;

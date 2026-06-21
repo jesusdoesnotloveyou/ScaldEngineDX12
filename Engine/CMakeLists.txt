@@ -11,6 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # common options
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME}) # set ScaldEngine as startup project
 
+# version
+configure_file(EngineConfig.h.template ${CMAKE_CURRENT_SOURCE_DIR}/Source/EngineConfig.h)
+
 # build options
 set(CMAKE_CONFIGURATION_TYPES
 	${CMAKE_CONFIGURATION_TYPES} # to save its current value
@@ -21,6 +24,7 @@ set(CMAKE_CONFIGURATION_TYPES
 # source files
 set(SOURCES Source/Main.cpp)
 set(INCLUDES
+	Source/EngineConfig.h
 	Source/stdafx.h # optional, just for VS visibility
 )
 

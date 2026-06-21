@@ -15,13 +15,6 @@
 #include "ScaldCoreTypes.h"
 #include "ScaldCoreDefines.h"
 
-#include <unordered_map>
-#include <string>
-#include <cstring>
-#include <vector>
-#include <array>
-#include <memory>
-
 using Microsoft::WRL::ComPtr;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,

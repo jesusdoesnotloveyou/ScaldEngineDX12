@@ -17,11 +17,14 @@
 
 #include <imgui_impl_dx12.h>
 
+#include <iostream>
+
 extern const int gNumFrameResources;
 
 Engine::Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
     : Super(width, height, name, className)
 {
+    std::cout << "Initializing Scald Engine, version: " << Version() << "\n";
     m_camera = std::make_unique<Camera>();
 }
 

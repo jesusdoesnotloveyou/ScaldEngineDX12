@@ -19,12 +19,14 @@
 #include <unordered_set>
 #include <memory>
 #include <string>
+#include <cstring>
 #include <array>
 #include <vector>
 #include <cassert>
 #include <queue>
 #include <mutex>
 #include <filesystem>
+#include <string_view>
 
 #define MAX_NAME_STRING 256
 #define HInstance() GetModuleHandle(NULL)
