@@ -20,36 +20,42 @@ namespace
     };
 }
 
+// pImpl
 struct Log::Impl
 {
     Impl()
     {
         const auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-        m_Logger = std::make_unique<spdlog::logger>("win32", consoleSink);
+        m_logger = std::make_unique<spdlog::logger>("Win32Console", consoleSink);
     }
 
-    std::unique_ptr<spdlog::logger> m_Logger;
+    void LogMsg(LogVerbosity verbosity, const char* message) const
+    {
+        if (verbosity == LogVerbosity::NoLogging) return;
+
+        if (const auto spdLevel = c_verbosityMap.find(verbosity); spdLevel != c_verbosityMap.end())
+        {
+            m_logger->log(spdLevel->second, message);
+        }
+    }
+
+private:
+    std::unique_ptr<spdlog::logger> m_logger;
 };
 
-Log::Log() : m_Impl(std::make_unique<Impl>()) {}
+// Interface 
+Log::Log() : m_pImpl(std::make_unique<Impl>()) {}
 
 // For using unique_ptr for PIMPL 
 Log::~Log() = default;  
 
-void Log::LogMsg(LogVerbosity verbosity, const char* message) const
-{
-    if (verbosity == LogVerbosity::NoLogging) return;
-
-    const auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    const auto consoleLogger = std::make_unique<spdlog::logger>("win32", consoleSink);
-
-    if (const auto spdLevel = c_verbosityMap.find(verbosity); spdLevel != c_verbosityMap.end())
-    {
-        consoleLogger->log(spdLevel->second, message);
-    }
-}
-
+// methods provide a level of indirection
 void Log::LogMsg(LogVerbosity verbosity, const std::string& message) const
 {
-    LogMsg(verbosity, message.c_str());
+    m_pImpl->LogMsg(verbosity, message.c_str());
+}
+
+void Log::LogMsg(LogVerbosity verbosity, const char* message) const
+{
+    m_pImpl->LogMsg(verbosity, message);
 }
