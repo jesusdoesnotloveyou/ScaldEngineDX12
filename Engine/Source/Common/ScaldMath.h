@@ -31,6 +31,12 @@ namespace Scald
         return XMVectorSet(radius * sinf(phi) * cosf(theta), radius * cosf(phi), radius * sinf(phi) * sinf(theta), 1.0f);
     }
 
+    static inline XMMATRIX Inverse4x4(const XMMATRIX& mat)
+    {
+        auto det = XMMatrixDeterminant(mat);
+        return XMMatrixInverse(&det, mat);
+    }
+
     // Returns random float in [0, 1).
     static float RandF()
     {

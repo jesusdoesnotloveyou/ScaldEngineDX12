@@ -20,6 +20,7 @@
 #include <memory>
 #include <string>
 #include <cstring>
+#include <cstdint>
 #include <array>
 #include <vector>
 #include <cassert>
@@ -27,6 +28,7 @@
 #include <mutex>
 #include <filesystem>
 #include <string_view>
+#include <format>
 
 #define MAX_NAME_STRING 256
 #define HInstance() GetModuleHandle(NULL)

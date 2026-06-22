@@ -116,6 +116,7 @@ void GBuffer::CreateResources()
     D3D12_CLEAR_VALUE optClear = {};
     ZeroMemory(&optClear, sizeof(D3D12_CLEAR_VALUE));
 
+    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     // Create resources for GBuffer that aren't depth
     for (UINT i = 0; i < static_cast<UINT>(EGBufferLayer::DEPTH); i++)
     {
@@ -132,7 +133,7 @@ void GBuffer::CreateResources()
             memcpy(optClear.Color, m_defaultOptimizedClearColor, sizeof(optClear.Color));
 
         ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_buffer[i].m_resource)));
+            &heapProps, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_buffer[i].m_resource)));
     }
 
     auto depthIndex = static_cast<UINT>(EGBufferLayer::DEPTH);
@@ -144,8 +145,7 @@ void GBuffer::CreateResources()
     optClear.DepthStencil.Depth = 1.0f;
     optClear.DepthStencil.Stencil = (UINT8)0;
 
-    ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_buffer[depthIndex].m_resource)));
+    ThrowIfFailed(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_buffer[depthIndex].m_resource)));
 
     SCALD_NAME_D3D12_OBJECT(m_buffer[DIFFUSE_ALBEDO].m_resource, L"Diffuse Buffer");
     SCALD_NAME_D3D12_OBJECT(m_buffer[AMBIENT_OCCLUSION].m_resource, L"WorldPos Buffer");  // SSAO will be

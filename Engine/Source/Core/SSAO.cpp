@@ -57,12 +57,11 @@ void SSAO::BuildResources()
     texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
     CD3DX12_CLEAR_VALUE optClear = CD3DX12_CLEAR_VALUE(AmbientMapFormat, ambientClearColor);
+    
+    auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-    ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_ambientMap0)));
-
-    ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_ambientMap1)));
+    ThrowIfFailed(m_device->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_ambientMap0)));
+    ThrowIfFailed(m_device->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_ambientMap1)));
 
     SCALD_NAME_D3D12_OBJECT(m_ambientMap0, L"AmbientMap0");
     SCALD_NAME_D3D12_OBJECT(m_ambientMap1, L"AmbientMap1");
@@ -176,8 +175,9 @@ void SSAO::BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList)
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
+    auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_randomVectorMap)));
+        &defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_randomVectorMap)));
 
     SCALD_NAME_D3D12_OBJECT(m_randomVectorMap, L"RandomVectorMap");
 
@@ -186,7 +186,9 @@ void SSAO::BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList)
     const UINT num2DSubresources = texDesc.DepthOrArraySize * texDesc.MipLevels;
     const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_randomVectorMap.Get(), 0u, num2DSubresources);
 
-    ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+    auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    auto uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
+    ThrowIfFailed(m_device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &uploadBufferDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(m_randomVectorMapUploadBuffer.GetAddressOf())));
 
     XMCOLOR initData[256 * 256];
@@ -209,9 +211,9 @@ void SSAO::BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList)
     // Schedule to copy the data to the default resource, and change states.
     // Note that mCurrSol is put in the GENERIC_READ state so it can be read by a shader.
 
-    pCommandList->ResourceBarrier(1u, &CD3DX12_RESOURCE_BARRIER::Transition(m_randomVectorMap.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST));
+    ScaldUtil::TransitionResource(pCommandList, m_randomVectorMap.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
     UpdateSubresources(pCommandList, m_randomVectorMap.Get(), m_randomVectorMapUploadBuffer.Get(), (UINT64)0u, 0u, num2DSubresources, &subResourceData);
-    pCommandList->ResourceBarrier(1u, &CD3DX12_RESOURCE_BARRIER::Transition(m_randomVectorMap.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
+    ScaldUtil::TransitionResource(pCommandList, m_randomVectorMap.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
 void SSAO::BuildOffsetVectors()
