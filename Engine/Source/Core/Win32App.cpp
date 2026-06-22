@@ -271,8 +271,8 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
             const int y = HIWORD(lParam);
             pSample->GetMouse()->OnMouseMove(x, y);
 #if defined(DEBUG) || defined(_DEBUG)
-            std::wstring rawInputInfoDefug = L"{X,Y}: " + std::to_wstring(x) + L" " + std::to_wstring(y) + L"\n";
-            OutputDebugString(rawInputInfoDefug.c_str());
+           std::wstring rawInputInfoDefug = L"{X,Y}: " + std::to_wstring(x) + L" " + std::to_wstring(y) + L"\n";
+           OutputDebugString(rawInputInfoDefug.c_str());
 #endif
             break;
         }

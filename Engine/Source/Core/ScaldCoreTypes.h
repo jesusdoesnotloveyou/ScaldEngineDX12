@@ -3,6 +3,8 @@
 #include "VertexTypes.h"
 #include <DirectXColors.h>
 
+#include <random>
+
 #ifdef max
 #undef max
 #endif

@@ -2,7 +2,9 @@
 
 #include "GameFrameWork/Components/ComponentManager.h"
 #include "Common/ScaldCommonDefines.h"
+
 #include <memory>
+#include <string>
 
 namespace Scald
 {
@@ -11,7 +13,7 @@ class SComponent;
 class SCALD_API SEntity : public std::enable_shared_from_this<SEntity>
 {
 public:
-    explicit SEntity(std::string& entityName);
+    explicit SEntity(std::string&& entityName);
     virtual /*for polymorphic call when object is destructed*/ ~SEntity() noexcept = default;
 
     virtual void Initialize();

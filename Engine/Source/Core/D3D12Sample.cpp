@@ -1,7 +1,8 @@
 #include "D3D12Sample.h"
-#include "CommandQueue.h"
+#include "Win32App.h"
 
-#include "Core/Win32App.h"
+#include "CommandQueue.h"
+#include "ScaldUtil.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
@@ -289,7 +290,8 @@ void D3D12Sample::OnResize()
         optClear.DepthStencil.Depth = 1.0f;
         optClear.DepthStencil.Stencil = 0u;
 
-        ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed (from CPU) */), D3D12_HEAP_FLAG_NONE,
+        auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed (from CPU) */);
+        ThrowIfFailed(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
             &depthStencilDesc, D3D12_RESOURCE_STATE_COMMON, &optClear, IID_PPV_ARGS(m_depthStencilBuffer.GetAddressOf())));
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -305,7 +307,7 @@ void D3D12Sample::OnResize()
     }
 
     // Transition the resource from its initial state to be used as a depth buffer.
-    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+    ScaldUtil::TransitionResource(commandList.Get(), m_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
     // Execute the resize commands.
     m_commandQueue->ExecuteCommandList(commandList);

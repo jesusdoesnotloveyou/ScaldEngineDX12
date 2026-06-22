@@ -12,19 +12,26 @@
 #include "SSAO.h"
 #include "Mesh.h"
 
+#include "Log/Log.h"
+
 #include "GameFramework/Components/Transform.h"
 #include "GameFramework/Components/Renderer.h"
 
 #include <imgui_impl_dx12.h>
-
-#include <iostream>
 
 extern const int gNumFrameResources;
 
 Engine::Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
     : Super(width, height, name, className)
 {
-    std::cout << "Initializing Scald Engine, version: " << Version() << "\n";
+    // Test log
+    Scald::Log::Get().LogMsg(Scald::LogVerbosity::Display, std::format("Initializing Scald Engine, version: {}", Version()));
+    
+    Scald::Log::Get().LogMsg(Scald::LogVerbosity::Error, "Error log test");
+    Scald::Log::Get().LogMsg(Scald::LogVerbosity::Fatal, "Fatal log test");
+    Scald::Log::Get().LogMsg(Scald::LogVerbosity::Warning, "Warning log test");
+    Scald::Log::Get().LogMsg(Scald::LogVerbosity::NoLogging, "No log test");
+
     m_camera = std::make_unique<Camera>();
 }
 
@@ -47,7 +54,7 @@ void Engine::OnInit()
 
 VOID Engine::LoadGraphicsFeatures()
 {
-    auto& commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get());
+    auto commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get());
 
     LoadCSMResources();
     LoadDeferredRenderingResources();
@@ -1268,8 +1275,8 @@ void Engine::UpdateSsaoCB(const ScaldTimer& st)
 
     XMMATRIX view = m_camera->GetViewMatrix();
     XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
-    XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
-
+    XMMATRIX invProj = Scald::Inverse4x4(proj);
+    
     XMStoreFloat4x4(&ssaoCB.View, XMMatrixTranspose(view));
     XMStoreFloat4x4(&ssaoCB.Proj, XMMatrixTranspose(proj));
     XMStoreFloat4x4(&ssaoCB.InvProj, XMMatrixTranspose(invProj));
@@ -1303,7 +1310,7 @@ void Engine::UpdateShadowPassCB(const ScaldTimer& st)
     XMMATRIX view = XMMatrixIdentity();
     XMMATRIX proj = XMMatrixIdentity();
     XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+    XMMATRIX invViewProj = Scald::Inverse4x4(viewProj);
 
     XMStoreFloat4x4(&m_shadowPassCBData.View, XMMatrixTranspose(view));
     XMStoreFloat4x4(&m_shadowPassCBData.Proj, XMMatrixTranspose(proj));
@@ -1319,7 +1326,7 @@ void Engine::SetupCommonShaderDataForPass(PassConstants* passConstants, float de
     XMMATRIX view = m_camera->GetViewMatrix();
     XMMATRIX proj = m_camera->GetPerspectiveProjectionMatrix();
     XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+    XMMATRIX invViewProj = Scald::Inverse4x4(viewProj);
 
     XMStoreFloat4x4(&passConstants->View, XMMatrixTranspose(view));
     XMStoreFloat4x4(&passConstants->Proj, XMMatrixTranspose(proj));
@@ -1380,8 +1387,11 @@ void Engine::RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList)
 {
     UINT passCBByteSize = ScaldUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
-    pCommandList->RSSetViewports(1u, &m_cascadeShadowMap->GetViewport());
-    pCommandList->RSSetScissorRects(1u, &m_cascadeShadowMap->GetScissorRect());
+    auto viewport = m_cascadeShadowMap->GetViewport();
+    auto rect = m_cascadeShadowMap->GetScissorRect();
+
+    pCommandList->RSSetViewports(1u, &viewport);
+    pCommandList->RSSetScissorRects(1u, &rect);
 
     // change to depth write state
     ScaldUtil::TransitionResource(pCommandList, m_cascadeShadowMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -1612,9 +1622,12 @@ void Engine::DrawRenderItem(ID3D12GraphicsCommandList* pCommandList, std::unique
 
     auto currFrameObjCB = m_currFrameResource->ObjectsCB->Get();
 
+    auto vbv = ri->Geo->VertexBufferView();
+    auto ibv = ri->Geo->IndexBufferView();
+
     pCommandList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
-    pCommandList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
-    pCommandList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+    pCommandList->IASetVertexBuffers(0u, 1u, &vbv);
+    pCommandList->IASetIndexBuffer(&ibv);
 
     D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = ScaldUtil::GetGPUVirtualAddress(currFrameObjCB->GetGPUVirtualAddress(), objCBByteSize, ri->ObjCBIndex);
 
@@ -1631,9 +1644,12 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vecto
 
     for (auto& ri : renderItems)
     {
+        auto vbv = ri->Geo->VertexBufferView();
+        auto ibv = ri->Geo->IndexBufferView();
+
         pCommandList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
-        pCommandList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
-        pCommandList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+        pCommandList->IASetVertexBuffers(0u, 1u, &vbv);
+        pCommandList->IASetIndexBuffer(&ibv);
 
         D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = ScaldUtil::GetGPUVirtualAddress(currFrameObjCB->GetGPUVirtualAddress(), objCBByteSize, ri->ObjCBIndex);
 
@@ -1647,9 +1663,12 @@ void Engine::DrawRenderItems(ID3D12GraphicsCommandList* pCommandList, std::vecto
 
 void Engine::DrawInstancedRenderItem(ID3D12GraphicsCommandList* pCommandList, const std::unique_ptr<RenderItem>& ri)
 {
+    auto vbv = ri->Geo->VertexBufferView();
+    auto ibv = ri->Geo->IndexBufferView();
+
     pCommandList->IASetPrimitiveTopology(ri->PrimitiveTopologyType);
-    pCommandList->IASetVertexBuffers(0u, 1u, &ri->Geo->VertexBufferView());
-    pCommandList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+    pCommandList->IASetVertexBuffers(0u, 1u, &vbv);
+    pCommandList->IASetIndexBuffer(&ibv);
     pCommandList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0u);
 }
 

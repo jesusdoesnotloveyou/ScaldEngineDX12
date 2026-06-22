@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 set(PROJECT_NAME ScaldCommonLib)
 
 # cpp options
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # current targets' sources
@@ -65,6 +65,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC # PUBLIC to expand using of th
 target_precompile_headers(${PROJECT_NAME} PUBLIC # PUBLIC to expand using of this pch for ALL users of ScaldCommonLib
 	${CMAKE_SOURCE_DIR}/Engine/Source/stdafx.h
 )
+
 if (MSVC)
 	target_compile_definitions(${PROJECT_NAME} PUBLIC UNICODE _UNICODE) # CHAR WCHAR windows stuff, UNICODE forces using of wide strings and so on
 endif()

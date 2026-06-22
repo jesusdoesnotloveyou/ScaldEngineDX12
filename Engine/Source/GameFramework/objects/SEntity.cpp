@@ -1,13 +1,14 @@
-#include "stdafx.h"
 #include "SEntity.h"
 #include "GameFramework/components/SComponent.h"
 
-Scald::SEntity::SEntity(std::string& entityName)
-    : m_name(entityName)
+using namespace Scald;
+
+SEntity::SEntity(std::string&& entityName)
+    : m_name(std::move(entityName))
 {
 }
 
-void Scald::SEntity::Initialize()
+void SEntity::Initialize()
 {
     for (auto& comp : m_components)
     {
@@ -15,7 +16,7 @@ void Scald::SEntity::Initialize()
     }
 }
 
-void Scald::SEntity::Update()
+void SEntity::Update()
 {
     if (!mIsActive) return;
 

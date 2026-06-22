@@ -5,7 +5,7 @@ set(PROJECT_NAME ScaldEngine)
 project(${PROJECT_NAME} VERSION 0.0.1)
 
 # cpp options
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # common options
@@ -44,13 +44,14 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 # specify nested source directories (and libraries at the same time) with CMakeLists files inside
 add_subdirectory(Source/Common) # static
 add_subdirectory(Source/Core) # static
-#add_subdirectory(Source/Log) # static
+add_subdirectory(Source/Log) # static
 add_subdirectory(Source/GameFramework) # dynamic
 
 include(${CMAKE_SOURCE_DIR}/Automation/CMAKE/CMakeHelpers.cmake)
 
 # link targets to different targets
 target_link_libraries(${PROJECT_NAME} ScaldCoreLib)
+target_link_libraries(${PROJECT_NAME} ScaldLogLib)
 target_link_libraries(GameFrameworkLib PRIVATE ScaldCommonLib)
 target_link_libraries(ScaldCoreLib
 	PUBLIC ScaldCommonLib # to access from other current project too
@@ -60,6 +61,7 @@ target_link_libraries(ScaldCoreLib
 # target includes
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Source)
 target_include_directories(ScaldCoreLib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+target_include_directories(ScaldLogLib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Source)
 
 # target compile definitions
 if (MSVC)
