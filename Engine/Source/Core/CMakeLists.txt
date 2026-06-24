@@ -24,6 +24,7 @@ set(SCALD_CORE_SOURCES
 	RootSignature.cpp
 	ScaldUtil.cpp
 	Scene.cpp
+	SceneNode.cpp
     ShadowMap.cpp
 	Shapes.cpp
 	SSAO.cpp
@@ -53,6 +54,7 @@ set(SCALD_CORE_INCLUDES
 	ScaldCoreTypes.h
     ScaldUtil.h
 	Scene.h
+	SceneNode.h
 	ShadowMap.h
 	Shapes.h
 	SSAO.h

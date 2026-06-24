@@ -1,5 +1,7 @@
 #include "GBuffer.h"
 
+using namespace Scald;
+
 GBuffer::GBuffer(ID3D12Device* device, UINT width, UINT height)
     : m_device(device),
       m_width(width),

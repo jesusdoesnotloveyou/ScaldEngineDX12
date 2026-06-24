@@ -8,7 +8,7 @@
 #include <d3dx12.h>
 #include <dxgi1_4.h>
 #include <DirectXMath.h>
-#include <DirectXCollision.h>
+#include <DirectXCollision.h> // For DirectX::BoundingBox
 
 #include "Common/ScaldMath.h"
 #include "Common/ScaldCommonDefines.h"

@@ -2,6 +2,8 @@
 
 #include "DXHelper.h"
 
+namespace Scald
+{
 class ScaldUtil
 {
 public:
@@ -27,7 +29,7 @@ struct SubmeshGeometry
     INT BaseVertexLocation = 0;
 
     // Bounding box of the geometry defined by this submesh.
-    BoundingBox Bounds;
+    DirectX::BoundingBox Bounds;
 };
 
 struct MeshGeometry
@@ -146,7 +148,7 @@ struct Texture
           Filename(std::wstring(fileName)),
           Type(type)
     {
-        //ThrowIfFailed(CreateDDSTextureFromFile12(device, cmdList, Filename.c_str(), Resource, UploadHeap));
+        // ThrowIfFailed(CreateDDSTextureFromFile12(device, cmdList, Filename.c_str(), Resource, UploadHeap));
         CreateTexture(fileName, device, cmdList, sRGB);
     }
 
@@ -156,10 +158,12 @@ struct Texture
     std::wstring Filename;
 
     ComPtr<ID3D12Resource> Resource = nullptr;
+
 private:
     // UploadHeap name is from Luna's book. It is an intermediate upload heap used to copy CPU memory data into the default buffer resource on the GPU.
     ComPtr<ID3D12Resource> UploadHeap = nullptr;
-    
+
 private:
     void CreateTexture(const wchar_t* fileName, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, bool sRGB);
 };
+}  // namespace Scald

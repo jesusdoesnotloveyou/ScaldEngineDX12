@@ -2,6 +2,8 @@
 
 #include "DXHelper.h"
 
+namespace Scald
+{
 class RootSignature
 {
 public:
@@ -46,3 +48,4 @@ private:
     CD3DX12_ROOT_SIGNATURE_DESC m_rootSignatureDesc;
     D3D_ROOT_SIGNATURE_VERSION m_rootSignatureVersion;
 };
+}  // namespace Scald

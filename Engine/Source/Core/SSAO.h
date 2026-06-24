@@ -2,6 +2,8 @@
 
 #include "DXHelper.h"
 
+namespace Scald
+{
 struct FrameResource;
 
 class SSAO
@@ -103,3 +105,4 @@ private:
 
     const float ambientClearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 };
+}  // namespace Scald

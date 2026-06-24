@@ -6,6 +6,8 @@
  * Wrapper class for a ID3D12CommandQueue.
  */
 
+namespace Scald
+{
 class CommandQueue
 {
 public:
@@ -41,3 +43,4 @@ private:
     D3D12_COMMAND_LIST_TYPE m_commandListType;
     CommandListQueue m_commandListQueue;
 };
+}  // namespace Scald

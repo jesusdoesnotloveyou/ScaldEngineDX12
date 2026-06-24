@@ -2,6 +2,8 @@
 // For texture loading
 #include <DirectXTex.h>
 
+using namespace Scald;
+
 void ScaldUtil::TransitionResource(ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* pResource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
 {
     auto transition = CD3DX12_RESOURCE_BARRIER::Transition(pResource, stateBefore, stateAfter);

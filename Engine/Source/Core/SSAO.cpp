@@ -4,6 +4,7 @@
 
 #include <DirectXPackedVector.h>
 
+using namespace Scald;
 using namespace DirectX::PackedVector;
 
 SSAO::SSAO(ID3D12Device* device, ID3D12GraphicsCommandList* pCommandList, UINT width, UINT height)

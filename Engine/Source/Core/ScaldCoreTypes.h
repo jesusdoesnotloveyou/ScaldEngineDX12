@@ -1,6 +1,5 @@
 #pragma once
 
-#include "VertexTypes.h"
 #include <DirectXColors.h>
 
 #include <random>
@@ -44,37 +43,37 @@ struct CascadesShadows
     {
         for (int i = 0; i < MaxCascades; ++i)
         {
-            CascadeViewProj[i] = XMMatrixIdentity();
+            CascadeViewProj[i] = DirectX::XMMatrixIdentity();
             Distances[i] = 0.0f;
         }
     }
 
-    XMMATRIX CascadeViewProj[MaxCascades];
+    DirectX::XMMATRIX CascadeViewProj[MaxCascades];
     float Distances[MaxCascades];
 };
 
 struct LightData
 {
-    XMFLOAT3 Strength = {0.5f, 0.5f, 0.5f};
-    float FallOfStart = 1.0f;                  // spot/point
-    XMFLOAT3 Direction = {0.5f, -1.0f, 0.5f};  // spot/dir
-    float FallOfEnd = 10.0f;                   // spot/point
-    XMFLOAT3 Position = {0.0f, 0.0f, 0.0f};    // spot/point
-    float SpotPower = 64.0f;                   // spot only
+    DirectX::XMFLOAT3 Strength = {0.5f, 0.5f, 0.5f};
+    float FallOfStart = 1.0f;                           // spot/point
+    DirectX::XMFLOAT3 Direction = {0.5f, -1.0f, 0.5f};  // spot/dir
+    float FallOfEnd = 10.0f;                            // spot/point
+    DirectX::XMFLOAT3 Position = {0.0f, 0.0f, 0.0f};    // spot/point
+    float SpotPower = 64.0f;                            // spot only
 };
 
 struct LightInstanceData
 {
-    XMFLOAT4X4 World;
+    DirectX::XMFLOAT4X4 World;
     LightData Light;
 };
 
 // Constant buffers
 struct ObjectConstants
 {
-    XMFLOAT4X4 World;
-    XMFLOAT4X4 InvTransposeWorld;
-    XMFLOAT4X4 TexTransform;
+    DirectX::XMFLOAT4X4 World;
+    DirectX::XMFLOAT4X4 InvTransposeWorld;
+    DirectX::XMFLOAT4X4 TexTransform;
     UINT MaterialIndex = 0u;
     UINT objPad0 = 0u;
     UINT objPad1 = 0u;
@@ -83,33 +82,33 @@ struct ObjectConstants
 
 struct InstanceData
 {
-    XMFLOAT4X4 World;
+    DirectX::XMFLOAT4X4 World;
     LightData Light;
 };
 
 struct PassConstants
 {
-    XMFLOAT4X4 View;
-    XMFLOAT4X4 Proj;
-    XMFLOAT4X4 ViewProj;
-    XMFLOAT4X4 InvViewProj;
+    DirectX::XMFLOAT4X4 View;
+    DirectX::XMFLOAT4X4 Proj;
+    DirectX::XMFLOAT4X4 ViewProj;
+    DirectX::XMFLOAT4X4 InvViewProj;
 
     CascadesShadows Cascades;
 
-    XMFLOAT3 EyePosW = {0.0f, 0.0f, 0.0f};
+    DirectX::XMFLOAT3 EyePosW = {0.0f, 0.0f, 0.0f};
     float pad1 = 0.0f;
 
-    XMFLOAT2 RenderTargetSize = {0.0f, 0.0f};
-    XMFLOAT2 InvRenderTargetSize = {0.0f, 0.0f};
+    DirectX::XMFLOAT2 RenderTargetSize = {0.0f, 0.0f};
+    DirectX::XMFLOAT2 InvRenderTargetSize = {0.0f, 0.0f};
 
     float NearZ = 0.0f;
     float FarZ = 0.0f;
     float DeltaTime = 0.0f;
     float TotalTime = 0.0f;
 
-    XMFLOAT4 Ambient = {0.0f, 0.0f, 0.0f, 1.0f};
+    DirectX::XMFLOAT4 Ambient = {0.0f, 0.0f, 0.0f, 1.0f};
 
-    XMFLOAT4 FogColor = {0.7f, 0.7f, 0.7f, 1.0f};
+    DirectX::XMFLOAT4 FogColor = {0.7f, 0.7f, 0.7f, 1.0f};
     float FogStart = 8.0f;
     float FogRange = 18.0f;
 
@@ -121,16 +120,16 @@ struct PassConstants
 
 struct SSAOConstants
 {
-    XMFLOAT4X4 View;
-    XMFLOAT4X4 Proj;
-    XMFLOAT4X4 InvProj;
-    XMFLOAT4X4 ProjTex;
-    XMFLOAT4 OffsetVectors[14];
+    DirectX::XMFLOAT4X4 View;
+    DirectX::XMFLOAT4X4 Proj;
+    DirectX::XMFLOAT4X4 InvProj;
+    DirectX::XMFLOAT4X4 ProjTex;
+    DirectX::XMFLOAT4 OffsetVectors[14];
 
     // For SSAOBlur.hlsl
-    XMFLOAT4 BlurWeights[3];
+    DirectX::XMFLOAT4 BlurWeights[3];
 
-    XMFLOAT2 InvRenderTargetSize = {0.0f, 0.0f};
+    DirectX::XMFLOAT2 InvRenderTargetSize = {0.0f, 0.0f};
 
     // Coordinates given in view space.
     float OcclusionRadius = 0.5f;
@@ -142,10 +141,10 @@ struct SSAOConstants
 // Structured buffers
 struct MaterialData
 {
-    XMFLOAT4 DiffuseAlbedo = {1.0f, 1.0f, 1.0f, 1.0f};
-    XMFLOAT3 FresnelR0 = {0.01f, 0.01f, 0.01f};
+    DirectX::XMFLOAT4 DiffuseAlbedo = {1.0f, 1.0f, 1.0f, 1.0f};
+    DirectX::XMFLOAT3 FresnelR0 = {0.01f, 0.01f, 0.01f};
     float Roughness = 0.25f;
-    XMFLOAT4X4 MatTransform;
+    DirectX::XMFLOAT4X4 MatTransform;
     UINT DiffuseMapIndex = 0u;
     UINT NormalMapIndex = 0u;
     UINT matPad1 = 0u;
@@ -174,12 +173,12 @@ struct MaterialData
 
 struct Particle
 {
-    XMVECTOR pos = XMVectorZero();
-    XMVECTOR prevPos = XMVectorZero();
-    XMVECTOR velocity = XMVectorZero();
-    XMVECTOR acceleration = XMVectorZero();
-    XMVECTOR initialColor = XMVectorZero();
-    XMVECTOR endColor = XMVectorZero();
+    DirectX::XMVECTOR pos           = DirectX::XMVectorZero();
+    DirectX::XMVECTOR prevPos       = DirectX::XMVectorZero();
+    DirectX::XMVECTOR velocity      = DirectX::XMVectorZero();
+    DirectX::XMVECTOR acceleration  = DirectX::XMVectorZero();
+    DirectX::XMVECTOR initialColor  = DirectX::XMVectorZero();
+    DirectX::XMVECTOR endColor      = DirectX::XMVectorZero();
     float maxLifeTime = 1.0f;
     float lifeTime = 0.0f;
     float initialSize = 1.0f;
@@ -195,16 +194,16 @@ struct ParticleConstantBuffer
     UINT maxNumParticles = 0u;
     UINT numEmitInThisFrame = 0u;
     UINT numAliveParticles = 0u;
-    XMVECTOR gEmitPos = XMVectorZero();
-    XMVECTOR gEyePos = XMVectorZero();
+    DirectX::XMVECTOR gEmitPos = DirectX::XMVectorZero();
+    DirectX::XMVECTOR gEyePos = DirectX::XMVectorZero();
 };
 
 struct CameraConstantBuffer
 {
-    XMMATRIX gView = XMMatrixIdentity();
-    XMMATRIX gProjection = XMMatrixIdentity();
-    XMVECTOR gForward = XMVectorZero();
-    XMVECTOR gUp = XMVectorZero();
+    DirectX::XMMATRIX gView = DirectX::XMMatrixIdentity();
+    DirectX::XMMATRIX gProjection = DirectX::XMMatrixIdentity();
+    DirectX::XMVECTOR gForward = DirectX::XMVectorZero();
+    DirectX::XMVECTOR gUp = DirectX::XMVectorZero();
 };
 
 struct SortList

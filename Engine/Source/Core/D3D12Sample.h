@@ -12,6 +12,8 @@
 // #pragma comment(lib, "d3d12.lib")
 // #pragma comment(lib, "dxgi.lib")
 
+namespace Scald
+{
 class CommandQueue;
 
 class D3D12Sample
@@ -23,10 +25,7 @@ public:
 public:
     int Run();
 
-    VVOID OnInit() = 0
-    {
-        LoadPipeline();
-    }
+    VVOID OnInit() = 0 { LoadPipeline(); }
 
     VVOID OnUpdate(const ScaldTimer& st) = 0;
     VVOID OnRender(const ScaldTimer& st) = 0;
@@ -68,6 +67,7 @@ public:
     void SetHeight(WORD newHeigth) { m_height = newHeigth; }
 
     void ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc);
+
 protected:
     std::wstring GetAssetFullPath(LPCWSTR assetName) const;
 
@@ -162,3 +162,4 @@ protected:
 
     D3D12_CPU_DESCRIPTOR_HANDLE GetDSV() { return m_dsvHeap->GetCPUDescriptorHandleForHeapStart(); }
 };
+}  // namespace Scald

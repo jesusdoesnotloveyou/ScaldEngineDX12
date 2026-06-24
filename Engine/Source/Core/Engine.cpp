@@ -21,16 +21,19 @@
 
 extern const int gNumFrameResources;
 
+using namespace Scald;
+using namespace DirectX;
+
 Engine::Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
     : Super(width, height, name, className)
 {
     // Test log
-    Scald::Log::Get().LogMsg(Scald::LogVerbosity::Display, std::format("Initializing Scald Engine, version: {}", Version()));
+    Log::Get().LogMsg(LogVerbosity::Display, std::format("Initializing Scald Engine, version: {}", Version()));
     
-    Scald::Log::Get().LogMsg(Scald::LogVerbosity::Error, "Error log test");
-    Scald::Log::Get().LogMsg(Scald::LogVerbosity::Fatal, "Fatal log test");
-    Scald::Log::Get().LogMsg(Scald::LogVerbosity::Warning, "Warning log test");
-    Scald::Log::Get().LogMsg(Scald::LogVerbosity::NoLogging, "No log test");
+    Log::Get().LogMsg(LogVerbosity::Error, "Error log test");
+    Log::Get().LogMsg(LogVerbosity::Fatal, "Fatal log test");
+    Log::Get().LogMsg(LogVerbosity::Warning, "Warning log test");
+    Log::Get().LogMsg(LogVerbosity::NoLogging, "No log test");
 
     m_camera = std::make_unique<Camera>();
 }

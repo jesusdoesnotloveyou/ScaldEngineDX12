@@ -1,5 +1,7 @@
 #include "CascadeShadowMap.h"
 
+using namespace Scald;
+
 CascadeShadowMap::CascadeShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount)
     : ShadowMap(device, width, height, cascadesCount)
 {

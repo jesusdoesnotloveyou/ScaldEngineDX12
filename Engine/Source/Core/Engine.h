@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <string_view>
 
+namespace Scald
+{
 const int gNumFrameResources = 3;
 
 class Camera;
@@ -184,10 +186,7 @@ public:
     Engine(UINT width, UINT height, const std::wstring& name, const std::wstring& className);
     virtual ~Engine() override;
 
-    static constexpr std::string_view Version()
-    {
-        return Engine_VERSION_STRING;
-    }
+    static constexpr std::string_view Version() { return Engine_VERSION_STRING; }
 
     VVOID OnInit() override;
     VVOID OnUpdate(const ScaldTimer& st) override;
@@ -262,7 +261,7 @@ private:
 
     ObjectConstants m_perObjectCBData;
     PassConstants m_shadowPassCBData;
-    PassConstants m_deferredPassesCBData; // Used for both geometry and light passes
+    PassConstants m_deferredPassesCBData;  // Used for both geometry and light passes
 
     MaterialData m_perMaterialSBData;
     InstanceData m_perInstanceSBData;
@@ -358,3 +357,4 @@ private:
     void GetLightSpaceMatrices(std::vector<std::pair<XMMATRIX, XMMATRIX>>& outMatrices);
     std::vector<XMVECTOR> GetFrustumCornersWorldSpace(const XMMATRIX& view, const XMMATRIX& projection);
 };
+}  // namespace Scald

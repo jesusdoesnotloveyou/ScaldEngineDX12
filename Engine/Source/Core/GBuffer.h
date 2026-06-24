@@ -2,6 +2,8 @@
 
 #include "DXHelper.h"
 
+namespace Scald
+{
 struct FGBufferTexture
 {
     ComPtr<ID3D12Resource> m_resource = nullptr;
@@ -71,3 +73,4 @@ private:
 
     static constexpr FLOAT m_defaultOptimizedClearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 };
+}  // namespace Scald

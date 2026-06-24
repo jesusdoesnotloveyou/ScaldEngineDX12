@@ -1,5 +1,7 @@
 #include "RootSignature.h"
 
+using namespace Scald;
+
 RootSignature::RootSignature(D3D_ROOT_SIGNATURE_VERSION rootSignatureVersion /*=D3D_ROOT_SIGNATURE_VERSION_1*/)
     : m_rootSignatureVersion(rootSignatureVersion)
 {
