@@ -18,3 +18,7 @@ namespace Scald
         NonCopyable& operator=(NonCopyable&& rhs) = delete;
     };
 }
+
+// Platform-specific break macro
+// __nop() is a no-operation intrinsic that can be used to prevent the compiler from optimizing away the debug break instruction.
+#define PLATFORM_BREAK() (__nop(), __debugbreak());
