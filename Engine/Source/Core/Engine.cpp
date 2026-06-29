@@ -36,6 +36,7 @@ Engine::Engine(UINT width, UINT height, const std::wstring& name, const std::wst
     //Log::Get().LogMsg(LogEngineBase, LogVerbosity::Fatal, "Fatal log test");
     Log::Get().LogMsg(LogEngineBase, LogVerbosity::Warning, "Warning log test");
     Log::Get().LogMsg(LogEngineBase, LogVerbosity::NoLogging, "No log test");
+    Log::Get().LogMsg(LogEngineBase, LogVerbosity::Log, "Log test for file");
 
     m_camera = std::make_unique<Camera>();
 }

@@ -15,14 +15,9 @@ enum class LogVerbosity : uint8_t
     Display,
     Warning,
     Error,
+    Log,
     Fatal
 };
-
-#define DEFINE_LOG_CATEGORY_STATIC(logName)  \
-    namespace                                \
-    {                                        \
-        const LogCategory logName(#logName); \
-    }
 
 struct LogCategory
 {
@@ -34,7 +29,7 @@ struct LogCategory
     std::string GetName() const { return Name; }
 
 private:
-    std::string Name;
+    const std::string Name;
 };
 
 class Log final : public NonCopyable
@@ -57,3 +52,9 @@ private:
     std::unique_ptr<Impl> m_pImpl;
 };
 }  // namespace Scald
+
+#define DEFINE_LOG_CATEGORY_STATIC(logName) \
+    namespace                               \
+    {                                       \
+    const LogCategory logName(#logName);    \
+    }

@@ -29,6 +29,7 @@
 #include <filesystem>
 #include <string_view>
 #include <format>
+#include <chrono>
 
 #define MAX_NAME_STRING 256
 #define HInstance() GetModuleHandle(NULL)
