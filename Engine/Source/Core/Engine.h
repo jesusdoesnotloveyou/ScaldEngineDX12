@@ -12,6 +12,8 @@
 
 namespace Scald
 {
+using namespace DirectX;
+
 const int gNumFrameResources = 3;
 
 class Camera;
@@ -60,8 +62,8 @@ struct Material
 
     int NumFramesDirty = gNumFrameResources;
 
-    DirectX::XMFLOAT4 DiffuseAlbedo = {1.0f, 1.0f, 1.0f, 1.0f};
-    DirectX::XMFLOAT3 FresnelR0 = {0.01f, 0.01f, 0.01f};
+    XMFLOAT4 DiffuseAlbedo = {1.0f, 1.0f, 1.0f, 1.0f};
+    XMFLOAT3 FresnelR0 = {0.01f, 0.01f, 0.01f};
     float Roughness = 0.25f;
 
     // could be used for material animation (water for instance)

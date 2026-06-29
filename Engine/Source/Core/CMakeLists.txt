@@ -19,6 +19,7 @@ set(SCALD_CORE_SOURCES
 	FileSystemObject.cpp
 	FrameResource.cpp
 	GBuffer.cpp
+	GraphicsContext.cpp
 	Material.cpp
 	Model.cpp
 	RootSignature.cpp
@@ -46,6 +47,7 @@ set(SCALD_CORE_INCLUDES
 	FileSystemObject.h
 	FrameResource.h
 	GBuffer.h
+	GraphicsContext.h
 	Material.h
 	Mesh.h
 	Model.h

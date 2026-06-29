@@ -195,7 +195,6 @@ void D3D12Sample::LoadPipeline()
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
     CreateDebugLayer();
 #endif
-
     CreateDevice();
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -586,11 +585,9 @@ VOID D3D12Sample::CreateSwapChain()
 
 VOID D3D12Sample::Present()
 {
-    /*UINT syncInterval = m_VSync ? 1 : 0;
-    UINT presentFlags = m_IsTearingSupported && !m_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;*/
     // Present the frame.
+    //m_swapChain->Present();
     ThrowIfFailed(m_swapChain->Present(1u, 0u));
-
     m_currBackBuffer = m_swapChain->GetCurrentBackBufferIndex();
 }
 
