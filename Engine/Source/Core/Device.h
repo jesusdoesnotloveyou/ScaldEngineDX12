@@ -1,7 +1,9 @@
 #pragma once
 
 #include "DXHelper.h"
+
 #include <cstdint>
+#include <memory>
 
 struct ID3D12Device2;
 struct IDXGIFactory4;
@@ -22,95 +24,65 @@ enum class QueueType : uint8_t
     QueueTypes = 3
 };
 
-class SDevice : std::enable_shared_from_this<SDevice>
+class Device final : std::enable_shared_from_this<Device>
 {
-    /* I decided to place them in device class, since they're related to a specific system device (i.e. GPU) */
-
-    ComPtr<IDXGIFactory4> m_factory;
-    ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device> m_device;
-    ComPtr<IDXGIAdapter1> m_hardwareAdapter;
-
-    UINT m_dxgiFactoryFlags = 0u;
-public:
-};
-
-class Device
-{
-    Device() = default;
+    friend class GraphicsContext;
+    Device(bool bUseWarpAdapter);
 
 public:
-    static Device& GetInstance();
-    void Init(bool bUseWarpAdapter = false);
-    void Destroy();
-
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
-    static VOID CreateDebugLayer();
+    void CreateDebugLayer();
+    static std::unique_ptr<Device> Create(bool bUseWarpAdapter = false);
+    std::unique_ptr<SwapChain> CreateSwapChain(HWND hWnd, uint32_t width, uint32_t height, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM);
+    
+    void CreateCommandObjectsAndInternalFences();
 
     ComPtr<ID3D12Device2> GetDevice2() const { return m_device; }
     ComPtr<IDXGIFactory4> GetFactory() const { return m_factory; }
     ComPtr<IDXGIAdapter1> GetDXGIAdapter() const { return m_hardwareAdapter; }
-
-    VOID Flush();
-
     std::shared_ptr<CommandQueue> GetCommandQueue(D3D12_COMMAND_LIST_TYPE commandListType = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
 
-    std::shared_ptr<SwapChain> CreateSwapChain(HWND window, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM);
-    HRESULT CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE commandListType, ComPtr<ID3D12CommandAllocator>& commandAllocator);
-
-    HRESULT CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE, UINT nodeMask = 0u);
-
-private:
-    HRESULT CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
-        D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE, UINT nodeMask = 0u);
-
-public:
-    UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) const;
-
-    HRESULT CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& psoDesc, ComPtr<ID3D12PipelineState>& pipelineState);
-
-    VOID CreateDepthStencilView(ID3D12Resource* pResource, /*probably should pass whole desc*/ const DXGI_FORMAT format, CD3DX12_CPU_DESCRIPTOR_HANDLE destDescriptor);
-    VOID CreateRenderTargetView(ID3D12Resource* pResource, const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE destDescriptor);
-
-    VOID CreateShaderResourceView(ID3D12Resource* pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE destDescriptor);
-
-    HRESULT CreateRootSignature(UINT nodeMask, const void* pBlobRootSignature, SIZE_T blobLengthBytes, ComPtr<ID3D12RootSignature>& rootSignature);
-
-    HRESULT CreateCommittedResource(const D3D12_HEAP_TYPE heapType, D3D12_HEAP_FLAGS heapFlags, const D3D12_RESOURCE_DESC& resourceDesc, D3D12_RESOURCE_STATES initialResourceState,
-        const D3D12_CLEAR_VALUE& optClearValue, ComPtr<ID3D12Resource>& resource);
-
-    VOID CreateCommandQueues();
-    bool IsInitialized() const { return m_isInitialized; }
-
-public:
-    ComPtr<ID3D12DescriptorHeap> GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) const;
+    void Flush();
+    
+    uint32_t GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const;
 
 private:
-    VOID GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = false);
+    void CreateCommandQueues();
+    void CreateCommandAllocators();
+    void CreateCommandLists();
 
 private:
-    static inline UINT m_dxgiFactoryFlags = 0u;
+    void LogAdapters();
+    void LogAdapterOutputs(IDXGIAdapter* adapter);
+    void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format = DXGI_FORMAT_R10G10B10A2_UNORM);
+
+    void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = false);
+    void CheckFeatureSupport();
+
+private:
+    static inline uint32_t m_dxgiFactoryFlags = 0u;
     bool m_useWarpDevice = false;
+    BOOL UMA = FALSE;
 
-    std::shared_ptr<CommandQueue> m_directCommandQueue;
-    std::shared_ptr<CommandQueue> m_copyCommandQueue;
-    std::shared_ptr<CommandQueue> m_computeCommandQueue;
+    std::unique_ptr<CommandQueue> m_directQueue;
+    std::unique_ptr<CommandQueue> m_copyQueue;
+    std::unique_ptr<CommandQueue> m_computeQueue;
 
     // Adapter info.
-    ComPtr<IDXGIAdapter1> m_hardwareAdapter;
-
-    ComPtr<ID3D12Device2> m_device = nullptr;
-    // ComPtr<ID3D12Device4> m_device4 = nullptr;
+    ComPtr<IDXGIAdapter3> m_hardwareAdapter;
+    // DXGI factory.
     ComPtr<IDXGIFactory4> m_factory = nullptr;
+    // D3D12 device itself.
+    ComPtr<ID3D12Device2> m_device = nullptr;
+    // ComPtr<ID3D12Device4> m_device4 = nullptr; // For RT stuff
 
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     ComPtr<ID3D12DescriptorHeap> m_srvHeap;
 
-    UINT m_rtvDescriptorSize;
-    UINT m_dsvDescriptorSize;
-    UINT m_cbvSrvUavDescriptorSize;
-
-    bool m_isInitialized = false;
+    // Could be cached.
+    uint32_t m_rtvDescriptorSize;
+    uint32_t m_dsvDescriptorSize;
+    uint32_t m_cbvSrvUavDescriptorSize;
 };
 }  // namespace Scald
