@@ -1,38 +1,56 @@
 #include "Device.h"
 #include "SwapChain.h"
 #include "CommandQueue.h"
+#include "DescriptorAllocator.h"
+
+#include "GBuffer.h"
+#include "SSAO.h"
 
 using namespace Scald;
+
+namespace
+{
+// Renderer common settings
+constexpr UINT SwapChainFrameCount = 2u;
+constexpr DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+constexpr DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+const uint32_t kDescriptorHeapSizes[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {
+    4096u,                                                                                 // CBVSRVUAV
+    0u,                                                                                    // SAMPLER
+    SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::Max,  // RTV
+    3u,                                                                                    // DSV: 1 dsv + 1 cascade shadow map + 1 gbuffer depth
+
+};
+}  // namespace
 
 Device::Device(bool bUseWarpAdapter)
 {
 #if defined(DEBUG) || defined(_DEBUG)
-    CreateDebugLayer();
+    EnableDebugLayer();
 #endif
 
-    m_useWarpDevice = bUseWarpAdapter;
-
-    ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
+    ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
 
     // use UMA video adapter if there is no dedicated
     [[unlikely]]  // C++20
-    if (m_useWarpDevice)
+    if (bUseWarpAdapter)
     {
         ComPtr<IDXGIAdapter> warpAdapter;
-        ThrowIfFailed(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-        ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
+        ThrowIfFailed(m_dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+        ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_d3d12Device)));
     }
     else
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(m_factory.Get(), &hardwareAdapter);
+        GetHardwareAdapter(m_dxgiFactory.Get(), &hardwareAdapter);
 
-        ThrowIfFailed(hardwareAdapter.As(&m_hardwareAdapter));
+        ThrowIfFailed(hardwareAdapter.As(&m_dxgiAdapter));
 
-        ThrowIfFailed(D3D12CreateDevice(m_hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
+        ThrowIfFailed(D3D12CreateDevice(m_dxgiAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_d3d12Device)));
     }
 
-    SCALD_NAME_D3D12_OBJECT(m_device, L"Graphics Device");
+    SCALD_NAME_D3D12_OBJECT(m_d3d12Device, L"Graphics Device");
 
 #if defined(DEBUG) || defined(_DEBUG)
     CheckFeatureSupport();
@@ -42,7 +60,7 @@ Device::Device(bool bUseWarpAdapter)
 
 // Enable the debug layer (requires the Graphics Tools "optional feature").
 // NOTE: Enabling the debug layer after device creation will invalidate the active device.
-void Device::CreateDebugLayer()
+void Device::EnableDebugLayer()
 {
     ComPtr<ID3D12Debug> debugController;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
@@ -82,14 +100,41 @@ void Device::Flush()
     m_computeQueue->Flush();
 }
 
-uint32_t Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const
+void Device::CreateDescriptorHeaps()
 {
-    return m_device->GetDescriptorHandleIncrementSize(heapType);
+    for (uint32_t i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; i++)
+    {
+        bool bIsShaderVisible = (i == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) ? true : false;
+        m_descriptorAllocators[i] = std::unique_ptr<DescriptorAllocator>(
+            new DescriptorAllocator(this->GetD3D12Device().Get(), static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(i), kDescriptorHeapSizes[i], bIsShaderVisible));
+    }
 }
 
-std::shared_ptr<CommandQueue> Device::GetCommandQueue(D3D12_COMMAND_LIST_TYPE commandListType) const
+ID3D12DescriptorHeap* Device::GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const
 {
-    return std::shared_ptr<CommandQueue>();
+    return m_descriptorAllocators[heapType]->GetHeap();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Device::GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) const
+{
+    return m_descriptorAllocators[heapType]->GetHeapStart();
+}
+
+uint32_t Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const
+{
+    return m_d3d12Device->GetDescriptorHandleIncrementSize(heapType);
+}
+
+CommandQueue* Device::GetCommandQueue(D3D12_COMMAND_LIST_TYPE commandListType) const
+{
+    switch (commandListType)
+    {
+        case D3D12_COMMAND_LIST_TYPE_DIRECT: return m_directQueue.get(); break;
+        case D3D12_COMMAND_LIST_TYPE_COPY: return m_copyQueue.get(); break;
+        case D3D12_COMMAND_LIST_TYPE_COMPUTE: return m_computeQueue.get(); break;
+        default: assert(false && "Invalid command queue type");
+    }
+    return nullptr;  //?
 }
 
 void Device::CreateCommandQueues()
@@ -108,7 +153,7 @@ void Device::LogAdapters()
     UINT i = 0;
     IDXGIAdapter* adapter = nullptr;
     std::vector<IDXGIAdapter*> adapterList;
-    while (m_factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND)
+    while (m_dxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND)
     {
         DXGI_ADAPTER_DESC desc;
         adapter->GetDesc(&desc);
@@ -120,7 +165,6 @@ void Device::LogAdapters()
         OutputDebugString(text.c_str());
 
         adapterList.push_back(adapter);
-
         ++i;
     }
 
@@ -146,10 +190,9 @@ void Device::LogAdapterOutputs(IDXGIAdapter* adapter)
         OutputDebugString(text.c_str());
 
         // TODO : remove hardcode
-        LogOutputDisplayModes(output/*, BackBufferFormat*/);
+        LogOutputDisplayModes(output /*, BackBufferFormat*/);
 
         SAFE_RELEASE(output);
-
         ++i;
     }
 }
@@ -178,8 +221,7 @@ void Device::LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format)
 
 // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
 // If no such adapter can be found, *ppAdapter will be set to nullptr.
-_Use_decl_annotations_
-void Device::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter)
+_Use_decl_annotations_ void Device::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter)
 {
     *ppAdapter = nullptr;
 
@@ -240,7 +282,7 @@ void Device::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapt
 void Device::CheckFeatureSupport()
 {
     D3D12_FEATURE_DATA_ARCHITECTURE architectureInfo = {};
-    if (SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &architectureInfo, sizeof(architectureInfo))))
+    if (SUCCEEDED(m_d3d12Device->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &architectureInfo, sizeof(architectureInfo))))
     {
         UMA = architectureInfo.UMA;
 

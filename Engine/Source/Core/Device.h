@@ -15,6 +15,7 @@ using namespace Microsoft::WRL;
 
 class SwapChain;
 class CommandQueue;
+class DescriptorAllocator;
 
 enum class QueueType : uint8_t
 {
@@ -26,32 +27,71 @@ enum class QueueType : uint8_t
 
 class Device final : std::enable_shared_from_this<Device>
 {
-    friend class GraphicsContext;
+private:
+    friend class D3D12Sample;
+
+private:
     Device(bool bUseWarpAdapter);
 
-public:
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
-    void CreateDebugLayer();
+    static void EnableDebugLayer();
+    
+public:
     static std::unique_ptr<Device> Create(bool bUseWarpAdapter = false);
     std::unique_ptr<SwapChain> CreateSwapChain(HWND hWnd, uint32_t width, uint32_t height, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM);
-    
     void CreateCommandObjectsAndInternalFences();
 
-    ComPtr<ID3D12Device2> GetDevice2() const { return m_device; }
-    ComPtr<IDXGIFactory4> GetFactory() const { return m_factory; }
-    ComPtr<IDXGIAdapter1> GetDXGIAdapter() const { return m_hardwareAdapter; }
-    std::shared_ptr<CommandQueue> GetCommandQueue(D3D12_COMMAND_LIST_TYPE commandListType = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
+    ID3D12Device2* Get() const
+    {
+        return m_d3d12Device.Get();
+    }
+
+    ComPtr<ID3D12Device2> GetD3D12Device() const
+    {
+        return m_d3d12Device;
+    }
+
+    ComPtr<IDXGIFactory4> GetDXGIFactory() const
+    {
+        return m_dxgiFactory;
+    }
+
+    ComPtr<IDXGIAdapter3> GetDXGIAdapter() const
+    {
+        return m_dxgiAdapter;
+    }
+    
+    CommandQueue* GetCommandQueue(D3D12_COMMAND_LIST_TYPE commandListType = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
 
     void Flush();
+
+#pragma endregion DescriptorHeaps
+    // Create RTV, DSV and SRV descriptor heaps.
+    // Descriptor has to be created for every GPU resource.
+    void CreateDescriptorHeaps();
+
+    D3D12_CPU_DESCRIPTOR_HANDLE AllocateRTV(uint32_t* slot = nullptr);
+    D3D12_CPU_DESCRIPTOR_HANDLE AllocateDSV(uint32_t* slot = nullptr);
+    D3D12_CPU_DESCRIPTOR_HANDLE AllocateSRV(uint32_t* slot = nullptr);
+
+    void FreeRTV(uint32_t slot);
+    void FreeDSV(uint32_t slot);
+    void FreeSRV(uint32_t slot);
+
+    ID3D12DescriptorHeap* GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) const;
+    D3D12_CPU_DESCRIPTOR_HANDLE GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) const;
     
     uint32_t GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const;
+
+#pragma region PSO
+    HRESULT CreateGraphicsPipelineState();
+#pragma endregion PSO
 
 private:
     void CreateCommandQueues();
     void CreateCommandAllocators();
     void CreateCommandLists();
 
-private:
     void LogAdapters();
     void LogAdapterOutputs(IDXGIAdapter* adapter);
     void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format = DXGI_FORMAT_R10G10B10A2_UNORM);
@@ -61,28 +101,27 @@ private:
 
 private:
     static inline uint32_t m_dxgiFactoryFlags = 0u;
-    bool m_useWarpDevice = false;
-    BOOL UMA = FALSE;
-
+    
     std::unique_ptr<CommandQueue> m_directQueue;
     std::unique_ptr<CommandQueue> m_copyQueue;
     std::unique_ptr<CommandQueue> m_computeQueue;
 
     // Adapter info.
-    ComPtr<IDXGIAdapter3> m_hardwareAdapter;
+    ComPtr<IDXGIAdapter3> m_dxgiAdapter;
     // DXGI factory.
-    ComPtr<IDXGIFactory4> m_factory = nullptr;
+    ComPtr<IDXGIFactory4> m_dxgiFactory = nullptr;
     // D3D12 device itself.
-    ComPtr<ID3D12Device2> m_device = nullptr;
+    ComPtr<ID3D12Device2> m_d3d12Device = nullptr;
     // ComPtr<ID3D12Device4> m_device4 = nullptr; // For RT stuff
 
-    ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_srvHeap;
+    // DescriptorHeaps inside.
+    std::unique_ptr<DescriptorAllocator> m_descriptorAllocators[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
     // Could be cached.
     uint32_t m_rtvDescriptorSize;
     uint32_t m_dsvDescriptorSize;
     uint32_t m_cbvSrvUavDescriptorSize;
+
+    BOOL UMA = FALSE;
 };
 }  // namespace Scald
