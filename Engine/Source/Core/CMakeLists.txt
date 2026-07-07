@@ -14,12 +14,12 @@ set(SCALD_CORE_SOURCES
 	CommandList.cpp
 	CommandQueue.cpp
 	D3D12Sample.cpp
+	DescriptorAllocator.cpp
 	Device.cpp
 	Engine.cpp
 	FileSystemObject.cpp
 	FrameResource.cpp
 	GBuffer.cpp
-	GraphicsContext.cpp
 	Material.cpp
 	Model.cpp
 	RootSignature.cpp
@@ -41,13 +41,13 @@ set(SCALD_CORE_INCLUDES
 	CommandList.h
 	CommandQueue.h
 	D3D12Sample.h
+	DescriptorAllocator.h
 	Device.h
 	DXHelper.h
 	Engine.h
 	FileSystemObject.h
 	FrameResource.h
 	GBuffer.h
-	GraphicsContext.h
 	Material.h
 	Mesh.h
 	Model.h
