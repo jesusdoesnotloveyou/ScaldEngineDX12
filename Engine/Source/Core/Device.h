@@ -25,18 +25,15 @@ enum class QueueType : uint8_t
     QueueTypes = 3
 };
 
-class Device final : std::enable_shared_from_this<Device>
+class Device final /*: std::enable_shared_from_this<Device>*/
 {
 private:
-    friend class D3D12Sample;
-
-private:
     Device(bool bUseWarpAdapter);
-
+public:
+    ~Device() noexcept;
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
     static void EnableDebugLayer();
     
-public:
     static std::unique_ptr<Device> Create(bool bUseWarpAdapter = false);
     std::unique_ptr<SwapChain> CreateSwapChain(HWND hWnd, uint32_t width, uint32_t height, DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM);
     void CreateCommandObjectsAndInternalFences();
@@ -65,6 +62,8 @@ public:
 
     void Flush();
 
+    uint64_t GetCurrentFrame() const;
+
 #pragma endregion DescriptorHeaps
     // Create RTV, DSV and SRV descriptor heaps.
     // Descriptor has to be created for every GPU resource.
@@ -81,16 +80,25 @@ public:
     ID3D12DescriptorHeap* GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) const;
     
-    uint32_t GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const;
+    uint32_t GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) const;
+
+#pragma region DescriptorHandles
+    void CreateShaderResourceView(ID3D12Resource* pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE destDescriptor);
+#pragma endregion DescriptorHandles
 
 #pragma region PSO
-    HRESULT CreateGraphicsPipelineState();
+    void CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc, ID3D12PipelineState** ppPipelineState);
 #pragma endregion PSO
 
 private:
+#pragma region CommandObjects
     void CreateCommandQueues();
     void CreateCommandAllocators();
     void CreateCommandLists();
+
+    // TODO: have to call GPUDescriptorHeaps::ReleaseStaleAllocations()
+    void CloseAndExecuteCommandContext();
+#pragma endregion CommandObjects
 
     void LogAdapters();
     void LogAdapterOutputs(IDXGIAdapter* adapter);

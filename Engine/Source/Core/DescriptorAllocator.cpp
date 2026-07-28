@@ -17,14 +17,20 @@ DescriptorAllocator::DescriptorAllocator(ID3D12Device* device, D3D12_DESCRIPTOR_
     heapDesc.NodeMask = 0u; // multi adapter stuff
 
     m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_heap));
-    m_heapStart = m_heap->GetCPUDescriptorHandleForHeapStart();
     m_descriptorSize = m_device->GetDescriptorHandleIncrementSize(heapType);
-    m_heapStartGpu = m_heap->GetGPUDescriptorHandleForHeapStart();
+    
+    m_heapStart = m_heap->GetCPUDescriptorHandleForHeapStart();
+    if (bIsShaderVisible) 
+        m_heapStartGpu = m_heap->GetGPUDescriptorHandleForHeapStart();
+    
     m_freeSlots.resize(numDescriptors);
     std::iota(m_freeSlots.begin(), m_freeSlots.end(), 0u);
 }
 
-DescriptorAllocator::~DescriptorAllocator() noexcept = default;
+DescriptorAllocator::~DescriptorAllocator() noexcept
+{
+
+}
 
 ID3D12DescriptorHeap* DescriptorAllocator::GetHeap() const
 {

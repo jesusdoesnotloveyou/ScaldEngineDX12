@@ -1,10 +1,8 @@
 #pragma once
 
 #include "D3D12Sample.h"
-
 #include "EngineConfig.h"
 
-#include "Scene.h"
 #include "GameFramework/objects/SEntity.h"
 
 #include <unordered_map>
@@ -28,6 +26,7 @@ struct Material;
 struct Texture;
 
 class AssetLoader;
+class Scene;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
@@ -216,6 +215,8 @@ private:
     void UpdateDeferredPassCB(const ScaldTimer& st);
 
 private:
+    // Main render function that populates command list with all the rendering passes
+    VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
 #pragma region Shadows
     void RenderDepthOnlyPass(ID3D12GraphicsCommandList* pCommandList);
 #pragma endregion Shadows
@@ -228,11 +229,13 @@ private:
     void DeferredSpotLightPass(ID3D12GraphicsCommandList* pCommandList);
 #pragma endregion DeferredShading
 
+#pragma region ForwardShading
     void RenderForwardPasses(ID3D12GraphicsCommandList* pCommandList);
     void RenderTransparencyPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderSkyBoxPass(ID3D12GraphicsCommandList* pCommandList);
     void RenderParticles(ID3D12GraphicsCommandList* pCommandList);
     void RenderUI(ID3D12GraphicsCommandList* pCommandList);
+#pragma endregion ForwardShading
 
     void DrawMesh(ID3D12GraphicsCommandList* pCommandList, const Mesh& mesh);
     void DrawMeshes(ID3D12GraphicsCommandList* pCommandList);
@@ -278,13 +281,13 @@ private:
     std::vector<std::unique_ptr<RenderItem>> m_renderItems;
     std::unique_ptr<RenderItem> m_skyRenderItem;
 
-    std::vector<Scald::SEntity> m_sceneObjects;
+    std::vector<SEntity> m_sceneObjects;
     std::unique_ptr<RenderItem> m_pointLightItem;
     std::unique_ptr<RenderItem> m_spotLightItem;
     std::vector<RenderItem*> m_opaqueItems;
 
     std::unique_ptr<Camera> m_camera;
-    std::shared_ptr<Scald::Scene> m_scene;
+    std::shared_ptr<Scene> m_scene;
 
     std::unique_ptr<SSAO> m_SSAO;
     UINT m_SSAOTexturesSrvHeapStartIndex = 0u;
@@ -317,8 +320,6 @@ private:
     VOID LoadDeferredRenderingResources();
     VOID LoadSSAOResources(ID3D12GraphicsCommandList2* commandList);
 
-    VVOID CreateRtvAndDsvDescriptorHeaps() override;
-
     VOID LoadAssets();
 
     VOID CreateRootSignatures();
@@ -341,17 +342,7 @@ private:
     VOID CreatePointLights(ID3D12GraphicsCommandList* pCommandList);
     VOID CreateFrameResources();
     // Heaps are created if there are root descriptor tables in root signature
-    VOID CreateSrvAndSamplerDescriptorHeaps();
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index) const { return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize); }
-
-    CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index) const { return CD3DX12_GPU_DESCRIPTOR_HANDLE(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), index, m_cbvSrvUavDescriptorSize); }
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index) const { return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_dsvDescriptorSize); }
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index) const { return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), index, m_rtvDescriptorSize); }
-
-    VOID PopulateCommandList(ID3D12GraphicsCommandList* pCommandList);
+    VOID CreateSrvs();
 
     std::pair<XMMATRIX, XMMATRIX> GetLightSpaceMatrix(const float nearPlane, const float farPlane);
 

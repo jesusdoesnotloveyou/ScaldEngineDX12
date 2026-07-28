@@ -5,16 +5,13 @@
 #include "Common/KeyboardDevice.h"
 #include "Common/MousePad.h"
 
-// #include "DescriptorHeaps.h"
-
-// target_link_libraries(${PROJECT_NAME} PRIVATE DirectXTK d3dcompiler dxguid dxgi d3d11 assimp)
-// #pragma comment(lib, "d3dcompiler.lib")
-// #pragma comment(lib, "d3d12.lib")
-// #pragma comment(lib, "dxgi.lib")
+#include <memory>
 
 namespace Scald
 {
 class CommandQueue;
+class SwapChain;
+class Device;
 
 class D3D12Sample
 {
@@ -36,6 +33,7 @@ public:
 
     // Load the rendering pipeline dependencies.
     void LoadPipeline();
+    void CreateGraphicsContext();
 
     // Convenience overrides for handling mouse input.
     MousePad* GetMouse();
@@ -53,7 +51,7 @@ public:
     VOID Maximize();
     VOID RestoreSize(bool bIsMinimized);
 
-    FORCEINLINE bool IsDeviceValid() const { return m_device != nullptr; }
+    bool IsDeviceValid() const;
     FORCEINLINE bool IsResizing() const { return m_resizing; }
     // Timer stuff
     VOID CalculateFrameStats();
@@ -71,20 +69,9 @@ public:
 protected:
     std::wstring GetAssetFullPath(LPCWSTR assetName) const;
 
-    void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = true);
-
-    void LogAdapters();
-    void LogAdapterOutputs(IDXGIAdapter* adapter);
-    void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
-
-    void CheckFeatureSupport();
     void SetCustomWindowText(LPCWSTR text) const;
 
-    VOID CreateDebugLayer();
-    VOID CreateDevice();
     VOID CreateCommandObjectsAndInternalFence();
-    VOID CreateSwapChain();
-    VVOID CreateRtvAndDsvDescriptorHeaps();
 
     VOID Present();
 
@@ -100,7 +87,7 @@ protected:
     float m_aspectRatio;
 
     // Adapter info.
-    bool m_useWarpDevice;
+    bool m_useWarpDevice = false;
 
     bool m_appPaused = false;        // is the application paused ?
     bool m_minimized = false;        // is the application minimized ?
@@ -111,32 +98,9 @@ protected:
     bool m_is4xMsaaState = false;
     UINT m_4xMsaaQuality = 0u;
 
-    UINT m_rtvDescriptorSize;        // see m_rtvHeap
-    UINT m_dsvDescriptorSize;        // see m_dsvHeap
-    UINT m_cbvSrvUavDescriptorSize;  // see m_cbvHeap
-
-    static const UINT SwapChainFrameCount = 2u;
-    static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    static const DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-    // Pipeline objects.
-    ComPtr<IDXGIFactory4> m_factory;
-    ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device2> m_device;
-
-    ComPtr<IDXGIAdapter3> m_hardwareAdapter;
-
-    // DescriptorHeaps
-    ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_srvHeap;  // Heap for shader resources
-
     std::shared_ptr<CommandQueue> m_commandQueue = nullptr;
     // Temporary allocator that is needed only for initialization stage (but could be used for smth else)
     ComPtr<ID3D12CommandAllocator> m_commandAllocator = nullptr;
-
-    ComPtr<ID3D12Resource> m_renderTargets[SwapChainFrameCount];
-    ComPtr<ID3D12Resource> m_depthStencilBuffer;
 
     // Synchronization objects.
     UINT m_currBackBuffer = 0u;
@@ -144,9 +108,11 @@ protected:
     D3D12_VIEWPORT m_viewport;
     D3D12_RECT m_scissorRect;
 
-private:
-    BOOL UMA = FALSE;
+    // Pipeline objects inside.
+    std::unique_ptr<Device> m_device;
+    std::unique_ptr<SwapChain> m_swapChain;
 
+private:
     // Root assets path.
     std::wstring m_assetsPath;
 
@@ -158,8 +124,10 @@ private:
     ScaldTimer m_timer;
 
 protected:
-    D3D12_CPU_DESCRIPTOR_HANDLE GetRTV() { return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currBackBuffer, m_rtvDescriptorSize); }
-
-    D3D12_CPU_DESCRIPTOR_HANDLE GetDSV() { return m_dsvHeap->GetCPUDescriptorHandleForHeapStart(); }
+    // Get rest of them from heaps
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index) const;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index) const;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index) const;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index) const;
 };
 }  // namespace Scald

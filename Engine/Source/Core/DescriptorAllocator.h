@@ -3,6 +3,15 @@
 
 namespace Scald
 {
+    enum class DescriptorHeapType : uint8_t
+    {
+        CBV_UAV_SRV = 0,
+        SAMPLER,
+        RTV,
+        DSV,
+        COUNT = 4u
+    };
+
     class DescriptorAllocator final
     {
     public:

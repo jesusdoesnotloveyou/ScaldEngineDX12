@@ -10,19 +10,13 @@ using namespace Scald;
 
 namespace
 {
-// Renderer common settings
-constexpr UINT SwapChainFrameCount = 2u;
-constexpr DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-constexpr DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-const uint32_t kDescriptorHeapSizes[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {
-    4096u,                                                                                 // CBVSRVUAV
-    0u,                                                                                    // SAMPLER
-    SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::Max,  // RTV
-    3u,                                                                                    // DSV: 1 dsv + 1 cascade shadow map + 1 gbuffer depth
-
-};
-}  // namespace
+    const uint32_t kDescriptorHeapSizes[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {
+        4096u,                                                                                              // CBVSRVUAV
+        0u,                                                                                                 // SAMPLER
+        RenderCommon::SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::Max, // RTV
+        3u                                                                                                  // DSV: 1 dsv + 1 csm + 1 gbuffer depth
+    };
+}   // namespace
 
 Device::Device(bool bUseWarpAdapter)
 {
@@ -58,6 +52,8 @@ Device::Device(bool bUseWarpAdapter)
 #endif
 }
 
+Device::~Device() noexcept = default;
+
 // Enable the debug layer (requires the Graphics Tools "optional feature").
 // NOTE: Enabling the debug layer after device creation will invalidate the active device.
 void Device::EnableDebugLayer()
@@ -83,7 +79,7 @@ std::unique_ptr<Device> Device::Create(bool bUseWarpAdapter)
 
 std::unique_ptr<SwapChain> Device::CreateSwapChain(HWND hWnd, uint32_t width, uint32_t height, DXGI_FORMAT backBufferFormat)
 {
-    return std::unique_ptr<SwapChain>(new SwapChain(this, hWnd, width, height, backBufferFormat));
+    return std::unique_ptr<SwapChain>(new SwapChain(this, hWnd, width, height, false/*, backBufferFormat*/));
 }
 
 void Device::CreateCommandObjectsAndInternalFences()
@@ -104,10 +100,40 @@ void Device::CreateDescriptorHeaps()
 {
     for (uint32_t i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; i++)
     {
-        bool bIsShaderVisible = (i == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) ? true : false;
+        bool bIsShaderVisible = (i == static_cast <uint32_t>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)) ? true : false;
         m_descriptorAllocators[i] = std::unique_ptr<DescriptorAllocator>(
             new DescriptorAllocator(this->GetD3D12Device().Get(), static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(i), kDescriptorHeapSizes[i], bIsShaderVisible));
     }
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Device::AllocateRTV(uint32_t* slot)
+{
+    return m_descriptorAllocators[D3D12_DESCRIPTOR_HEAP_TYPE_RTV]->Allocate(slot);
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Device::AllocateDSV(uint32_t* slot)
+{
+    return m_descriptorAllocators[D3D12_DESCRIPTOR_HEAP_TYPE_DSV]->Allocate(slot);
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Device::AllocateSRV(uint32_t* slot)
+{
+    return m_descriptorAllocators[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->Allocate(slot);
+}
+
+void Device::FreeRTV(uint32_t slot)
+{
+
+}
+
+void Device::FreeDSV(uint32_t slot)
+{
+
+}
+
+void Device::FreeSRV(uint32_t slot)
+{
+
 }
 
 ID3D12DescriptorHeap* Device::GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const
@@ -115,7 +141,7 @@ ID3D12DescriptorHeap* Device::GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapT
     return m_descriptorAllocators[heapType]->GetHeap();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Device::GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) const
+D3D12_CPU_DESCRIPTOR_HANDLE Device::GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const
 {
     return m_descriptorAllocators[heapType]->GetHeapStart();
 }
@@ -123,6 +149,16 @@ D3D12_CPU_DESCRIPTOR_HANDLE Device::GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE heap
 uint32_t Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const
 {
     return m_d3d12Device->GetDescriptorHandleIncrementSize(heapType);
+}
+
+void Device::CreateShaderResourceView(ID3D12Resource* pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE destDescriptor)
+{
+    m_d3d12Device->CreateShaderResourceView(pResource, pDesc, destDescriptor);
+}
+
+void Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc, ID3D12PipelineState** ppPipelineState) 
+{
+    ThrowIfFailed(m_d3d12Device->CreateGraphicsPipelineState(pDesc, IID_PPV_ARGS(ppPipelineState)));
 }
 
 CommandQueue* Device::GetCommandQueue(D3D12_COMMAND_LIST_TYPE commandListType) const
@@ -139,9 +175,9 @@ CommandQueue* Device::GetCommandQueue(D3D12_COMMAND_LIST_TYPE commandListType) c
 
 void Device::CreateCommandQueues()
 {
-    m_directQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this));
-    m_copyQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this, D3D12_COMMAND_LIST_TYPE_COPY));
-    m_computeQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this, D3D12_COMMAND_LIST_TYPE_COMPUTE));
+    m_directQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this->Get()));
+    m_copyQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this->Get(), D3D12_COMMAND_LIST_TYPE_COPY));
+    m_computeQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this->Get(), D3D12_COMMAND_LIST_TYPE_COMPUTE));
 }
 
 void Device::CreateCommandAllocators() {}
