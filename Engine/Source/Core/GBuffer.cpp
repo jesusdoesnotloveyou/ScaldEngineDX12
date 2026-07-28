@@ -48,13 +48,13 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetSrv(unsigned layer) const
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetRtv(unsigned layer) const
 {
-    assert(layer != EGBufferLayer::DEPTH);
+    assert(layer != EGBufferLayer::DEPTH && "You're trying to get a RTV for the depth layer, use GetDsv(layer) instead");
     return m_buffer[layer].m_hCpuRtvDsv;
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetDsv(unsigned layer) const
 {
-    assert(layer == EGBufferLayer::DEPTH);
+    assert(layer == EGBufferLayer::DEPTH && "Passed index in not a dsv");
     return m_buffer[layer].m_hCpuRtvDsv;
 }
 

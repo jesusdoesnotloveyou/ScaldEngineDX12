@@ -272,10 +272,10 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
             const int x = LOWORD(lParam);
             const int y = HIWORD(lParam);
             pSample->GetMouse()->OnMouseMove(x, y);
-#if defined(DEBUG) || defined(_DEBUG)
-           std::wstring rawInputInfoDefug = L"{X,Y}: " + std::to_wstring(x) + L" " + std::to_wstring(y) + L"\n";
-           OutputDebugString(rawInputInfoDefug.c_str());
-#endif
+//#if defined(DEBUG) || defined(_DEBUG)
+//           std::wstring rawInputInfoDefug = L"{X,Y}: " + std::to_wstring(x) + L" " + std::to_wstring(y) + L"\n";
+//           OutputDebugString(rawInputInfoDefug.c_str());
+//#endif
             break;
         }
 
@@ -304,10 +304,10 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
                     if (ri->header.dwType == RIM_TYPEMOUSE)
                     {
                         pSample->GetMouse()->OnMouseMoveRaw(ri->data.mouse.lLastX, ri->data.mouse.lLastY);
-#if defined(DEBUG) || defined(_DEBUG)
-                        std::wstring rawInputInfoDefug = L"Delta {X,Y}: " + std::to_wstring(ri->data.mouse.lLastX) + L" " + std::to_wstring(ri->data.mouse.lLastY) + L"\n";
-                        OutputDebugString(rawInputInfoDefug.c_str());
-#endif
+//#if defined(DEBUG) || defined(_DEBUG)
+//                        std::wstring rawInputInfoDefug = L"Delta {X,Y}: " + std::to_wstring(ri->data.mouse.lLastX) + L" " + std::to_wstring(ri->data.mouse.lLastY) + L"\n";
+//                        OutputDebugString(rawInputInfoDefug.c_str());
+//#endif
                     }
                 }
             }

@@ -8,7 +8,6 @@
 
 namespace Scald
 {
-
 enum class LogVerbosity : uint8_t
 {
     NoLogging,

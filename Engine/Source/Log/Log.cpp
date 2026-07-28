@@ -33,7 +33,7 @@ namespace
     constexpr const char* kLogFilePrefix = "Scald";
     constexpr const char* kLogFileExtension = "txt";
     constexpr const char* kTimestampFormat = "{:%Y.%m.%d-%H.%M.%S}";
-    }
+}
 
 // pImpl
 struct Log::Impl

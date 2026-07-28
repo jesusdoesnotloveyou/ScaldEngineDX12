@@ -7,6 +7,7 @@
 // Probably the better way to use it is from the DirectX-Headers https://github.com/microsoft/DirectX-Headers.git
 #include <d3dx12.h>
 #include <dxgi1_4.h>
+#include <dxgi1_6.h>
 #include <DirectXMath.h>
 #include <DirectXCollision.h> // For DirectX::BoundingBox
 
