@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DXHelper.h"
+#include <queue>
 
 /**
  * Wrapper class for a ID3D12CommandQueue.
@@ -8,11 +9,11 @@
 
 namespace Scald
 {
-class CommandQueue
+class CommandQueue final
 {
 public:
-    CommandQueue(const ComPtr<ID3D12Device2>& device, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
-    /*virtual */ ~CommandQueue();  // gfx, compute, copy
+    CommandQueue(ID3D12Device2* device, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
+    ~CommandQueue();  // gfx, compute, copy
 
     // Get an available command list from the command queue.
     ComPtr<ID3D12GraphicsCommandList2> GetCommandList(ID3D12CommandAllocator* pCommandList);
@@ -34,7 +35,7 @@ protected:
 private:
     using CommandListQueue = std::queue<ComPtr<ID3D12GraphicsCommandList2>>;
 
-    ComPtr<ID3D12Device2> m_device;
+    ID3D12Device2* m_device;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12Fence> m_fence;
     HANDLE m_fenceEvent;

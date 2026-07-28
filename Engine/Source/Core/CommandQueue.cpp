@@ -5,7 +5,7 @@
 
 using namespace Scald;
 
-CommandQueue::CommandQueue(const ComPtr<ID3D12Device2>& device, D3D12_COMMAND_LIST_TYPE type)
+CommandQueue::CommandQueue(ID3D12Device2* device, D3D12_COMMAND_LIST_TYPE type)
     : m_device(device),
       m_fenceValue((UINT64)0u),
       m_commandListType(type)
