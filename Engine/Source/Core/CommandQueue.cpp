@@ -24,9 +24,9 @@ CommandQueue::CommandQueue(ID3D12Device2* device, D3D12_COMMAND_LIST_TYPE type)
         D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
     SCALD_NAME_D3D12_OBJECT(m_fence, L"Fence");
 
-    m_fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-    // assert(m_fenceEvent && "Failed to create fence event handle.");
-    if (m_fenceEvent == nullptr)
+    m_fenceEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
+    // assert(m_fenceEventHandle && "Failed to create fence event handle.");
+    if (m_fenceEventHandle == nullptr)
     {
         ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
     }
@@ -34,7 +34,7 @@ CommandQueue::CommandQueue(ID3D12Device2* device, D3D12_COMMAND_LIST_TYPE type)
 
 CommandQueue::~CommandQueue()
 {
-    CloseHandle(m_fenceEvent);
+    CloseHandle(m_fenceEventHandle);
 }
 
 UINT64 CommandQueue::Signal()
@@ -61,8 +61,8 @@ void CommandQueue::WaitForFenceValue(UINT64 fenceValue)
          * SetEventOnCompletion(fenceValue, fenceEvent)
          * Specifies an event that's raised when the fence reaches a certain value.
          */
-        m_fence->SetEventOnCompletion(fenceValue, m_fenceEvent);
-        WaitForSingleObject(m_fenceEvent, INFINITE);  // WaitForSingleObjecEx(m_fenceEvent, INFINITE, FALSE)
+        m_fence->SetEventOnCompletion(fenceValue, m_fenceEventHandle);
+        WaitForSingleObject(m_fenceEventHandle, INFINITE);  // WaitForSingleObjecEx(m_fenceEventHandle, INFINITE, FALSE)
     }
 }
 
@@ -119,7 +119,7 @@ void CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> command
     m_commandListQueue.push(commandList);
 }
 
-ComPtr<ID3D12CommandQueue> CommandQueue::GetCommandQueue() const
+ID3D12CommandQueue* CommandQueue::Get() const
 {
-    return m_commandQueue;
+    return m_commandQueue.Get();
 }

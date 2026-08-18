@@ -15,9 +15,9 @@ public:
     CommandQueue(ID3D12Device2* device, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
     ~CommandQueue();  // gfx, compute, copy
 
+    ID3D12CommandQueue* Get() const;
     // Get an available command list from the command queue.
     ComPtr<ID3D12GraphicsCommandList2> GetCommandList(ID3D12CommandAllocator* pCommandList);
-
     // Execute a command list.
     void ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> cmdList);
 
@@ -26,7 +26,7 @@ public:
     void WaitForFenceValue(UINT64 fenceValue);
     void Flush();
 
-    ComPtr<ID3D12CommandQueue> GetCommandQueue() const;
+    UINT64 GetFenceValue() const { return m_fenceValue; }
 
 protected:
     ComPtr<ID3D12CommandAllocator> CreateCommandAllocator();
@@ -34,12 +34,13 @@ protected:
 
 private:
     using CommandListQueue = std::queue<ComPtr<ID3D12GraphicsCommandList2>>;
-
     ID3D12Device2* m_device;
+
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12Fence> m_fence;
-    HANDLE m_fenceEvent;
+    HANDLE m_fenceEventHandle;
     UINT64 m_fenceValue;
+    UINT64 m_LastSignaledFenceValue;
 
     D3D12_COMMAND_LIST_TYPE m_commandListType;
     CommandListQueue m_commandListQueue;

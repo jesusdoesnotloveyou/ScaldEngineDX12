@@ -111,48 +111,47 @@ LRESULT CALLBACK Win32App::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LP
         {
             pSample->SetWidth(LOWORD(lParam));
             pSample->SetHeight(HIWORD(lParam));
-
-            if (pSample->IsDeviceValid())
+         
+            if (!pSample->IsDeviceValid()) return 0;
+            
+            if (wParam == SIZE_MINIMIZED)
             {
-                if (wParam == SIZE_MINIMIZED)
+                pSample->Minimize();
+            }
+            else if (wParam == SIZE_MAXIMIZED)
+            {
+                pSample->Maximize();
+                pSample->OnResize();
+            }
+            else if (wParam == SIZE_RESTORED)
+            {
+                // Restoring from minimized state?
+                if (IsMinimized(hWnd))
                 {
-                    pSample->Minimize();
-                }
-                else if (wParam == SIZE_MAXIMIZED)
-                {
-                    pSample->Maximize();
+                    pSample->RestoreSize(true);
                     pSample->OnResize();
                 }
-                else if (wParam == SIZE_RESTORED)
-                {
-                    // Restoring from minimized state?
-                    if (IsMinimized(hWnd))
-                    {
-                        pSample->RestoreSize(true);
-                        pSample->OnResize();
-                    }
 
-                    // Restoring from maximized state?
-                    else if (IsMaximized(hWnd))
-                    {
-                        pSample->RestoreSize(false);
-                        pSample->OnResize();
-                    }
-                    else if (pSample->IsResizing())
-                    {
-                        // If user is dragging the resize bars, we do not resize
-                        // the buffers here because as the user continuously
-                        // drags the resize bars, a stream of WM_SIZE messages are
-                        // sent to the window, and it would be pointless (and slow)
-                        // to resize for each WM_SIZE message received from dragging
-                        // the resize bars.  So instead, we reset after the user is
-                        // done resizing the window and releases the resize bars, which
-                        // sends a WM_EXITSIZEMOVE message.
-                    }
-                    else  // API call such as SetWindowPos or mSwapChain->SetFullscreenState.
-                    {
-                        pSample->OnResize();
-                    }
+                // Restoring from maximized state?
+                else if (IsMaximized(hWnd))
+                {
+                    pSample->RestoreSize(false);
+                    pSample->OnResize();
+                }
+                else if (pSample->IsResizing())
+                {
+                    // If user is dragging the resize bars, we do not resize
+                    // the buffers here because as the user continuously
+                    // drags the resize bars, a stream of WM_SIZE messages are
+                    // sent to the window, and it would be pointless (and slow)
+                    // to resize for each WM_SIZE message received from dragging
+                    // the resize bars.  So instead, we reset after the user is
+                    // done resizing the window and releases the resize bars, which
+                    // sends a WM_EXITSIZEMOVE message.
+                }
+                else  // API call such as SetWindowPos or mSwapChain->SetFullscreenState.
+                {
+                    pSample->OnResize();
                 }
             }
             return 0;
