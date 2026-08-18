@@ -1,12 +1,30 @@
+#pragma once
+
 namespace Scald
 {
     class IMemoryAllocator
     {
     public:
+        IMemoryAllocator() = default;
+        virtual ~IMemoryAllocator() = default;
+
         // Allocates block of memory.
         virtual void* Allocate(size_t Size, const char* dbgDescription, const char* dbgFileName, const int dbgLineNumber) = 0;
         // Releases memory.
         virtual void Free(void* Ptr) = 0; 
+    };
+
+    class DefaultRawMemoryAllocator final : public IMemoryAllocator
+    {
+    public:
+        static DefaultRawMemoryAllocator& GetAllocator()
+        {
+            static DefaultRawMemoryAllocator instance;
+            return instance;
+        }
+
+        virtual void* Allocate(size_t Size, const char* dbgDescription, const char* dbgFileName, const int dbgLineNumber) override;
+        virtual void Free(void* Ptr) override;
     };
 
     class FixedBlockMemoryAllocator final : public IMemoryAllocator
