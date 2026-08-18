@@ -7,6 +7,73 @@ using namespace DirectX;
 /* 
  * DescriptorHeapAllocationManager
  */
+DescriptorHeapAllocationManager::DescriptorHeapAllocationManager(
+    //IMemoryAllocator &Allocator, 
+    Device* pDeviceD3D12Impl,
+    IDescriptorAllocator *pParentAllocator,
+    size_t ThisManagerId,
+    const D3D12_DESCRIPTOR_HEAP_DESC &HeapDesc)
+    : m_FreeBlockManager(HeapDesc.NumDescriptors/*, Allocator*/)
+    , m_HeapDesc(HeapDesc)
+    , m_NumDescriptorsInAllocation(HeapDesc.NumDescriptors)
+    , m_pDeviceD3D12Impl(pDeviceD3D12Impl)
+    , m_pParentAllocator(pParentAllocator)
+    , m_ThisManagerId(ThisManagerId)
+{
+    assert((m_pDeviceD3D12Impl != nullptr, "Invalid device pointer"));
+    assert((m_pParentAllocator != nullptr, "Invalid parent allocator pointer"));
+    
+    auto pDevice = m_pDeviceD3D12Impl->GetD3D12Device();
+
+    m_FirstCPUHandle.ptr = 0u;
+    m_FirstGPUHandle.ptr = 0u;
+    m_DescriptorSize = pDevice->GetDescriptorHandleIncrementSize(m_HeapDesc.Type);
+
+    pDevice->CreateDescriptorHeap(&m_HeapDesc, IID_PPV_ARGS(&m_pd3d12DescriptorHeap));
+    m_FirstCPUHandle = m_pd3d12DescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+    if(m_HeapDesc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)
+        m_FirstGPUHandle = m_pd3d12DescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+}
+
+// Uses subrange of descriptors in the existing D3D12 descriptor heap
+// that starts at offset FirstDescriptor and uses NumDescriptors descriptors
+DescriptorHeapAllocationManager::DescriptorHeapAllocationManager(
+    //IMemoryAllocator& Allocator,
+    Device* pDeviceD3D12Impl,
+    IDescriptorAllocator* pParentAllocator,
+    size_t ThisManagerId,
+    ID3D12DescriptorHeap* pd3d12DescriptorHeap,
+    uint32_t FirstDescriptor,
+    uint32_t NumDescriptors)
+    : m_FreeBlockManager(NumDescriptors/*, Allocator*/)
+    , m_pd3d12DescriptorHeap(pd3d12DescriptorHeap)
+    , m_NumDescriptorsInAllocation(NumDescriptors)
+    , m_pDeviceD3D12Impl(pDeviceD3D12Impl)
+    , m_pParentAllocator(pParentAllocator)
+    , m_ThisManagerId(ThisManagerId)
+{
+    assert((m_pDeviceD3D12Impl != nullptr, "Invalid device pointer"));
+    assert((m_pParentAllocator != nullptr, "Invalid parent allocator pointer"));
+
+    m_HeapDesc = m_pd3d12DescriptorHeap->GetDesc();
+    m_DescriptorSize = pDeviceD3D12Impl->GetD3D12Device()->GetDescriptorHandleIncrementSize(m_HeapDesc.Type);
+
+    m_FirstCPUHandle = pd3d12DescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    m_FirstCPUHandle.ptr += m_DescriptorSize * FirstDescriptor;
+
+    if (m_HeapDesc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)
+    {
+        m_FirstGPUHandle = pd3d12DescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+        m_FirstGPUHandle.ptr += m_DescriptorSize * FirstDescriptor;
+    }
+}
+
+DescriptorHeapAllocationManager::~DescriptorHeapAllocationManager()
+{
+    assert((m_FreeBlockManager.GetFreeSize() == m_NumDescriptorsInAllocation, "Not all descriptors were released"));
+}
+
 DescriptorHeapAllocation DescriptorHeapAllocationManager::Allocate(uint32_t Count)
 {
     std::lock_guard<std::mutex> LockGuard(m_AllocationMutex);
@@ -53,6 +120,37 @@ void DescriptorHeapAllocationManager::ReleaseStaleAllocations(uint64_t NumComple
 /* 
  * CPUDescriptorHeap
  */
+
+CPUDescriptorHeap::CPUDescriptorHeap(//IMemoryAllocator& Allocator, 
+              Device* pDeviceD3D12Impl, 
+              uint32_t NumDescriptorsInHeap, 
+              D3D12_DESCRIPTOR_HEAP_TYPE Type, 
+              D3D12_DESCRIPTOR_HEAP_FLAGS Flags)
+    : m_pDeviceD3D12Impl(pDeviceD3D12Impl)
+    //, m_MemAllocator(Allocator)
+    , m_HeapPool()
+{
+    m_HeapDesc.Type = Type;
+    m_HeapDesc.NumDescriptors = NumDescriptorsInHeap;
+    m_HeapDesc.Flags = Flags;
+    m_HeapDesc.NodeMask = 1u;
+
+    m_DescriptorSize = m_pDeviceD3D12Impl->GetD3D12Device()->GetDescriptorHandleIncrementSize(Type);
+}
+
+CPUDescriptorHeap::~CPUDescriptorHeap()
+{
+    assert((m_CurrentSize == 0u, "Not all allocations released"));
+
+    assert((m_AvailableHeaps.size() == m_HeapPool.size(), "Not all descriptor heap pools are released"));
+    for (auto HeapPoolIt = m_HeapPool.begin(); HeapPoolIt != m_HeapPool.end(); ++HeapPoolIt)
+    {
+        assert((HeapPoolIt->GetNumAvailableDescriptors() == m_HeapDesc.NumDescriptors, "Not all descriptors in the descriptor pool are released"));
+    }
+
+    //LOG_INFO_MESSAGE("Max ", GetD3D12DescriptorHeapTypeLiteralName(m_HeapDesc.Type), " CPU heap size: ", m_MaxHeapSize);
+}
+
 DescriptorHeapAllocation CPUDescriptorHeap::Allocate(uint32_t Count)
 {
     std::lock_guard<std::mutex> LockGuard(m_AllocationMutex);
@@ -81,7 +179,7 @@ DescriptorHeapAllocation CPUDescriptorHeap::Allocate(uint32_t Count)
         m_HeapDesc.NumDescriptors = std::max(m_HeapDesc.NumDescriptors, static_cast<uint32_t>(Count));
         // Create a new descriptor heap manager. Note that this constructor creates a new D3D12 descriptor
         // heap and references the entire heap. Pool index is used as manager ID
-        m_HeapPool.emplace_back(m_MemAllocator, m_pDeviceD3D12Impl, this, m_HeapPool.size(), m_HeapDesc);
+        m_HeapPool.emplace_back(/*m_MemAllocator, */m_pDeviceD3D12Impl, this, m_HeapPool.size(), m_HeapDesc);
         auto NewHeapIt = m_AvailableHeaps.insert(m_HeapPool.size()-1);
 
         // Use the new manager to allocate descriptor handles
@@ -117,6 +215,39 @@ void CPUDescriptorHeap::ReleaseStaleAllocations(uint64_t NumCompletedFrames)
 /* 
  * GPUDescriptorHeap
  */
+
+GPUDescriptorHeap::GPUDescriptorHeap(//IMemoryAllocator &Allocator, 
+               Device* pDevice, 
+               uint32_t NumDescriptorsInHeap, 
+               uint32_t NumDynamicDescriptors,
+               D3D12_DESCRIPTOR_HEAP_TYPE Type, 
+               D3D12_DESCRIPTOR_HEAP_FLAGS Flags)
+    : m_HeapDesc
+    {
+        Type,
+        NumDescriptorsInHeap + NumDynamicDescriptors,
+        Flags,
+        1u // UINT NodeMask
+    }
+    , m_pd3d12DescriptorHeap([&]
+        {
+            ComPtr<ID3D12DescriptorHeap> pHeap;
+            pDevice->GetD3D12Device()->CreateDescriptorHeap(&m_HeapDesc, IID_PPV_ARGS(pHeap.GetAddressOf()));
+            return pHeap;
+        }()
+    )
+    , m_DescriptorSize(pDevice->GetD3D12Device()->GetDescriptorHandleIncrementSize(Type))
+    , m_HeapAllocationManager { pDevice, this, 0u, m_pd3d12DescriptorHeap.Get(), 0u, NumDescriptorsInHeap }
+    , m_DynamicAllocationsManager { pDevice, this, 0u, m_pd3d12DescriptorHeap.Get(), 0u, NumDynamicDescriptors}
+    , m_pDeviceD3D12Impl(pDevice)
+{
+}
+
+GPUDescriptorHeap::~GPUDescriptorHeap()
+{
+
+}
+
 DescriptorHeapAllocation GPUDescriptorHeap::Allocate(uint32_t Count)
 {
     std::lock_guard<std::mutex> LockGuard(m_AllocMutex);
@@ -151,6 +282,17 @@ void GPUDescriptorHeap::Free(DescriptorHeapAllocation&& Allocation)
 /*
  * DynamicSuballocationsManager
  */
+
+DynamicSuballocationsManager::DynamicSuballocationsManager(/*IMemoryAllocator& Allocator,*/ GPUDescriptorHeap& ParentGPUHeap, uint32_t DynamicChunkSize)
+    : m_ParentGPUHeap(ParentGPUHeap)
+    , m_DynamicChunkSize(DynamicChunkSize)
+{
+}
+
+DynamicSuballocationsManager::~DynamicSuballocationsManager()
+{
+}
+
 DescriptorHeapAllocation DynamicSuballocationsManager::Allocate(uint32_t Count)
 {
     // Check if there are no chunks or the last chunk does not have enough space
@@ -181,5 +323,6 @@ void DynamicSuballocationsManager::Free(DescriptorHeapAllocation&& Allocation)
 // Instead, all allocations are discarded when command list from this context is recorded and executed by the render device.
 void DynamicSuballocationsManager::DiscardAllocations(uint64_t FrameNumber)
 {
+    // Clear the list and dispose all allocated chunks of GPU descriptor heap.
     m_Suballocations.clear();
 }

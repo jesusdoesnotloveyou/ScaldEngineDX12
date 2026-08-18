@@ -1,3 +1,5 @@
+#pragma once
+
 #include "DXHelper.h"
 #include "VariableSizeAllocationsManager.h"
 
@@ -165,7 +167,7 @@ namespace Scald
     {
     public:
         // Creates a new D3D12 descriptor heap
-        DescriptorHeapAllocationManager(IMemoryAllocator &Allocator, 
+        DescriptorHeapAllocationManager(/*IMemoryAllocator &Allocator, */
                                         Device* pDeviceD3D12Impl,
                                         IDescriptorAllocator *pParentAllocator,
                                         size_t ThisManagerId,
@@ -173,7 +175,7 @@ namespace Scald
     
         // Uses subrange of descriptors in the existing D3D12 descriptor heap
         // that starts at offset FirstDescriptor and uses NumDescriptors descriptors
-        DescriptorHeapAllocationManager(IMemoryAllocator &Allocator, 
+        DescriptorHeapAllocationManager(/*IMemoryAllocator &Allocator, */
                                         Device *pDeviceD3D12Impl,
                                         IDescriptorAllocator *pParentAllocator,
                                         size_t ThisManagerId,
@@ -261,8 +263,8 @@ namespace Scald
     {
     public:
         // Initializes the heap
-	    CPUDescriptorHeap(IMemoryAllocator& Allocator, 
-                      Device* pDeviceD3D12Impl, 
+	    CPUDescriptorHeap(//IMemoryAllocator& Allocator,
+                      Device* pDeviceD3D12Impl,
                       uint32_t NumDescriptorsInHeap, 
                       D3D12_DESCRIPTOR_HEAP_TYPE Type, 
                       D3D12_DESCRIPTOR_HEAP_FLAGS Flags);
@@ -287,7 +289,7 @@ namespace Scald
         std::vector<DescriptorHeapAllocationManager> m_HeapPool;
         // Indices of available descriptor heap managers
         std::set<size_t> m_AvailableHeaps;
-        IMemoryAllocator& m_MemAllocator;
+        //IMemoryAllocator& m_MemAllocator;
 
         std::mutex m_AllocationMutex;
 
@@ -304,7 +306,7 @@ namespace Scald
     class GPUDescriptorHeap : public IDescriptorAllocator
     {
     public:
-        GPUDescriptorHeap(IMemoryAllocator &Allocator, 
+        GPUDescriptorHeap(//IMemoryAllocator &Allocator, 
                       Device* pDevice, 
                       uint32_t NumDescriptorsInHeap, 
                       uint32_t NumDynamicDescriptors,
@@ -337,9 +339,10 @@ namespace Scald
         std::mutex m_AllocMutex, m_DynAllocMutex;
 
         // Allocation manager for static/mutable part
-        DescriptorHeapAllocationManager m_HeapAllocationManager;
+        DescriptorHeapAllocationManager m_HeapAllocationManager;     // This fellow lives on stack and has no default ctor
         // Allocation manager for dynamic part
-        DescriptorHeapAllocationManager m_DynamicAllocationsManager;
+        DescriptorHeapAllocationManager m_DynamicAllocationsManager; // This fellow lives on stack and has no default ctor
+                                                                     // That's why they both have to be initialized before ctor body
 
         Device* m_pDeviceD3D12Impl;
 
@@ -356,7 +359,7 @@ namespace Scald
     class DynamicSuballocationsManager : public IDescriptorAllocator
     {
     public:
-        DynamicSuballocationsManager(IMemoryAllocator& Allocator, GPUDescriptorHeap& ParentGPUHeap, uint32_t DynamicChunkSize);
+        DynamicSuballocationsManager(/*IMemoryAllocator& Allocator,*/ GPUDescriptorHeap& ParentGPUHeap, uint32_t DynamicChunkSize);
         
         DynamicSuballocationsManager(const DynamicSuballocationsManager&) = delete;
         DynamicSuballocationsManager(DynamicSuballocationsManager&&) noexcept = delete;
@@ -375,8 +378,8 @@ namespace Scald
         
     private:
         std::vector<DescriptorHeapAllocation> m_Suballocations;
-        
         uint32_t m_CurrentSuballocationOffset = 0u;
+
         uint32_t m_DynamicChunkSize = 0u;
 
         GPUDescriptorHeap& m_ParentGPUHeap;

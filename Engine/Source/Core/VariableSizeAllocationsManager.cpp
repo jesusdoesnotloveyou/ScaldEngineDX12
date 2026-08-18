@@ -2,7 +2,7 @@
 
 using namespace Scald;
 
-OffsetType VariableSizeAllocationsManager::Allocate(OffsetType Size)
+VariableSizeAllocationsManager::OffsetType VariableSizeAllocationsManager::Allocate(OffsetType Size)
 {
     if(m_FreeSize < Size)
         return InvalidOffset;
