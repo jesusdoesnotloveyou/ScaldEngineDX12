@@ -18,7 +18,7 @@ VariableSizeAllocationsManager::OffsetType VariableSizeAllocationsManager::Alloc
     auto NewSize = SmallestBlockIt->second.Size - Size;
     m_FreeBlocksBySize.erase(SmallestBlockItIt);
     m_FreeBlocksByOffset.erase(SmallestBlockIt);
-    if (NewSize > 0)
+    if (NewSize > 0u)
         AddNewBlock(NewOffset, NewSize);
 
     m_FreeSize -= Size;

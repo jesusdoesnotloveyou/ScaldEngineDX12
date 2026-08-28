@@ -34,7 +34,6 @@ namespace Scald
 
         struct CreateInfo
         {
-            //IMemoryAllocator& Allocator;
             OffsetType MaxSize;
             bool DbgDisableDebugValidation = false;
         };
@@ -44,13 +43,12 @@ namespace Scald
             , m_MaxSize(info.MaxSize)
             , m_DbgDisableDebugValidation(info.DbgDisableDebugValidation)
         {
-
+            AddNewBlock(0u, m_MaxSize);
         }
 
-        VariableSizeAllocationsManager(OffsetType MaxSize/*, IMemoryAllocator& Allocator*/)
-            : VariableSizeAllocationsManager{CreateInfo{/*Allocator,*/ MaxSize}}
-        {
-        }
+        VariableSizeAllocationsManager(OffsetType MaxSize)
+            : VariableSizeAllocationsManager{CreateInfo{MaxSize}}
+        {}
 
         VariableSizeAllocationsManager(VariableSizeAllocationsManager&& rhs) noexcept
             : m_FreeBlocksByOffset(std::move(rhs.m_FreeBlocksByOffset))
@@ -67,7 +65,6 @@ namespace Scald
 
         ~VariableSizeAllocationsManager() 
         {
-
         }
 
         VariableSizeAllocationsManager& operator=(VariableSizeAllocationsManager&&) = delete;
@@ -105,7 +102,7 @@ namespace Scald
         };
 
     public:
-        VariableSizeGPUAllocationsManager(OffsetType MaxSize/*, IMemoryAllocator& Allocator*/)
+        VariableSizeGPUAllocationsManager(OffsetType MaxSize)
             : VariableSizeAllocationsManager(MaxSize)
         {
         }
@@ -120,6 +117,7 @@ namespace Scald
         }
 
         VariableSizeGPUAllocationsManager& operator=(VariableSizeGPUAllocationsManager&& rhs) noexcept = default;
+        
         VariableSizeGPUAllocationsManager(const VariableSizeGPUAllocationsManager&) = delete;
         VariableSizeGPUAllocationsManager& operator=(const VariableSizeGPUAllocationsManager&) = delete;
 
