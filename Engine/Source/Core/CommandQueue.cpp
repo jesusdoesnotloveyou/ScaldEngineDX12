@@ -16,13 +16,25 @@ CommandQueue::CommandQueue(ID3D12Device2* device, D3D12_COMMAND_LIST_TYPE type)
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.NodeMask = 0u;
 
-    ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
-    SCALD_NAME_D3D12_OBJECT(m_commandQueue, L"Command Queue");
+    auto commandQueueName = L"Command Queue: Direct";
+    auto fenceName = L"Fence: Direct";
+    if (type == D3D12_COMMAND_LIST_TYPE_COPY)
+    {
+        commandQueueName = L"Command Queue: Copy";
+        fenceName = L"Fence: Copy";
+    }
+    else if (type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    {
+        commandQueueName = L"Command Queue: Compute";
+        fenceName = L"Fence: Compute";
+    }
 
+    ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+    SCALD_NAME_D3D12_OBJECT(m_commandQueue, commandQueueName);
     ThrowIfFailed(m_device->CreateFence(m_fenceValue,
         /*D3D12_FENCE_FLAG_SHARED | D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER,*/
         D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-    SCALD_NAME_D3D12_OBJECT(m_fence, L"Fence");
+    SCALD_NAME_D3D12_OBJECT(m_fence, fenceName);
 
     m_fenceEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
     // assert(m_fenceEventHandle && "Failed to create fence event handle.");
@@ -117,9 +129,4 @@ void CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> command
     m_commandQueue->ExecuteCommandLists(1u, ppCommandLists);
 
     m_commandListQueue.push(commandList);
-}
-
-ID3D12CommandQueue* CommandQueue::Get() const
-{
-    return m_commandQueue.Get();
 }

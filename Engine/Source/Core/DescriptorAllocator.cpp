@@ -1,9 +1,13 @@
 #include "DescriptorAllocator.h"
+#include "Log/Log.h"
 
 #include <numeric>
+#include <format>
 
 using namespace Scald;
 using namespace DirectX;
+
+DEFINE_LOG_CATEGORY_STATIC(LogDescriptorAllocator);
 
 DescriptorAllocator::DescriptorAllocator(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t numDescriptors, bool bIsShaderVisible)
     : m_device(device)
@@ -29,7 +33,6 @@ DescriptorAllocator::DescriptorAllocator(ID3D12Device* device, D3D12_DESCRIPTOR_
 
 DescriptorAllocator::~DescriptorAllocator() noexcept
 {
-
 }
 
 ID3D12DescriptorHeap* DescriptorAllocator::GetHeap() const
@@ -49,7 +52,10 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate(uint32_t* outSlot)
     uint32_t slot = m_freeSlots.back();
     m_freeSlots.pop_back();
     if (outSlot)
+    {
         *outSlot = slot;
+        Log::Get().LogMsg(LogDescriptorAllocator, LogVerbosity::Warning, std::format("Allocating {} handle at slot {}", static_cast<uint32_t>(m_heapType), *outSlot));
+    }
 
     return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_heapStart, slot, m_descriptorSize);
 }
@@ -57,10 +63,4 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate(uint32_t* outSlot)
 void DescriptorAllocator::Free(uint32_t slot)
 {
     m_freeSlots.push_back(slot);
-    // if (handle.ptr < m_heapStart.ptr || handle.ptr >= m_heapStart.ptr + m_numDescriptors * m_device->GetDescriptorHandleIncrementSize(m_heapType))
-    // {
-    //     return;
-    // }
-
-    // m_freeHandles.push_back((handle.ptr - m_heapStart.ptr) / m_device->GetDescriptorHandleIncrementSize(m_heapType));
 }

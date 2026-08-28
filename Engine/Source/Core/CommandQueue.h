@@ -15,7 +15,7 @@ public:
     CommandQueue(ID3D12Device2* device, D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
     ~CommandQueue();  // gfx, compute, copy
 
-    ID3D12CommandQueue* Get() const;
+    ID3D12CommandQueue* Get() const { return m_commandQueue.Get(); }
     // Get an available command list from the command queue.
     ComPtr<ID3D12GraphicsCommandList2> GetCommandList(ID3D12CommandAllocator* pCommandList);
     // Execute a command list.

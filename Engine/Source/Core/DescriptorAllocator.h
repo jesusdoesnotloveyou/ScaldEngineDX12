@@ -1,11 +1,15 @@
+#pragma once
+
 #include "DXHelper.h"
 #include <vector>
+#include <string_view>
+#include <format>
 
 namespace Scald
 {
     enum class DescriptorHeapType : uint8_t
     {
-        CBV_UAV_SRV = 0,
+        CBV_SRV_UAV = 0,
         SAMPLER,
         RTV,
         DSV,
