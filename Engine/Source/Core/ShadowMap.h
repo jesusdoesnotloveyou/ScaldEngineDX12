@@ -1,13 +1,16 @@
 #pragma once
 
 #include "DXHelper.h"
+#include "DescriptorHeap.h"
 
 namespace Scald
 {
+    class Device;
+
     class ShadowMap
     {
     public:
-        ShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount = 0u);
+        ShadowMap(Device* device, UINT width, UINT height, UINT cascadesCount = 0u);
         ShadowMap(const ShadowMap& lhs) = delete;
         ShadowMap& operator=(const ShadowMap& lhs) = delete;
 
@@ -19,13 +22,14 @@ namespace Scald
 
         ID3D12Resource* Get();
 
-        FORCEINLINE CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrv() const { return m_hGpuSrv; }
-        FORCEINLINE CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv() const { return m_hCpuDsv; }
+        D3D12_GPU_DESCRIPTOR_HANDLE GetGpuSrv() const;
+        D3D12_CPU_DESCRIPTOR_HANDLE GetDsv() const;
 
         FORCEINLINE D3D12_VIEWPORT GetViewport() const { return m_viewport; }
         FORCEINLINE D3D12_RECT GetScissorRect() const { return m_scissorRect; }
 
-        void CreateDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv, CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv, CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv);
+        // TODO: method must be rewrited since I've changed descriptor allocation and managment strategy
+        virtual void CreateDescriptors();
 
         void OnResize(UINT newWidth, UINT newHeight);
 
@@ -35,20 +39,20 @@ namespace Scald
         void CreateShadowCascadeSplits(float nearZ, float farZ);
 
     protected:
-        virtual void CreateDescriptors();
+        virtual void CreateViews();
 
     private:
+        // TODO: Method must be rewritten since it is repeated in derived class CascadeShadowMap.
         void CreateResource();
 
     protected:
-        ID3D12Device* m_device = nullptr;
+        Device* m_device = nullptr;
 
         D3D12_VIEWPORT m_viewport;
         D3D12_RECT m_scissorRect;
 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuSrv;
-        CD3DX12_GPU_DESCRIPTOR_HANDLE m_hGpuSrv;
-        CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuDsv;
+        DescriptorHeapAllocation m_srvAllocation;
+        DescriptorHeapAllocation m_dsvAllocation;
 
         DXGI_FORMAT m_format = DXGI_FORMAT_R24G8_TYPELESS;
 

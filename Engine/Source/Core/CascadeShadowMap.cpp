@@ -1,8 +1,9 @@
 #include "CascadeShadowMap.h"
+#include "Device.h"
 
 using namespace Scald;
 
-CascadeShadowMap::CascadeShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount)
+CascadeShadowMap::CascadeShadowMap(Device* device, UINT width, UINT height, UINT cascadesCount)
     : ShadowMap(device, width, height, cascadesCount)
 {
     CreateResource();
@@ -10,20 +11,20 @@ CascadeShadowMap::CascadeShadowMap(ID3D12Device* device, UINT width, UINT height
 
 CascadeShadowMap::~CascadeShadowMap() noexcept {}
 
-void CascadeShadowMap::CreateDescriptors()
+void CascadeShadowMap::CreateViews()
 {
     // Create SRV to resource so we can sample the shadow map in a shader program.
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2DArray.MostDetailedMip = 0u;
     srvDesc.Texture2DArray.MipLevels = -1;
     srvDesc.Texture2DArray.FirstArraySlice = 0u;
     srvDesc.Texture2DArray.ArraySize = m_shadowMap->GetDesc().DepthOrArraySize;
     srvDesc.Texture2DArray.PlaneSlice = 0u;
     srvDesc.Texture2DArray.ResourceMinLODClamp = 0.0f;
-    m_device->CreateShaderResourceView(m_shadowMap.Get(), &srvDesc, m_hCpuSrv);
+    m_device->GetD3D12Device()->CreateShaderResourceView(m_shadowMap.Get(), &srvDesc, m_srvAllocation.GetCpuHandle());
 
     // Create DSV to resource so we can render to the shadow map.
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
@@ -33,7 +34,7 @@ void CascadeShadowMap::CreateDescriptors()
     dsvDesc.Texture2DArray.MipSlice = 0u;
     dsvDesc.Texture2DArray.FirstArraySlice = 0u;
     dsvDesc.Texture2DArray.ArraySize = m_shadowMap->GetDesc().DepthOrArraySize;
-    m_device->CreateDepthStencilView(m_shadowMap.Get(), &dsvDesc, m_hCpuDsv);
+    m_device->GetD3D12Device()->CreateDepthStencilView(m_shadowMap.Get(), &dsvDesc, m_dsvAllocation.GetCpuHandle());
 }
 
 void CascadeShadowMap::CreateResource()
@@ -61,7 +62,7 @@ void CascadeShadowMap::CreateResource()
 
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-    ThrowIfFailed(m_device->CreateCommittedResource(
+    ThrowIfFailed(m_device->GetD3D12Device()->CreateCommittedResource(
         &heapProps, D3D12_HEAP_FLAG_NONE, &textureDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_shadowMap)));
 
     m_shadowMap->SetName(L"CascadedShadowMap");

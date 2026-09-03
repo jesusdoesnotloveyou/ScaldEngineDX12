@@ -4,17 +4,18 @@
 
 namespace Scald
 {
-    class CascadeShadowMap : public ShadowMap
+    class Device;
+
+    class CascadeShadowMap final : public ShadowMap
     {
     public:
-        CascadeShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount);
+        CascadeShadowMap(Device* device, UINT width, UINT height, UINT cascadesCount);
         CascadeShadowMap(const CascadeShadowMap& lhs) = delete;
         CascadeShadowMap& operator=(const CascadeShadowMap& lhs) = delete;
 
         virtual ~CascadeShadowMap() noexcept override;
 
-    protected:
-        virtual void CreateDescriptors() override;
+        virtual void CreateViews() override;
 
     private:
         void CreateResource();
