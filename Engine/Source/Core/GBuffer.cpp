@@ -1,8 +1,23 @@
 #include "GBuffer.h"
+#include "Device.h"
 
 using namespace Scald;
 
-GBuffer::GBuffer(ID3D12Device* device, UINT width, UINT height)
+namespace
+{
+    const std::unordered_map<GBuffer::EGBufferLayer, DXGI_FORMAT> kGBufferFormats = {
+        {GBuffer::EGBufferLayer::DIFFUSE_ALBEDO,    DXGI_FORMAT_R8G8B8A8_UNORM},
+        {GBuffer::EGBufferLayer::AMBIENT_OCCLUSION, DXGI_FORMAT_R8G8B8A8_UNORM},
+        {GBuffer::EGBufferLayer::NORMAL,            DXGI_FORMAT_R32G32B32A32_FLOAT},
+        {GBuffer::EGBufferLayer::SPECULAR,          DXGI_FORMAT_R8G8B8A8_UNORM},
+        {GBuffer::EGBufferLayer::MOTION_VECTORS,    DXGI_FORMAT_R16G16_FLOAT},
+        {GBuffer::EGBufferLayer::DEPTH,             DXGI_FORMAT_D24_UNORM_S8_UINT}
+    };
+
+    constexpr FLOAT kDefaultOptimizedClearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+}
+
+GBuffer::GBuffer(Device* device, UINT width, UINT height)
     : m_device(device),
       m_width(width),
       m_height(height)
@@ -22,83 +37,86 @@ void GBuffer::OnResize(UINT newWidth, UINT newHeight)
         CreateResources();
 
         // New resource, so we need new descriptors to that resource.
-        CreateDescriptors();
+        CreateViews();
     }
 }
 
-ID3D12Resource* GBuffer::Get(unsigned layer)
+ID3D12Resource* GBuffer::Get(const unsigned layer) const
 {
-    return m_buffer[layer].m_resource.Get();
+    return m_textures[layer].Get();
 }
 
-FGBufferTexture* GBuffer::GetBufferTexture(unsigned layer)
+DXGI_FORMAT GBuffer::GetBufferTextureFormat(const unsigned layer) const
 {
-    return &m_buffer[layer];
+    assert(layer >= 0 && layer < static_cast<unsigned>(EGBufferLayer::MAX) && "Invalid GBuffer layer has been specified");
+    return kGBufferFormats.at(static_cast<EGBufferLayer>(layer));
 }
 
-DXGI_FORMAT GBuffer::GetBufferTextureFormat(unsigned layer)
+D3D12_GPU_DESCRIPTOR_HANDLE GBuffer::GetGpuSrv(const unsigned layer) const
 {
-    return m_bufferFormats[layer];
+    assert(layer >= 0 && layer < static_cast<unsigned>(EGBufferLayer::MAX) && "Invalid GBuffer layer has been specified");
+    return m_srvAllocation.GetGpuHandle(layer);
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetSrv(unsigned layer) const
+D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::GetRtv(const unsigned layer) const
 {
-    return m_buffer[layer].m_hGpuSrv;
-}
-
-CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetRtv(unsigned layer) const
-{
+    assert(layer >= 0 && layer < static_cast<unsigned>(EGBufferLayer::MAX) && "Invalid GBuffer layer has been specified");
     assert(layer != EGBufferLayer::DEPTH && "You're trying to get a RTV for the depth layer, use GetDsv(layer) instead");
-    return m_buffer[layer].m_hCpuRtvDsv;
+    return m_rtvAllocation.GetCpuHandle(layer);
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetDsv(unsigned layer) const
+D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::GetDsv() const
 {
-    assert(layer == EGBufferLayer::DEPTH && "Passed index in not a dsv");
-    return m_buffer[layer].m_hCpuRtvDsv;
-}
-
-void GBuffer::SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv, CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv, CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtvDsv, unsigned layer)
-{
-    m_buffer[layer].m_hCpuSrv = hCpuSrv;
-    m_buffer[layer].m_hGpuSrv = hGpuSrv;
-    m_buffer[layer].m_hCpuRtvDsv = hCpuRtvDsv;
+    return m_dsvAllocation.GetCpuHandle();
 }
 
 void GBuffer::CreateDescriptors()
 {
+    // RTVs for every GBuffer layer except depth
+    m_rtvAllocation = m_device->AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, static_cast<uint32_t>(EGBufferLayer::MAX) - 1u);
+    // DSV for depth texture
+    m_dsvAllocation = m_device->AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1u);
+    // SRVs for every GBuffer layer to bind to shader program
+    m_srvAllocation = m_device->AllocateGPUDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, static_cast<uint32_t>(EGBufferLayer::MAX));
+
+    CreateViews();
+}
+
+void GBuffer::CreateViews()
+{
     // Create SRV to resource so we can sample the GBuffer texture in a shader program.
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     ZeroMemory(&srvDesc, sizeof(D3D12_SHADER_RESOURCE_VIEW_DESC));
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2D.MipLevels = 1u;
 
     // Create SRVs and RTVs for texture of GBuffer that aren't depth
     for (UINT i = 0; i < static_cast<UINT>(EGBufferLayer::DEPTH); i++)
     {
-        srvDesc.Format = m_bufferFormats[i];
-        m_device->CreateShaderResourceView(m_buffer[i].m_resource.Get(), &srvDesc, m_buffer[i].m_hCpuSrv);
+        srvDesc.Format = kGBufferFormats.at(static_cast<EGBufferLayer>(i));
+        m_device->GetD3D12Device()->CreateShaderResourceView(m_textures[i].Get(), &srvDesc, m_srvAllocation.GetCpuHandle(i));
 
         D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
         ZeroMemory(&rtvDesc, sizeof(rtvDesc));
-        rtvDesc.Format = m_bufferFormats[i];
+        rtvDesc.Format = kGBufferFormats.at(static_cast<EGBufferLayer>(i));
         rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
         rtvDesc.Texture2D.MipSlice = 0u;
         rtvDesc.Texture2D.PlaneSlice = 0u;
-        m_device->CreateRenderTargetView(m_buffer[i].m_resource.Get(), &rtvDesc, m_buffer[i].m_hCpuRtvDsv);
+        m_device->GetD3D12Device()->CreateRenderTargetView(m_textures[i].Get(), &rtvDesc, m_rtvAllocation.GetCpuHandle(i));
     }
 
-    // Create SRV and DSV for depth texture
+    // Create SRV for depth texture
     auto depthIndex = static_cast<UINT>(EGBufferLayer::DEPTH);
     srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-    m_device->CreateShaderResourceView(m_buffer[depthIndex].m_resource.Get(), &srvDesc, m_buffer[depthIndex].m_hCpuSrv);
+    m_device->GetD3D12Device()->CreateShaderResourceView(m_textures[depthIndex].Get(), &srvDesc, m_srvAllocation.GetCpuHandle(depthIndex));
 
+    // Create DSV for depth texture
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-    dsvDesc.Format = m_bufferFormats[depthIndex];
+    dsvDesc.Format = kGBufferFormats.at(static_cast<EGBufferLayer>(depthIndex));
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsvDesc.Texture2D.MipSlice = 0u;
-    m_device->CreateDepthStencilView(m_buffer[depthIndex].m_resource.Get(), &dsvDesc, m_buffer[depthIndex].m_hCpuRtvDsv);
+    m_device->GetD3D12Device()->CreateDepthStencilView(m_textures[depthIndex].Get(), &dsvDesc, m_dsvAllocation.GetCpuHandle());
 }
 
 void GBuffer::CreateResources()
@@ -122,7 +140,7 @@ void GBuffer::CreateResources()
     // Create resources for GBuffer that aren't depth
     for (UINT i = 0; i < static_cast<UINT>(EGBufferLayer::DEPTH); i++)
     {
-        texDesc.Format = m_bufferFormats[i];
+        texDesc.Format = kGBufferFormats.at(static_cast<EGBufferLayer>(i));
         texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
         optClear.Format = texDesc.Format;
@@ -132,27 +150,28 @@ void GBuffer::CreateResources()
         else if (i == EGBufferLayer::MOTION_VECTORS)
             memcpy(optClear.Color, Colors::Yellow, sizeof(optClear.Color));
         else  // To clear to zero
-            memcpy(optClear.Color, m_defaultOptimizedClearColor, sizeof(optClear.Color));
+            memcpy(optClear.Color, kDefaultOptimizedClearColor, sizeof(optClear.Color));
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &heapProps, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_buffer[i].m_resource)));
+        ThrowIfFailed(m_device->GetD3D12Device()->CreateCommittedResource(
+            &heapProps, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_textures[i])));
     }
 
     auto depthIndex = static_cast<UINT>(EGBufferLayer::DEPTH);
     // Create resource for depth
     texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-    texDesc.Format = m_bufferFormats[depthIndex];
+    texDesc.Format = kGBufferFormats.at(static_cast<EGBufferLayer>(depthIndex));
 
-    optClear.Format = m_bufferFormats[depthIndex];
+    optClear.Format = kGBufferFormats.at(static_cast<EGBufferLayer>(depthIndex));
     optClear.DepthStencil.Depth = 1.0f;
     optClear.DepthStencil.Stencil = (UINT8)0;
 
-    ThrowIfFailed(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_buffer[depthIndex].m_resource)));
+    ThrowIfFailed(m_device->GetD3D12Device()->CreateCommittedResource(
+        &heapProps, D3D12_HEAP_FLAG_NONE, &texDesc, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear, IID_PPV_ARGS(&m_textures[depthIndex])));
 
-    SCALD_NAME_D3D12_OBJECT(m_buffer[DIFFUSE_ALBEDO].m_resource, L"Diffuse Buffer");
-    SCALD_NAME_D3D12_OBJECT(m_buffer[AMBIENT_OCCLUSION].m_resource, L"WorldPos Buffer");  // SSAO will be
-    SCALD_NAME_D3D12_OBJECT(m_buffer[NORMAL].m_resource, L"Normal Buffer");
-    SCALD_NAME_D3D12_OBJECT(m_buffer[SPECULAR].m_resource, L"Specular Buffer");
-    SCALD_NAME_D3D12_OBJECT(m_buffer[MOTION_VECTORS].m_resource, L"Motion Vectors Buffer");
-    SCALD_NAME_D3D12_OBJECT(m_buffer[DEPTH].m_resource, L"Depth Buffer");
+    SCALD_NAME_D3D12_OBJECT(m_textures[DIFFUSE_ALBEDO], L"Diffuse Buffer");
+    SCALD_NAME_D3D12_OBJECT(m_textures[AMBIENT_OCCLUSION], L"WorldPos Buffer");  // SSAO will be
+    SCALD_NAME_D3D12_OBJECT(m_textures[NORMAL], L"Normal Buffer");
+    SCALD_NAME_D3D12_OBJECT(m_textures[SPECULAR], L"Specular Buffer");
+    SCALD_NAME_D3D12_OBJECT(m_textures[MOTION_VECTORS], L"Motion Vectors Buffer");
+    SCALD_NAME_D3D12_OBJECT(m_textures[DEPTH], L"Depth Buffer");
 }
