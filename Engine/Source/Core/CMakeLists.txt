@@ -14,8 +14,10 @@ set(SCALD_CORE_SOURCES
 	CommandList.cpp
 	CommandQueue.cpp
 	D3D12Sample.cpp
-	DescriptorAllocator.cpp # my personal try
+
+	# DescriptorAllocator.cpp # my personal try
 	DescriptorHeap.cpp 		# diligent engine solution
+	
 	Device.cpp
 	Engine.cpp
 	FileSystemObject.cpp
@@ -23,6 +25,11 @@ set(SCALD_CORE_SOURCES
 	GBuffer.cpp
 	Material.cpp
 	Model.cpp
+
+	# diligent strategy for managing dynamic resources
+	RingBuffer.cpp
+	DynamicUploadHeap.cpp
+
 	RootSignature.cpp
 	ScaldUtil.cpp
 	Scene.cpp
@@ -45,8 +52,10 @@ set(SCALD_CORE_INCLUDES
 	CommandList.h
 	CommandQueue.h
 	D3D12Sample.h
-	DescriptorAllocator.h # my personal try
+
+	# DescriptorAllocator.h # my personal try
 	DescriptorHeap.h	  # diligent engine solution
+	
 	Device.h
 	DXHelper.h
 	Engine.h
@@ -56,6 +65,11 @@ set(SCALD_CORE_INCLUDES
 	Material.h
 	Mesh.h
 	Model.h
+
+	# diligent strategy for managing dynamic resources
+	RingBuffer.h 
+	DynamicUploadHeap.h
+
 	RootSignature.h
 	ScaldCoreDefines.h
 	ScaldCoreTypes.h
