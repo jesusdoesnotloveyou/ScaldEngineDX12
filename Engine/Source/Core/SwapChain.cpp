@@ -8,9 +8,9 @@
 using namespace Scald;
 
 SwapChain::SwapChain(Device* device, HWND hWnd, uint32_t width, uint32_t height, bool bIs4xMsaaState)
-    : m_device(device),
-      m_width(width),
-      m_height(height)
+    : m_device(device)
+    , m_width(width)
+    , m_height(height)
 {
     // Describe and create the swap chain.
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
@@ -30,11 +30,14 @@ SwapChain::SwapChain(Device* device, HWND hWnd, uint32_t width, uint32_t height,
     swapChainFullScreenDesc.Windowed = TRUE;
 
     const auto factory = device->GetDXGIFactory();
-    const auto cmdQueue = device->GetCommandQueue();
+    const auto directQueue = device->GetCommandQueue()->Get();
 
     ComPtr<IDXGISwapChain1> swapChain;
-    ThrowIfFailed(factory->CreateSwapChainForHwnd(cmdQueue->GetCommandQueue().Get(),  // Swap chain needs the queue so that it can force a flush on it.
-        hWnd, &swapChainDesc, &swapChainFullScreenDesc, nullptr, &swapChain));
+    ThrowIfFailed(factory->CreateSwapChainForHwnd(
+        directQueue,  // Swap chain needs the queue so that it can force a flush on it.
+        hWnd, &swapChainDesc, 
+        &swapChainFullScreenDesc, nullptr, 
+        &swapChain));
 
     // This sample does not support fullscreen transitions.
     ThrowIfFailed(factory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
@@ -52,19 +55,13 @@ void Scald::SwapChain::SetFullscreen(bool fullscreen)
 
 D3D12_CPU_DESCRIPTOR_HANDLE SwapChain::GetRTV() const
 {
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-        m_device->GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE_RTV), 
-        8 + m_currBackBufferIndex, // TODO : here is the big problem since RT views are not zero and first indices decsriptors in RTV heap
-        m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
-    );
+    assert(m_currBackBufferIndex >= 0 && m_currBackBufferIndex < RenderCommon::SwapChainFrameCount);
+    return m_rtvAllocation.GetCpuHandle(m_currBackBufferIndex);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE SwapChain::GetDSV() const
 {
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-        m_device->GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE_DSV),
-        3, // TODO : here is the big problem since DS view are not zero index decsriptor in DSV heap
-        m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
+    return m_dsvAllocation.GetCpuHandle();
 }
 
 void SwapChain::ResetRenderTargets()
@@ -82,13 +79,12 @@ void SwapChain::Resize(uint32_t width, uint32_t height)
 
     ThrowIfFailed(m_dxgiSwapChain->ResizeBuffers(RenderCommon::SwapChainFrameCount, width, height, RenderCommon::BackBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
+    m_rtvAllocation = m_device->AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RenderCommon::SwapChainFrameCount);
     // Create/recreate render targets and RTVs.
     for (UINT i = 0; i < RenderCommon::SwapChainFrameCount; i++)
     {
         ThrowIfFailed(m_dxgiSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
-
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(m_device->AllocateRTV(&m_rtvDescriptorSlots[i]));
-        m_device->GetD3D12Device()->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHeapHandle);
+        m_device->GetD3D12Device()->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, m_rtvAllocation.GetCpuHandle(i));
 
         std::wstring name = L"Backbuffer[" + std::to_wstring(i) + L"]";
         SCALD_NAME_D3D12_OBJECT(m_renderTargets[i], name.c_str());
@@ -117,9 +113,11 @@ void SwapChain::Resize(uint32_t width, uint32_t height)
 
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT /* Once created and never changed (from CPU) */);
     ThrowIfFailed(m_device->GetD3D12Device()->CreateCommittedResource(
-        &heapProps, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_COMMON, &optClear, IID_PPV_ARGS(m_depthStencilBuffer.GetAddressOf())));
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_device->AllocateDSV(&m_dsvDescriptorSlot));
+        &heapProps, D3D12_HEAP_FLAG_NONE, &depthStencilDesc,
+        D3D12_RESOURCE_STATE_COMMON,  // TODO: try to change state to D3D12_RESOURCE_STATE_DEPTH_WRITE to avoid transition from common state further
+        &optClear, IID_PPV_ARGS(m_depthStencilBuffer.GetAddressOf())));
+    
+    m_dsvAllocation = m_device->AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Format = RenderCommon::DepthStencilFormat;
@@ -127,7 +125,7 @@ void SwapChain::Resize(uint32_t width, uint32_t height)
     dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
     dsvDesc.Texture2D.MipSlice = 0u;
 
-    m_device->GetD3D12Device()->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvDesc, dsvHandle);
+    m_device->GetD3D12Device()->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvDesc, m_dsvAllocation.GetCpuHandle());
     SCALD_NAME_D3D12_OBJECT(m_depthStencilBuffer, L"DepthStencilBuffer");
 
     // TODO: Command objects probably
@@ -147,6 +145,7 @@ void SwapChain::Present()
 
 ID3D12Resource* Scald::SwapChain::GetBackBuffer() const
 {
+    assert(m_currBackBufferIndex >= 0 && m_currBackBufferIndex < RenderCommon::SwapChainFrameCount);
     return m_renderTargets[m_currBackBufferIndex].Get();
 }
 

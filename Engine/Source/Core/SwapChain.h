@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DXHelper.h"
+#include "DescriptorHeap.h"
 
 namespace Scald
 {
@@ -54,15 +55,17 @@ private:
 
     // Backbuffers
     ComPtr<ID3D12Resource> m_renderTargets[RenderCommon::SwapChainFrameCount];
-    uint32_t m_rtvDescriptorSlots[RenderCommon::SwapChainFrameCount];
-    uint32_t m_dsvDescriptorSlot;
-    uint32_t m_currBackBufferIndex = 0u;
+
+    DescriptorHeapAllocation m_rtvAllocation;
+    DescriptorHeapAllocation m_dsvAllocation;
 
     ComPtr<ID3D12Resource> m_depthStencilBuffer;
 
     // Current size of swap chain
     uint32_t m_width;
     uint32_t m_height;
+
+    uint32_t m_currBackBufferIndex = 0u;
 
     bool m_bIsVSyncEnabled = true;
     bool m_bIsTearingSupported = false;
