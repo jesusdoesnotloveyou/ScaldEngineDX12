@@ -307,6 +307,11 @@ public:
 
     void ReleaseStaleAllocations(uint64_t NumCompletedFrames);
 
+    ID3D12DescriptorHeap* GetHeap() const
+    {
+        return m_pd3d12DescriptorHeap.Get();
+    }
+
 protected:
     D3D12_DESCRIPTOR_HEAP_DESC m_HeapDesc;
     ComPtr<ID3D12DescriptorHeap> m_pd3d12DescriptorHeap;

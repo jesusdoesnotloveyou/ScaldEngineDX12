@@ -210,7 +210,7 @@ void CPUDescriptorHeap::ReleaseStaleAllocations(uint64_t NumCompletedFrames)
  * GPUDescriptorHeap
  */
 
-GPUDescriptorHeap::GPUDescriptorHeap(//IMemoryAllocator &Allocator, 
+GPUDescriptorHeap::GPUDescriptorHeap( 
                Device* pDevice, 
                uint32_t NumDescriptorsInHeap, 
                uint32_t NumDynamicDescriptors,
