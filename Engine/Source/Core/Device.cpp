@@ -2,6 +2,7 @@
 #include "SwapChain.h"
 #include "CommandQueue.h"
 #include "DescriptorAllocator.h"
+#include "DynamicUploadHeap.h"
 
 #include "GBuffer.h"
 #include "SSAO.h"
@@ -13,40 +14,31 @@ namespace
     const uint32_t kDescriptorHeapSizes[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {
         4096u,                                                                                              // CBVSRVUAV
         0u,                                                                                                 // SAMPLER
-        RenderCommon::SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::Max, // RTV
+        RenderCommon::SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::MAX, // RTV
         3u                                                                                                  // DSV: 1 dsv + 1 csm + 1 gbuffer depth
     };
 }   // namespace
 
-Device::Device(bool bUseWarpAdapter)
+Device::Device()
+    : m_dxgiFactory(CreateFactory())
+    , m_dxgiAdapter(CreateAdapter(m_dxgiFactory.Get()))
+    , m_d3d12Device(CreateDevice(m_dxgiAdapter.Get()))
+    , m_cpuDescriptorHeaps
+        {
+            { this, 4096, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE },
+            { this, 2048, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,     D3D12_DESCRIPTOR_HEAP_FLAG_NONE },
+            { this, 8,    D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         D3D12_DESCRIPTOR_HEAP_FLAG_NONE },
+            { this, 3,    D3D12_DESCRIPTOR_HEAP_TYPE_DSV,         D3D12_DESCRIPTOR_HEAP_FLAG_NONE },
+        }
+    , m_gpuDescriptorHeaps
+        {
+            { this, 256u, 1024u, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE },
+            { this, 32u,  0u,    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,     D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE },
+        }
 {
 #if defined(DEBUG) || defined(_DEBUG)
-    EnableDebugLayer();
-#endif
-
-    ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
-
-    // use UMA video adapter if there is no dedicated
-    [[unlikely]]  // C++20
-    if (bUseWarpAdapter)
-    {
-        ComPtr<IDXGIAdapter> warpAdapter;
-        ThrowIfFailed(m_dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-        ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_d3d12Device)));
-    }
-    else
-    {
-        ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(m_dxgiFactory.Get(), &hardwareAdapter);
-
-        ThrowIfFailed(hardwareAdapter.As(&m_dxgiAdapter));
-
-        ThrowIfFailed(D3D12CreateDevice(m_dxgiAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_d3d12Device)));
-    }
-
     SCALD_NAME_D3D12_OBJECT(m_d3d12Device, L"Graphics Device");
 
-#if defined(DEBUG) || defined(_DEBUG)
     CheckFeatureSupport();
     LogAdapters();
 #endif
@@ -72,9 +64,48 @@ void Device::EnableDebugLayer()
     }
 }
 
-std::unique_ptr<Device> Device::Create(bool bUseWarpAdapter)
+ComPtr<IDXGIFactory4> Device::CreateFactory()
 {
-    return std::unique_ptr<Device>(new Device(bUseWarpAdapter));
+    ComPtr<IDXGIFactory4> factory;
+    ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
+    return factory;
+}
+
+ComPtr<IDXGIAdapter3> Device::CreateAdapter(IDXGIFactory4* factory, bool bUseWarpAdapter)
+{
+    ComPtr<IDXGIAdapter1> adapter;
+
+    // use UMA video adapter if there is no dedicated
+    [[unlikely]]  // C++20
+    if (bUseWarpAdapter)
+    {   
+        // Warp adapter
+        ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)));
+        //ThrowIfFailed(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_d3d12Device)));
+    }
+    else
+    {
+        // Hardware adapter
+        GetHardwareAdapter(factory, &adapter);
+        //ThrowIfFailed(D3D12CreateDevice(m_dxgiAdapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_d3d12Device)));
+    }
+
+    ComPtr<IDXGIAdapter3> adapter3;
+    ThrowIfFailed(adapter.As(&adapter3));
+    return adapter3;
+}
+
+ComPtr<ID3D12Device2> Device::CreateDevice(IDXGIAdapter3* adapter)
+{
+    ComPtr<ID3D12Device2> device;
+    
+    ThrowIfFailed(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)));
+    return device;
+}
+
+std::unique_ptr<Device> Device::Create()
+{
+    return std::unique_ptr<Device>(new Device());
 }
 
 std::unique_ptr<SwapChain> Device::CreateSwapChain(HWND hWnd, uint32_t width, uint32_t height, DXGI_FORMAT backBufferFormat)
@@ -96,64 +127,36 @@ void Device::Flush()
     m_computeQueue->Flush();
 }
 
-void Device::CreateDescriptorHeaps()
+uint64_t Device::GetCurrentFrame() const
 {
-    for (uint32_t i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; i++)
-    {
-        bool bIsShaderVisible = (i == static_cast <uint32_t>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)) ? true : false;
-        m_descriptorAllocators[i] = std::unique_ptr<DescriptorAllocator>(
-            new DescriptorAllocator(this->GetD3D12Device().Get(), static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(i), kDescriptorHeapSizes[i], bIsShaderVisible));
-    }
+    return m_directQueue->GetFenceValue();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Device::AllocateRTV(uint32_t* slot)
+DescriptorHeapAllocation Device::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE Type, UINT Count)
 {
-    return m_descriptorAllocators[D3D12_DESCRIPTOR_HEAP_TYPE_RTV]->Allocate(slot);
+    assert(Type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && Type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES && "Invalid heap type!");
+    return m_cpuDescriptorHeaps[Type].Allocate(Count);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Device::AllocateDSV(uint32_t* slot)
+DescriptorHeapAllocation Device::AllocateGPUDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE Type, UINT Count)
 {
-    return m_descriptorAllocators[D3D12_DESCRIPTOR_HEAP_TYPE_DSV]->Allocate(slot);
+    assert(Type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && Type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER && "Invalid GPU heap type!");
+    return m_gpuDescriptorHeaps[Type].Allocate(Count);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Device::AllocateSRV(uint32_t* slot)
+GPUDescriptorHeap& Device::GetGPUDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE Type)
 {
-    return m_descriptorAllocators[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]->Allocate(slot);
+    assert(Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || Type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER && "Invalid GPU descriptor heap type");
+    return m_gpuDescriptorHeaps[Type];
 }
 
-void Device::FreeRTV(uint32_t slot)
+void Device::SetDescriptorsHeaps(ID3D12GraphicsCommandList* pCommandList)
 {
-
-}
-
-void Device::FreeDSV(uint32_t slot)
-{
-
-}
-
-void Device::FreeSRV(uint32_t slot)
-{
-
-}
-
-ID3D12DescriptorHeap* Device::GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const
-{
-    return m_descriptorAllocators[heapType]->GetHeap();
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE Device::GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const
-{
-    return m_descriptorAllocators[heapType]->GetHeapStart();
-}
-
-uint32_t Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE heapType) const
-{
-    return m_d3d12Device->GetDescriptorHandleIncrementSize(heapType);
-}
-
-void Device::CreateShaderResourceView(ID3D12Resource* pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE destDescriptor)
-{
-    m_d3d12Device->CreateShaderResourceView(pResource, pDesc, destDescriptor);
+    ID3D12DescriptorHeap* descriptorHeaps[] = {
+        GetGPUDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV).GetHeap(),
+        GetGPUDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER).GetHeap(),
+    };
+    pCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 }
 
 void Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc, ID3D12PipelineState** ppPipelineState) 
@@ -170,14 +173,17 @@ CommandQueue* Device::GetCommandQueue(D3D12_COMMAND_LIST_TYPE commandListType) c
         case D3D12_COMMAND_LIST_TYPE_COMPUTE: return m_computeQueue.get(); break;
         default: assert(false && "Invalid command queue type");
     }
-    return nullptr;  //?
+    return nullptr;
 }
 
 void Device::CreateCommandQueues()
 {
-    m_directQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this->Get()));
-    m_copyQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this->Get(), D3D12_COMMAND_LIST_TYPE_COPY));
-    m_computeQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this->Get(), D3D12_COMMAND_LIST_TYPE_COMPUTE));
+    // If we have multiple command queues, we can write a resource only from one queue at the same time.
+    // Before it can be accessed by another queue, it must transition a resource to read or common state.
+    // In a read state resource can be read from multiple command queues simultaneously, including across processes, based on its read state.
+    m_directQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this->GetD3D12Device()));
+    m_copyQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this->GetD3D12Device(), D3D12_COMMAND_LIST_TYPE_COPY));
+    m_computeQueue = std::unique_ptr<CommandQueue>(new CommandQueue(this->GetD3D12Device(), D3D12_COMMAND_LIST_TYPE_COMPUTE));
 }
 
 void Device::CreateCommandAllocators() {}
@@ -330,4 +336,20 @@ void Device::CheckFeatureSupport()
         text += L"\n";
         OutputDebugString(text.c_str());
     }
+}
+
+void Device::ProcessReleasedQueue(bool ForceRelease)
+{
+    //std::lock_guard<std::mutex> LockGuard(m_releasedObjectsMutex);
+
+    //// Release all objects whose frame number value < number of completed frames
+    //while (!m_d3d12ObjReleaseQueue.empty())
+    //{
+    //    auto& FirstObj = m_d3d12ObjReleaseQueue.front();
+    //    // GPU must have been idled when ForceRelease == true
+    //    if (FirstObj.first < m_NumCompletedFrames || ForceRelease)
+    //        m_d3d12ObjReleaseQueue.pop_front();
+    //    else
+    //        break;
+    //}
 }
