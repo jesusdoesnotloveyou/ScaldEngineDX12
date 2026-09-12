@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # source files
 set(SCALD_CORE_SOURCES
+	AssetLoader.cpp
+	AssetManager.cpp
 	Camera.cpp
 	CascadeShadowMap.cpp
 	CommandList.cpp
@@ -25,16 +27,18 @@ set(SCALD_CORE_SOURCES
 	GBuffer.cpp
 	Material.cpp
 	Model.cpp
-
+	PipelineStateObject.cpp
+	RootSignature.cpp
+	
 	# diligent strategy for managing dynamic resources
 	RingBuffer.cpp
 	DynamicUploadHeap.cpp
 
-	RootSignature.cpp
 	ScaldUtil.cpp
 	Scene.cpp
 	SceneNode.cpp
-    ShadowMap.cpp
+	Shader.cpp
+	ShadowMap.cpp
 	Shapes.cpp
 	SSAO.cpp
 	SwapChain.cpp
@@ -47,6 +51,7 @@ set(SCALD_CORE_SOURCES
 	
 set(SCALD_CORE_INCLUDES
 	AssetLoader.h
+	AssetManager.h
 	Camera.h
 	CascadeShadowMap.h
 	CommandList.h
@@ -65,17 +70,19 @@ set(SCALD_CORE_INCLUDES
 	Material.h
 	Mesh.h
 	Model.h
-
+	PipelineStateObject.h
+	RootSignature.h
+	
 	# diligent strategy for managing dynamic resources
 	RingBuffer.h 
 	DynamicUploadHeap.h
 
-	RootSignature.h
 	ScaldCoreDefines.h
 	ScaldCoreTypes.h
     ScaldUtil.h
 	Scene.h
 	SceneNode.h
+	Shader.h
 	ShadowMap.h
 	Shapes.h
 	SSAO.h
