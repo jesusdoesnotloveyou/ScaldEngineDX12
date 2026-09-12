@@ -9,7 +9,7 @@ class FileSystemObject
 public:
     FileSystemObject() = default;
     FileSystemObject(const Path& relativePath);
-    virtual ~FileSystemObject() = default;
+    virtual ~FileSystemObject() noexcept = default;
 
     virtual void Copy() = 0;
     virtual void Move() = 0;

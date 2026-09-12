@@ -1,14 +1,31 @@
 #pragma once
 
+#include "DXHelper.h"
 #include "FileSystemObject.h"
 
-class Model final : public FileSystemObject
+#include <vector>
+
+namespace Scald
 {
-public:
+    class Mesh;
+    class Material;
 
-	virtual ~Model() override = default;
+    class Model final : public FileSystemObject
+    {
+    public:
+        Model(const Path& relativePath);
+        ~Model() noexcept override;
 
-	virtual void Copy() override;
-    virtual void Move() override;
-    virtual void Delete() override;
-};
+        // Begin of FileSystemObject interface
+	    void Copy() override;
+        void Move() override;
+        void Delete() override;
+        // End of FileSystemObject interface
+
+        void Draw(/*class Shader* shader*/) const;
+
+    private:
+        std::vector<Mesh> m_meshes;
+        
+    };
+} // namespace Scald

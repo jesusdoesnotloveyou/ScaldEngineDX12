@@ -1,11 +1,15 @@
 #pragma once
 
 #include "DXHelper.h"
+#include "Texture.h"
 #include "VertexTypes.h"
 
 namespace Scald
 {
     using namespace DirectX;
+
+    class Material;
+    class Texture;
 
     template <typename TVertex = VertexPositionNormalTangentUV, typename TIndex = uint16_t>
     struct MeshData
@@ -23,19 +27,32 @@ namespace Scald
         std::vector<std::vector<TVertex>> LODVertices;
         std::vector<std::vector<TIndex>> LODIndices;
         std::vector<BoundingBox> LODBounds;
+        std::vector<Texture> Textures;
         UINT NumLODs;
     };
 
-    struct Mesh
+    class Mesh
     {
+        friend class Model;
     public:
-        Mesh() = default;
+        Mesh(const std::vector<VertexPositionNormalTangentUV>& vertices, const std::vector<uint16_t>& indices, const std::vector<Texture>& textures)
+        {
+            meshData.LODVertices[0] = vertices;
+            meshData.LODIndices[0] = indices;
+            meshData.Textures = textures;
+        }
+
         Mesh(const Mesh& mesh) = default;
         Mesh(Mesh&& mesh) noexcept = default;
-        ~Mesh() noexcept = default;
+        Mesh& operator=(const Mesh& mesh) = default;
+        Mesh& operator=(Mesh&& mesh) noexcept = default;
 
+        ~Mesh() noexcept = default;
+    
     public:
-        struct Material* material = nullptr;
+        MeshData<> meshData;
+
+        Material* material = nullptr;
 
         XMMATRIX TexTransform = XMMatrixIdentity();
 
@@ -72,6 +89,12 @@ namespace Scald
             ibv.Format = IndexFormat;
             ibv.SizeInBytes = IndexBufferByteSize;
             return ibv;
+        }
+
+    private:
+        void Draw(/*class Shader* shader*/) const
+        {
+
         }
     };
 }  // namespace Scald
