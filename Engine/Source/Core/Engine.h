@@ -7,12 +7,11 @@
 
 #include <unordered_map>
 #include <string_view>
+#include <cstdint>
 
 namespace Scald
 {
 using namespace DirectX;
-
-const int gNumFrameResources = 3;
 
 class Camera;
 class FrameResource;
@@ -20,54 +19,19 @@ class ShadowMap;
 class GBuffer;
 class SSAO;
 class RootSignature;
-struct Mesh;
-struct MeshGeometry;
-struct Material;
-struct Texture;
 
-class AssetLoader;
+class AssetManager;
 class Scene;
+
+class Material;
+class Mesh;
+class Texture;
+struct MeshGeometry;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
 // for the GPU lifetime of resources to avoid destroying objects that may still be referenced by the GPU.
 // An example of this can be found in the class method: OnDestroy().
-
-struct Material
-{
-    Material(const char* name)
-        : Name(std::string(name))
-    {
-    }
-
-    Material(const char* name, int materialBufferIndex, int diffuseSrvHeapIndex, int normalSrvHeapIndex = -1)
-        : Name(std::string(name)),
-          MatBufferIndex(materialBufferIndex),
-          DiffuseSrvHeapIndex(diffuseSrvHeapIndex),
-          NormalSrvHeapIndex(normalSrvHeapIndex)
-    {
-    }
-
-    std::string Name;
-
-    // Index into constant/structured buffer corresponding to this material (to map with render item).
-    int MatBufferIndex = -1;
-
-    // Index into SRV heap for diffuse texture. Index of corresponding texture in Texture2D[n]
-    int DiffuseSrvHeapIndex = -1;
-
-    // Index into SRV heap for normal texture.
-    int NormalSrvHeapIndex = -1;
-
-    int NumFramesDirty = gNumFrameResources;
-
-    XMFLOAT4 DiffuseAlbedo = {1.0f, 1.0f, 1.0f, 1.0f};
-    XMFLOAT3 FresnelR0 = {0.01f, 0.01f, 0.01f};
-    float Roughness = 0.25f;
-
-    // could be used for material animation (water for instance)
-    XMMATRIX MatTransform = XMMatrixIdentity();
-};
 
 // F. Luna stuff: lightweight structure that stores parameters to draw a shape.
 struct RenderItem
@@ -84,7 +48,7 @@ struct RenderItem
     BoundingBox Bounds;
     std::vector<InstanceData> Instances;  // for spot and point lights for now
 
-    int NumFramesDirty = gNumFrameResources;
+    int NumFramesDirty = RenderCommon::kNumFrameResources;
 
     // Index into GPU constant buffer corresponding to the ObjectCB for this render item.
     UINT ObjCBIndex = -1;
@@ -190,27 +154,27 @@ public:
     static constexpr std::string_view Version() { return Engine_VERSION_STRING; }
 
     VVOID OnInit() override;
+    VVOID OnInput(const ScaldTimer& st) override;
     VVOID OnUpdate(const ScaldTimer& st) override;
     VVOID OnRender(const ScaldTimer& st) override;
     VVOID OnDestroy() override;
     VVOID OnResize() override;
 
 private:
-    // Should be smth like camera controller
-    void UpdateCamera(const ScaldTimer& st);
     void OnKeyboardInput(const ScaldTimer& st);
 
     void UpdateObjectsCB(const ScaldTimer& st);
 
-    void UpdateMaterialBuffer(const ScaldTimer& st);
-    void UpdateLightsBuffer(const ScaldTimer& st);
-    void UpdateShadowTransform(const ScaldTimer& st);
+    void UpdateMaterialBuffer(/*const ScaldTimer& st*/);
+    void UpdateLightsBuffer(/*const ScaldTimer& st*/);
+    void UpdateShadowTransform(/*const ScaldTimer& st*/);
 
     void UpdateSsaoCB(const ScaldTimer& st);
 
-    void UpdateShadowPassCB(const ScaldTimer& st);
+    void SetupCommonShaderDataForPass(PassConstants* passConstants, XMMATRIX view, XMMATRIX proj, const ScaldTimer& st);
+    void CopyPassConstantBufferData(EPassType passType, const PassConstants& passConstants);
 
-    void SetupCommonShaderDataForPass(PassConstants* passConstants, float deltaTime);
+    void UpdateShadowPassCB(const ScaldTimer& st);
     void UpdateGeometryPassCB(const ScaldTimer& st);
     void UpdateDeferredPassCB(const ScaldTimer& st);
 
@@ -246,7 +210,7 @@ private:
     void DrawInstancedRenderItem(ID3D12GraphicsCommandList* pCommandList, const std::unique_ptr<RenderItem>& renderItem);
 
 private:
-    std::unique_ptr<AssetLoader> m_assetLoader;
+    std::unique_ptr<AssetManager> m_assetManager;
 
     std::vector<std::unique_ptr<FrameResource>> m_frameResources;
     FrameResource* m_currFrameResource = nullptr;
@@ -289,38 +253,32 @@ private:
     std::unique_ptr<Camera> m_camera;
     std::shared_ptr<Scene> m_scene;
 
-    std::unique_ptr<SSAO> m_SSAO;
-    UINT m_SSAOTexturesSrvHeapStartIndex = 0u;
-
-#pragma region DeferredShading
-    std::unique_ptr<GBuffer> m_GBuffer;
-    UINT m_GBufferTexturesSrvHeapStartIndex = 0u;
-#pragma endregion DeferredShading
-
 #pragma region CascadedShadows
-    UINT m_cascadesShadowSrvHeapStartIndex = 0;
     std::unique_ptr<ShadowMap> m_cascadeShadowMap;
 #pragma endregion CascadedShadows
 
-#pragma region TexturesAndSky
-    UINT m_skyCubeSrvHeapStartIndex = 0u;
-    UINT m_texturesSrvHeapStartIndex = 0u;
-    UINT m_normalSrvHeapStartIndex = 0u;
-#pragma endregion TexturesAndSky
+#pragma region SSAO
+    std::unique_ptr<SSAO> m_SSAO;
+#pragma endregion SSAO
+
+#pragma region DeferredShading
+    std::unique_ptr<GBuffer> m_GBuffer;
+#pragma endregion DeferredShading
+
+#pragma region Textures
+#pragma endregion Textures
 
 #pragma region Particles
-    UINT m_particlesSrvHeapStartIndex = 0u;
 #pragma endregion Particles
 
     bool m_bIsGraphicsFeaturesLoaded = false;
 
 private:
-    VOID LoadGraphicsFeatures();
+    VOID LoadGraphicsFeatures(ID3D12GraphicsCommandList2* commandList);
     VOID LoadCSMResources();
     VOID LoadDeferredRenderingResources();
     VOID LoadSSAOResources(ID3D12GraphicsCommandList2* commandList);
-
-    VOID LoadAssets();
+    VOID LoadAssets(ID3D12GraphicsCommandList2* commandList);
 
     VOID CreateRootSignatures();
     VOID CreateDefaultRootSignature();

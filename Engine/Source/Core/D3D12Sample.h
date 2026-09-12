@@ -24,6 +24,7 @@ public:
 
     VVOID OnInit() = 0 { LoadPipeline(); }
 
+    VVOID OnInput(const ScaldTimer& st) = 0;
     VVOID OnUpdate(const ScaldTimer& st) = 0;
     VVOID OnRender(const ScaldTimer& st) = 0;
     VVOID OnDestroy() = 0;
@@ -49,7 +50,7 @@ public:
     VVOID OnResize();
     VOID Minimize();
     VOID Maximize();
-    VOID RestoreSize(bool bIsMinimized);
+    VOID RestoreSize(bool bWasMinimizedBefore);
 
     bool IsDeviceValid() const;
     FORCEINLINE bool IsResizing() const { return m_resizing; }
@@ -98,12 +99,8 @@ protected:
     bool m_is4xMsaaState = false;
     UINT m_4xMsaaQuality = 0u;
 
-    std::shared_ptr<CommandQueue> m_commandQueue = nullptr;
     // Temporary allocator that is needed only for initialization stage (but could be used for smth else)
     ComPtr<ID3D12CommandAllocator> m_commandAllocator = nullptr;
-
-    // Synchronization objects.
-    UINT m_currBackBuffer = 0u;
 
     D3D12_VIEWPORT m_viewport;
     D3D12_RECT m_scissorRect;
@@ -122,12 +119,5 @@ private:
     std::wstring m_class;
 
     ScaldTimer m_timer;
-
-protected:
-    // Get rest of them from heaps
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index) const;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index) const;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index) const;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index) const;
 };
 }  // namespace Scald

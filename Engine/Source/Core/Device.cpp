@@ -14,7 +14,7 @@ namespace
     const uint32_t kDescriptorHeapSizes[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {
         4096u,                                                                                              // CBVSRVUAV
         0u,                                                                                                 // SAMPLER
-        RenderCommon::SwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::MAX, // RTV
+        RenderCommon::kSwapChainFrameCount + GBuffer::EGBufferLayer::MAX - 1u + SSAO::ESSAOTextureType::MAX,// RTV
         3u                                                                                                  // DSV: 1 dsv + 1 csm + 1 gbuffer depth
     };
 }   // namespace

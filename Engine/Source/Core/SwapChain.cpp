@@ -16,11 +16,11 @@ SwapChain::SwapChain(Device* device, HWND hWnd, uint32_t width, uint32_t height,
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
     swapChainDesc.Width = width;
     swapChainDesc.Height = height;
-    swapChainDesc.Format = /*RenderCommon::BackBufferFormat*/DXGI_FORMAT_R10G10B10A2_UNORM;                               // Back buffer format
+    swapChainDesc.Format = /*RenderCommon::kBackBufferFormat*/DXGI_FORMAT_R10G10B10A2_UNORM;                               // Back buffer format
     // swapChainDesc.SampleDesc = bIs4xMsaaState ? DXGI_SAMPLE_DESC{4u, m_4xMsaaQuality - 1u} : DXGI_SAMPLE_DESC{1u, 0u}; // MSAA
     swapChainDesc.SampleDesc = DXGI_SAMPLE_DESC{1u, 0u};                                                                  // MSAA
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.BufferCount = RenderCommon::SwapChainFrameCount;
+    swapChainDesc.BufferCount = RenderCommon::kSwapChainFrameCount;
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
@@ -55,7 +55,7 @@ void Scald::SwapChain::SetFullscreen(bool fullscreen)
 
 D3D12_CPU_DESCRIPTOR_HANDLE SwapChain::GetRTV() const
 {
-    assert(m_currBackBufferIndex >= 0 && m_currBackBufferIndex < RenderCommon::SwapChainFrameCount);
+    assert(m_currBackBufferIndex >= 0 && m_currBackBufferIndex < RenderCommon::kSwapChainFrameCount);
     return m_rtvAllocation.GetCpuHandle(m_currBackBufferIndex);
 }
 
@@ -66,7 +66,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE SwapChain::GetDSV() const
 
 void SwapChain::ResetRenderTargets()
 {
-    for (UINT i = 0; i < RenderCommon::SwapChainFrameCount; i++)
+    for (UINT i = 0; i < RenderCommon::kSwapChainFrameCount; i++)
     {
         m_renderTargets[i].Reset();
     }
@@ -77,11 +77,11 @@ void SwapChain::Resize(uint32_t width, uint32_t height)
 {
     ResetRenderTargets();
 
-    ThrowIfFailed(m_dxgiSwapChain->ResizeBuffers(RenderCommon::SwapChainFrameCount, width, height, RenderCommon::BackBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+    ThrowIfFailed(m_dxgiSwapChain->ResizeBuffers(RenderCommon::kSwapChainFrameCount, width, height, RenderCommon::kBackBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
-    m_rtvAllocation = m_device->AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RenderCommon::SwapChainFrameCount);
+    m_rtvAllocation = m_device->AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RenderCommon::kSwapChainFrameCount);
     // Create/recreate render targets and RTVs.
-    for (UINT i = 0; i < RenderCommon::SwapChainFrameCount; i++)
+    for (UINT i = 0; i < RenderCommon::kSwapChainFrameCount; i++)
     {
         ThrowIfFailed(m_dxgiSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
         m_device->GetD3D12Device()->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, m_rtvAllocation.GetCpuHandle(i));
@@ -107,7 +107,7 @@ void SwapChain::Resize(uint32_t width, uint32_t height)
     depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
     D3D12_CLEAR_VALUE optClear = {};
-    optClear.Format = RenderCommon::DepthStencilFormat;
+    optClear.Format = RenderCommon::kDepthStencilFormat;
     optClear.DepthStencil.Depth = 1.0f;
     optClear.DepthStencil.Stencil = 0u;
 
@@ -120,7 +120,7 @@ void SwapChain::Resize(uint32_t width, uint32_t height)
     m_dsvAllocation = m_device->AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-    dsvDesc.Format = RenderCommon::DepthStencilFormat;
+    dsvDesc.Format = RenderCommon::kDepthStencilFormat;
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
     dsvDesc.Texture2D.MipSlice = 0u;
@@ -145,7 +145,7 @@ void SwapChain::Present()
 
 ID3D12Resource* Scald::SwapChain::GetBackBuffer() const
 {
-    assert(m_currBackBufferIndex >= 0 && m_currBackBufferIndex < RenderCommon::SwapChainFrameCount);
+    assert(m_currBackBufferIndex >= 0 && m_currBackBufferIndex < RenderCommon::kSwapChainFrameCount);
     return m_renderTargets[m_currBackBufferIndex].Get();
 }
 

@@ -20,10 +20,12 @@ namespace Scald
 {
     namespace RenderCommon
     {
-        constexpr uint32_t SwapChainFrameCount = 2u;
-        constexpr DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-        constexpr DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        constexpr uint32_t kSwapChainFrameCount = 2u;
+        constexpr DXGI_FORMAT kBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+        constexpr DXGI_FORMAT kDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        constexpr uint32_t kNumFrameResources = 3u;
     }  // namespace RenderCommon
+
 }  // namespace Scald
 
 using Microsoft::WRL::ComPtr;

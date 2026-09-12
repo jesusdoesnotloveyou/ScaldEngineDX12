@@ -131,6 +131,21 @@ CPUDescriptorHeap::CPUDescriptorHeap(Device* pDeviceD3D12Impl, uint32_t NumDescr
     m_HeapDesc.NodeMask = 0u; // multi video adapter stuff
 
     m_DescriptorSize = m_pDeviceD3D12Impl->GetD3D12Device()->GetDescriptorHandleIncrementSize(Type);
+
+    /*auto descriptorHeapName = L"CPU CBV_SRV_UAV DescriptorHeap";
+    if (Type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+    {
+        descriptorHeapName = L"CPU SAMPLER DescriptorHeap";
+    }
+    else if (Type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
+    {
+        descriptorHeapName = L"CPU RTV DescriptorHeap";
+    }
+    else if (Type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
+    {
+        descriptorHeapName = L"CPU DSV DescriptorHeap";
+    }
+    SCALD_NAME_D3D12_OBJECT(m_pd3d12DescriptorHeap.Get(), descriptorHeapName);*/
 }
 
 CPUDescriptorHeap::~CPUDescriptorHeap()
@@ -235,6 +250,12 @@ GPUDescriptorHeap::GPUDescriptorHeap(
     , m_DynamicAllocationsManager { pDevice, this, 0u, m_pd3d12DescriptorHeap.Get(), 0u, NumDynamicDescriptors}
     , m_pDeviceD3D12Impl(pDevice)
 {
+    auto descriptorHeapName = L"GPU CBV_SRV_UAV DescriptorHeap";
+    if (Type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+    {
+        descriptorHeapName = L"GPU SAMPLER DescriptorHeap";
+    }
+    SCALD_NAME_D3D12_OBJECT(m_pd3d12DescriptorHeap.Get(), descriptorHeapName);
 }
 
 GPUDescriptorHeap::~GPUDescriptorHeap()

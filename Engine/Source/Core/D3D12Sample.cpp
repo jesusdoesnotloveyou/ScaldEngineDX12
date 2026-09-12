@@ -1,27 +1,19 @@
 #include "D3D12Sample.h"
 #include "Win32App.h"
 
-#include "ScaldUtil.h"
-#include "CommandQueue.h"
 #include "Device.h"
 #include "SwapChain.h"
+#include "CommandQueue.h"
+#include "ScaldUtil.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
-#include "Device.h"
 
 using namespace Scald;
 using namespace Microsoft::WRL;
 
-namespace
-{
-    // Renderer common settings
-    constexpr UINT SwapChainFrameCount = 2u;
-    constexpr DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    constexpr DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-}
-
+#ifdef ENABLE_IMGUI
 // Simple free list based allocator
 struct ExampleDescriptorHeapAllocator
 {
@@ -67,11 +59,14 @@ struct ExampleDescriptorHeapAllocator
     }
 };
 
+static ExampleDescriptorHeapAllocator srvHeapAlloc;
+
+#endif
+
 D3D12Sample::D3D12Sample(UINT width, UINT height, const std::wstring& name, const std::wstring& className)
     : m_width(width),
       m_height(height),
       m_useWarpDevice(false),
-      m_currBackBuffer(0),
       m_title(name),
       m_class(className)
 {
@@ -84,27 +79,27 @@ D3D12Sample::D3D12Sample(UINT width, UINT height, const std::wstring& name, cons
 
 D3D12Sample::~D3D12Sample() {}
 
-static ExampleDescriptorHeapAllocator srvHeapAlloc;
-
 int D3D12Sample::Run()
 {
-    auto srvHeap = m_device->GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    srvHeapAlloc.Create(m_device->GetD3D12Device().Get(), srvHeap);
+#ifdef ENABLE_IMGUI
+    auto srvHeapAllocation = m_device->AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    srvHeapAlloc.Create(m_device->GetD3D12Device(), srvHeapAllocation.GetDescriptorHeap());
 
     // Setup Platform/Renderer backends
     ImGui_ImplDX12_InitInfo init_info = {};
-    init_info.Device = m_device->GetD3D12Device().Get();
-    init_info.CommandQueue = m_commandQueue->GetCommandQueue().Get();
+    init_info.Device = m_device->GetD3D12Device();
+    init_info.CommandQueue = m_device->GetCommandQueue()->Get();
     init_info.NumFramesInFlight = 3u;
-    init_info.RTVFormat = BackBufferFormat;
-    init_info.DSVFormat = DepthStencilFormat;
+    init_info.RTVFormat = RenderCommon::kBackBufferFormat;
+    init_info.DSVFormat = RenderCommon::kDepthStencilFormat;
 
-    init_info.SrvDescriptorHeap = srvHeap;
+    init_info.SrvDescriptorHeap = srvHeapAllocation.GetDescriptorHeap();
     init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
     { return srvHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
     init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
     { return srvHeapAlloc.Free(cpu_handle, gpu_handle); };
     ImGui_ImplDX12_Init(&init_info);
+#endif
 
     // Main sample loop.
     MSG msg = {0};
@@ -127,6 +122,7 @@ int D3D12Sample::Run()
             {
                 CalculateFrameStats();
 
+#ifdef ENABLE_IMGUI
                 // Start the Dear ImGui frame
                 ImGui_ImplDX12_NewFrame();
                 ImGui_ImplWin32_NewFrame();
@@ -134,6 +130,8 @@ int D3D12Sample::Run()
                 ImGui::ShowDemoWindow();
                 // Rendering
                 ImGui::Render();
+#endif
+                OnInput(m_timer);
                 OnUpdate(m_timer);
                 OnRender(m_timer);
             }
@@ -144,12 +142,18 @@ int D3D12Sample::Run()
         }
     }
 
+    // Have to flush device for completing all in-flight operations on GPU that may require DX12 resources
+    OnDestroy();
+
+#ifdef ENABLE_IMGUI
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    OnDestroy();
     srvHeapAlloc.Destroy();
+#endif
+    // Call was here before
+    // OnDestroy();
 
     // Return this part of the WM_QUIT message to Windows.
     return static_cast<char>(msg.wParam);
@@ -211,9 +215,8 @@ void D3D12Sample::CreateGraphicsContext()
 #endif
     m_device = Device::Create();
     m_device->CreateCommandObjectsAndInternalFences();
-    m_device->CreateDescriptorHeaps();
-
-    m_swapChain = m_device->CreateSwapChain(Win32App::GetHwnd(), m_width, m_height, BackBufferFormat);
+    //m_device->CreateDescriptorHeaps();
+    m_swapChain = m_device->CreateSwapChain(Win32App::GetHwnd(), m_width, m_height, RenderCommon::kBackBufferFormat);
 }
 
 MousePad* D3D12Sample::GetMouse()
@@ -247,24 +250,28 @@ void D3D12Sample::OnResize()
 {
     assert(m_device);
     assert(m_swapChain);
-    // To device
-    assert(m_commandQueue);
-    assert(m_commandAllocator);
 
+    auto directQueue = m_device->GetCommandQueue();
+    
+    // TODO: move to device
+    assert(directQueue);
+    assert(m_commandAllocator);
+    
     // Before making any changes
-    m_commandQueue->Flush();
+    directQueue->Flush();
+
     // TODO: ?
-    auto commandList = m_commandQueue->GetCommandList(m_commandAllocator.Get());
+    ThrowIfFailed(m_commandAllocator->Reset());
+    auto commandList = directQueue->GetCommandList(m_commandAllocator.Get());
 
     m_swapChain->Resize(m_width, m_height);
     ScaldUtil::TransitionResource(commandList.Get(), m_swapChain->GetDepthStencilBuffer(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
     // Execute the resize commands.
     // TODO: ?
-    m_commandQueue->ExecuteCommandList(commandList);
-
+    directQueue->ExecuteCommandList(commandList);
     // Wait until resize is complete.
-    m_commandQueue->Flush();
+    directQueue->Flush();
 
     m_viewport.TopLeftX = 0.0f;
     m_viewport.TopLeftY = 0.0f;
@@ -295,10 +302,10 @@ void D3D12Sample::Maximize()
     m_maximized = true;
 }
 
-void D3D12Sample::RestoreSize(bool bIsMinimized)
+void D3D12Sample::RestoreSize(bool bWasMinimizedBefore)
 {
     m_appPaused = false;
-    if (bIsMinimized)
+    if (bWasMinimizedBefore)
     {
         m_minimized = false;
     }
@@ -369,11 +376,6 @@ void D3D12Sample::SetCustomWindowText(LPCWSTR text) const
 
 VOID D3D12Sample::CreateCommandObjectsAndInternalFence()
 {
-    // If we have multiple command queues, we can write a resource only from one queue at the same time.
-    // Before it can be accessed by another queue, it must transition to read or common state.
-    // In a read state resource can be read from multiple command queues simultaneously, including across processes, based on its read state.
-    m_commandQueue = std::make_shared<CommandQueue>(m_device->Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
-
     m_device->GetD3D12Device()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
 }
 
@@ -381,24 +383,4 @@ VOID D3D12Sample::CreateCommandObjectsAndInternalFence()
 VOID D3D12Sample::Present()
 {
     m_swapChain->Present();
-}
-
-CD3DX12_CPU_DESCRIPTOR_HANDLE D3D12Sample::GetCpuSrv(int index) const
-{
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_device->GetHeapStart(), index, m_device->GetDescriptorHandleIncrementSize());
-}
-
-CD3DX12_GPU_DESCRIPTOR_HANDLE D3D12Sample::GetGpuSrv(int index) const
-{
-    return CD3DX12_GPU_DESCRIPTOR_HANDLE(m_device->GetDescriptorHeap()->GetGPUDescriptorHandleForHeapStart(), index, m_device->GetDescriptorHandleIncrementSize());
-}
-
-CD3DX12_CPU_DESCRIPTOR_HANDLE D3D12Sample::GetDsv(int index) const
-{
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_device->GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE_DSV), index, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
-}
-
-CD3DX12_CPU_DESCRIPTOR_HANDLE D3D12Sample::GetRtv(int index) const
-{
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_device->GetHeapStart(D3D12_DESCRIPTOR_HEAP_TYPE_RTV), index, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
 }
