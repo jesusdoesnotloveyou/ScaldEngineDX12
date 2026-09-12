@@ -11,11 +11,6 @@
 
 namespace Scald
 {
-class aiMaterial;
-class aiMesh;
-class aiNode;
-class aiScene;
-
 //class SceneNode;
 //class Visitor;
 

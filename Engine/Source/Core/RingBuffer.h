@@ -52,4 +52,4 @@ namespace Scald
         OffsetType m_UsedSize = 0;
         OffsetType m_CurrFrameSize = 0;
     };
-}
+} // namespace Scald
