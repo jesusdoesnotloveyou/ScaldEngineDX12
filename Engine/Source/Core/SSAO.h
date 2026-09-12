@@ -60,7 +60,7 @@ namespace Scald
         void SetPSOs(ID3D12PipelineState* ssaoPso, ID3D12PipelineState* ssaoBlurPso);
 
     private:
-        void BuildResources();
+        void CreateResources();
         void CreateViews();
 
         void BuildRandomVectorTexture(ID3D12GraphicsCommandList* pCommandList);
@@ -82,11 +82,11 @@ namespace Scald
     private:
         Device* m_device = nullptr;
 
-        ID3D12PipelineState* m_ssaoPso = nullptr;
-        ID3D12PipelineState* m_ssaoBlurPso = nullptr;
-
         UINT m_renderTargetWidth;
         UINT m_renderTargetHeight;
+
+        ID3D12PipelineState* m_ssaoPso = nullptr;
+        ID3D12PipelineState* m_ssaoBlurPso = nullptr;
 
         D3D12_VIEWPORT m_viewport;
         D3D12_RECT m_scissorRect;

@@ -16,8 +16,11 @@ namespace
 
 SSAO::SSAO(Device* device, ID3D12GraphicsCommandList* pCommandList, UINT width, UINT height)
     : m_device(device)
+    , m_renderTargetWidth(width)
+    , m_renderTargetHeight(height)
 {
-    OnResize(width, height);
+    /*OnResize(width, height);*/
+    CreateResources();
 
     BuildOffsetVectors();
     BuildRandomVectorTexture(pCommandList);
@@ -39,12 +42,12 @@ void SSAO::OnResize(UINT newWidth, UINT newHeight)
 
         m_scissorRect = {0L, 0L, static_cast<LONG>(m_renderTargetWidth / 2), static_cast<LONG>(m_renderTargetHeight / 2)};
 
-        BuildResources();
-        //CreateViews();
+        CreateResources();
+        CreateViews();
     }
 }
 
-void SSAO::BuildResources()
+void SSAO::CreateResources()
 {
     // Free the old resources if they exist.
     m_textures[ESSAOTextureType::AmbientMap0] = nullptr;
