@@ -2,6 +2,8 @@
 
 #include "ScaldUtil.h"
 
+namespace Scald
+{
 template <typename T>
 class UploadBuffer
 {
@@ -16,8 +18,7 @@ public:
         auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(m_elementByteSize * elementCount);
 
-        ThrowIfFailed(device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
-            &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_uploadBuffer)));
+        ThrowIfFailed(device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_uploadBuffer)));
 
         ThrowIfFailed(m_uploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedData)));
     }
@@ -43,3 +44,4 @@ private:
     UINT m_elementByteSize = 0u;
     bool m_isConstantBuffer = false;
 };
+}  // namespace Scald

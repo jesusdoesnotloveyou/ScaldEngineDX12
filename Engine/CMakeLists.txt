@@ -26,6 +26,7 @@ set(SOURCES Source/Main.cpp)
 set(INCLUDES
 	Source/EngineConfig.h
 	Source/stdafx.h # optional, just for VS visibility
+	Source/Utility.h
 )
 
 add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${INCLUDES})

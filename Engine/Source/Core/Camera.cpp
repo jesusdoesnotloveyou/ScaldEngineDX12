@@ -1,6 +1,9 @@
 #include "Camera.h"
 #include "Common/ScaldMath.h"
 
+using namespace Scald;
+using namespace DirectX;
+
 Camera::Camera()
     : m_nearZ(0.1f),
       m_farZ(1000.0f),

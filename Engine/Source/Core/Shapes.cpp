@@ -1,5 +1,7 @@
 #include "Shapes.h"
 
+using namespace Scald;
+
 MeshData<VertexPositionNormalTangentUV, uint16_t> Shapes::CreateBox(float width, float height, float depth)
 {
     MeshData<VertexPositionNormalTangentUV, uint16_t> meshData;

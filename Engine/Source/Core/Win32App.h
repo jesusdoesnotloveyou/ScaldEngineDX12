@@ -1,5 +1,7 @@
 #pragma once
 
+namespace Scald
+{
 class D3D12Sample;
 
 class Win32App
@@ -14,3 +16,4 @@ protected:
 private:
     static HWND m_hwnd;
 };
+}  // namespace Scald

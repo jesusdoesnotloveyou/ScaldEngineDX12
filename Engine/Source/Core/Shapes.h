@@ -2,7 +2,10 @@
 
 #include "DXHelper.h"
 #include "Mesh.h"
+#include "VertexTypes.h"
 
+namespace Scald
+{
 class Shapes
 {
 public:
@@ -22,3 +25,4 @@ private:
     static void Subdivide(MeshData<VertexPositionNormalTangentUV, uint16_t>& meshData);
     static VertexPositionNormalTangentUV MidPoint(const VertexPositionNormalTangentUV& v0, const VertexPositionNormalTangentUV& v1);
 };
+}  // namespace Scald

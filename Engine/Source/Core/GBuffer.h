@@ -1,73 +1,62 @@
 #pragma once
 
 #include "DXHelper.h"
+#include "DescriptorHeap.h"
+#include <array>
 
-struct FGBufferTexture
+namespace Scald
 {
-    ComPtr<ID3D12Resource> m_resource = nullptr;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuRtvDsv = {};
-    CD3DX12_CPU_DESCRIPTOR_HANDLE m_hCpuSrv = {};
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_hGpuSrv = {};
-};
+    class Device;
 
-class GBuffer final
-{
-public:
-    enum EGBufferLayer : UINT
+    class GBuffer final
     {
-        DIFFUSE_ALBEDO = 0u,
-        AMBIENT_OCCLUSION,
-        NORMAL,
-        SPECULAR,
-        MOTION_VECTORS,
-        DEPTH,  // must be the last texture
-        MAX = 6u
-    };
-
-public:
-    GBuffer(ID3D12Device* device, UINT width, UINT height);
-    GBuffer(const GBuffer& buffer) = delete;
-    GBuffer& operator=(const GBuffer& buffer) = delete;
-
-    ~GBuffer() noexcept;
-
-public:
-    FORCEINLINE UINT GetWidth() const { return m_width; }
-    FORCEINLINE UINT GetHeight() const { return m_height; }
-
-    // if screen resized
-    void OnResize(UINT newWidth, UINT newHeight);
-
-    ID3D12Resource* Get(unsigned layer);
-    FGBufferTexture* GetBufferTexture(unsigned layer);
-    DXGI_FORMAT GetBufferTextureFormat(unsigned layer);
-
-    CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrv(unsigned layer) const;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(unsigned layer) const;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(unsigned layer) const;
-
-    void SetDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv, CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv, CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsvRtv, unsigned layer);
-    void CreateDescriptors();
-
-private:
-    void CreateResources();
-
-private:
-    ID3D12Device* m_device = nullptr;
-
-    UINT m_width, m_height;
-
-    FGBufferTexture m_buffer[EGBufferLayer::MAX];
-    // maybe better decision to create a map [EGBufferLayer, DXGI_FORMAT]
-    static constexpr DXGI_FORMAT m_bufferFormats[EGBufferLayer::MAX] =  // order of DXGI_FORMAT should corresponds to EGBufferLayer
+    public:
+        enum EGBufferLayer : UINT
         {
-            DXGI_FORMAT_R8G8B8A8_UNORM,      // DIFFUSE_ALBEDO
-            DXGI_FORMAT_R8G8B8A8_UNORM,      // AMBIENT_OCCLUSION
-            DXGI_FORMAT_R32G32B32A32_FLOAT,  // NORMAL
-            DXGI_FORMAT_R8G8B8A8_UNORM,      // SPECULAR
-            DXGI_FORMAT_R16G16_FLOAT,        // MOTION_VECTORS
-            DXGI_FORMAT_D24_UNORM_S8_UINT    // DEPTH. Format for DSV (SRV demands R24...)
-    };
+            DIFFUSE_ALBEDO = 0u,
+            AMBIENT_OCCLUSION,
+            NORMAL,
+            SPECULAR,
+            MOTION_VECTORS,
+            DEPTH,  // Must be the last texture. Have to add some check.
+            MAX = 6u
+        };
 
-    static constexpr FLOAT m_defaultOptimizedClearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-};
+    public:
+        GBuffer(Device* device, UINT width, UINT height);
+        GBuffer(const GBuffer& buffer) = delete;
+        GBuffer& operator=(const GBuffer& buffer) = delete;
+
+        ~GBuffer() noexcept;
+
+    public:
+        FORCEINLINE UINT GetWidth() const { return m_width; }
+        FORCEINLINE UINT GetHeight() const { return m_height; }
+
+        // if screen resized
+        void OnResize(UINT newWidth, UINT newHeight);
+
+        ID3D12Resource* Get(const unsigned layer) const;
+        DXGI_FORMAT GetBufferTextureFormat(const unsigned layer) const;
+
+        D3D12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(const unsigned layer = 0u) const;
+        D3D12_CPU_DESCRIPTOR_HANDLE GetRtv(const unsigned layer = 0u) const;
+        D3D12_CPU_DESCRIPTOR_HANDLE GetDsv() const;
+        
+        void CreateDescriptors();
+
+    private:
+        void CreateViews();
+        void CreateResources();
+
+    private:
+        Device* m_device = nullptr;
+
+        UINT m_width, m_height;
+
+        std::array<ComPtr<ID3D12Resource>, EGBufferLayer::MAX> m_textures = {};
+        DescriptorHeapAllocation m_srvAllocation;  // Handles from GPU-visible descriptor heap
+        DescriptorHeapAllocation m_dsvAllocation;  // Handle for depth layer
+        DescriptorHeapAllocation m_rtvAllocation;  // Handles for other GBuffer layers
+    };
+}  // namespace Scald

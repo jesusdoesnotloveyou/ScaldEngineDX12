@@ -7,13 +7,26 @@
 // Probably the better way to use it is from the DirectX-Headers https://github.com/microsoft/DirectX-Headers.git
 #include <d3dx12.h>
 #include <dxgi1_4.h>
+#include <dxgi1_6.h>
 #include <DirectXMath.h>
-#include <DirectXCollision.h>
+#include <DirectXCollision.h> // For DirectX::BoundingBox
 
 #include "Common/ScaldMath.h"
 #include "Common/ScaldCommonDefines.h"
 #include "ScaldCoreTypes.h"
 #include "ScaldCoreDefines.h"
+
+namespace Scald
+{
+    namespace RenderCommon
+    {
+        constexpr uint32_t kSwapChainFrameCount = 2u;
+        constexpr DXGI_FORMAT kBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+        constexpr DXGI_FORMAT kDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        constexpr uint32_t kNumFrameResources = 3u;
+    }  // namespace RenderCommon
+
+}  // namespace Scald
 
 using Microsoft::WRL::ComPtr;
 

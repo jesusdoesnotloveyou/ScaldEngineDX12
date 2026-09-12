@@ -2,6 +2,8 @@
 
 #include "UploadBuffer.h"
 
+namespace Scald
+{
 struct FrameResource
 {
     FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT materialCount, UINT pointLightsCount);
@@ -24,3 +26,4 @@ struct FrameResource
 
     static inline int commandAllocatorIndex = 0u;
 };
+}  // namespace Scald

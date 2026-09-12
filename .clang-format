@@ -4,6 +4,7 @@ IndentWidth: 4
 UseTab: Never
 TabWidth: 4
 BreakBeforeBraces: Allman
+BreakConstructorInitializers: BeforeComma
 ColumnLimit: 190
 AccessModifierOffset: -4
 SortIncludes: false

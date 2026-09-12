@@ -2,18 +2,22 @@
 
 #include "ShadowMap.h"
 
-class CascadeShadowMap : public ShadowMap
+namespace Scald
 {
-public:
-    CascadeShadowMap(ID3D12Device* device, UINT width, UINT height, UINT cascadesCount);
-    CascadeShadowMap(const CascadeShadowMap& lhs) = delete;
-    CascadeShadowMap& operator=(const CascadeShadowMap& lhs) = delete;
+    class Device;
 
-    virtual ~CascadeShadowMap() noexcept override;
+    class CascadeShadowMap final : public ShadowMap
+    {
+    public:
+        CascadeShadowMap(Device* device, UINT width, UINT height, UINT cascadesCount);
+        CascadeShadowMap(const CascadeShadowMap& lhs) = delete;
+        CascadeShadowMap& operator=(const CascadeShadowMap& lhs) = delete;
 
-protected:
-    virtual void CreateDescriptors() override;
+        virtual ~CascadeShadowMap() noexcept override;
 
-private:
-    void CreateResource();
-};
+        virtual void CreateViews() override;
+
+    private:
+        void CreateResource();
+    };
+}  // namespace Scald

@@ -3,10 +3,10 @@
 #include <DirectXMath.h>
 #include <cstdlib>
 
-using namespace DirectX;
-
 namespace Scald
 {
+    using namespace DirectX;
+
     template <typename T>
     static T Min(const T& a, const T& b)
     {
@@ -54,4 +54,4 @@ namespace Scald
     static inline const XMVECTOR UpVector = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
     static inline const XMVECTOR ZeroVector = XMVectorZero();
     static inline const XMVECTOR One = XMVectorSet(1.0f, 1.0f, 1.0f, 1.0f);
-}  // namespace Scald
+    }  // namespace Scald
